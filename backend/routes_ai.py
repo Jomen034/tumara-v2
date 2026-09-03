@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from db import db
 from models import User, ChatRequest, now_utc, new_id
 from auth import get_current_user
+from deps import get_ctx, Ctx
 from ai_service import advisor_stream, scan_receipt, parse_transaction_text, generate_weekly_recap
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -28,7 +29,8 @@ async def clear_history(user: User = Depends(get_current_user)):
 
 
 @router.post("/chat")
-async def chat(body: ChatRequest, user: User = Depends(get_current_user)):
+async def chat(body: ChatRequest, ctx: Ctx = Depends(get_ctx)):
+    user = ctx.user
     session_id = f"advisor_{user.user_id}"
     user_msg = {
         "id": new_id("msg"), "user_id": user.user_id, "role": "user",
@@ -39,7 +41,7 @@ async def chat(body: ChatRequest, user: User = Depends(get_current_user)):
     async def gen():
         full = ""
         try:
-            async for token in advisor_stream(user.user_id, session_id, body.message, []):
+            async for token in advisor_stream(ctx.hid, session_id, body.message, []):
                 full += token
                 yield token
         except Exception as e:
@@ -74,11 +76,11 @@ async def scan_receipt_endpoint(file: UploadFile = File(...), user: User = Depen
 
 
 @router.post("/parse-transaction")
-async def parse_transaction_endpoint(body: ParseRequest, user: User = Depends(get_current_user)):
+async def parse_transaction_endpoint(body: ParseRequest, ctx: Ctx = Depends(get_ctx)):
     text = (body.text or "").strip()
     if not text:
         raise HTTPException(400, "Teks kosong")
-    wallets = await db.wallets.find({"user_id": user.user_id}, {"_id": 0}).to_list(200)
+    wallets = await db.wallets.find({"household_id": ctx.hid}, {"_id": 0}).to_list(200)
     try:
         draft = await parse_transaction_text(text, wallets)
     except Exception as e:
@@ -87,19 +89,20 @@ async def parse_transaction_endpoint(body: ParseRequest, user: User = Depends(ge
 
 
 @router.get("/weekly-recap")
-async def weekly_recap(refresh: bool = False, user: User = Depends(get_current_user)):
+async def weekly_recap(refresh: bool = False, ctx: Ctx = Depends(get_ctx)):
+    hid = ctx.hid
     week = datetime.now(timezone.utc).strftime("%G-W%V")
     if not refresh:
-        cached = await db.ai_recaps.find_one({"user_id": user.user_id, "week": week}, {"_id": 0})
+        cached = await db.ai_recaps.find_one({"household_id": hid, "week": week}, {"_id": 0})
         if cached:
             return {"content": cached["content"], "week": week, "cached": True}
     try:
-        content = await generate_weekly_recap(user.user_id)
+        content = await generate_weekly_recap(hid)
     except Exception as e:
         raise HTTPException(500, f"Gagal membuat rangkuman: {str(e)[:120]}")
     await db.ai_recaps.update_one(
-        {"user_id": user.user_id, "week": week},
-        {"$set": {"user_id": user.user_id, "week": week, "content": content, "created_at": now_utc()}},
+        {"household_id": hid, "week": week},
+        {"$set": {"household_id": hid, "week": week, "content": content, "created_at": now_utc()}},
         upsert=True,
     )
     return {"content": content, "week": week, "cached": False}

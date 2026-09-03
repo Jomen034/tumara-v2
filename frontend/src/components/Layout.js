@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Wallet, ArrowLeftRight, PieChart, Target,
   Sparkles, Moon, Sun, Eye, EyeOff, LogOut, Menu, X, ScanLine, Plus,
+  ReceiptText, Users,
 } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "../context/AuthContext";
@@ -14,13 +15,21 @@ const NAV = [
   { to: "/dashboard", label: "Beranda", icon: LayoutDashboard },
   { to: "/wallets", label: "Dompet", icon: Wallet },
   { to: "/transactions", label: "Transaksi", icon: ArrowLeftRight },
+  { to: "/bills", label: "Tagihan", icon: ReceiptText },
   { to: "/budget", label: "Budget", icon: PieChart },
   { to: "/goals", label: "Tujuan", icon: Target },
-  { to: "/advisor", label: "Nusa AI", icon: Sparkles },
   { to: "/reports", label: "Laporan", icon: PieChart },
+  { to: "/advisor", label: "Nusa AI", icon: Sparkles },
+  { to: "/household", label: "Rumah", icon: Users },
 ];
 
-const BOTTOM = [NAV[0], NAV[1], NAV[2], NAV[4], NAV[5]];
+const BOTTOM = [
+  { to: "/dashboard", label: "Beranda", icon: LayoutDashboard },
+  { to: "/transactions", label: "Transaksi", icon: ArrowLeftRight },
+  { to: "/bills", label: "Tagihan", icon: ReceiptText },
+  { to: "/advisor", label: "Nusa AI", icon: Sparkles },
+  { to: "/household", label: "Rumah", icon: Users },
+];
 
 function Logo({ small }) {
   return (

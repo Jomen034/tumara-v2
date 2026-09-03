@@ -19,6 +19,48 @@ class User(BaseModel):
     name: str
     picture: Optional[str] = None
     onboarded: bool = False
+    household_id: Optional[str] = None
+    role: str = "admin"  # admin | partner
+    display_name: Optional[str] = None
+    active: bool = True
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+# ---------- Household ----------
+MAX_HOUSEHOLD_MEMBERS = 2
+
+
+class Household(BaseModel):
+    id: str = Field(default_factory=lambda: new_id("hh"))
+    name: str
+    owner_user_id: str
+    currency: str = "IDR"
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class InviteCreate(BaseModel):
+    email: Optional[str] = None
+
+
+class JoinRequest(BaseModel):
+    code: str
+
+
+# ---------- Bills ----------
+class BillCreate(BaseModel):
+    name: str
+    amount: float
+    category: str = "Tagihan & Utilitas"
+    recurrence: Literal["monthly", "weekly", "yearly", "once"] = "monthly"
+    next_due_date: str  # YYYY-MM-DD
+    wallet_id: Optional[str] = None
+
+
+class Bill(BillCreate):
+    id: str = Field(default_factory=lambda: new_id("bill"))
+    household_id: str
+    member_id: str
+    is_paid_current_cycle: bool = False
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -61,6 +103,8 @@ class TransactionCreate(BaseModel):
 class Transaction(TransactionCreate):
     id: str = Field(default_factory=lambda: new_id("txn"))
     user_id: str
+    household_id: Optional[str] = None
+    member_id: Optional[str] = None
     created_at: datetime = Field(default_factory=now_utc)
 
 

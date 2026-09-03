@@ -21,6 +21,8 @@ import Budget from "./pages/Budget";
 import Goals from "./pages/Goals";
 import Advisor from "./pages/Advisor";
 import Reports from "./pages/Reports";
+import Bills from "./pages/Bills";
+import Household from "./pages/Household";
 
 function FullLoader() {
   return (
@@ -78,10 +80,16 @@ function Shell() {
 
   const openAdd = (mode = "manual") => { setAddMode(typeof mode === "string" ? mode : "manual"); setAddOpen(true); };
 
-  // First-run: guide brand-new users into the budget wizard
+  // First-run: guide brand-new users. Invited users go to Household to accept.
   const skipped = localStorage.getItem("nusa-skip-onboarding") === "1";
-  if (user && !user.onboarded && !skipped && location.pathname !== "/budget") {
-    return <Navigate to="/budget" replace state={{ onboarding: true }} />;
+  const pendingInvite = localStorage.getItem("nusa-invite");
+  if (user && !user.onboarded && !skipped) {
+    if (pendingInvite && location.pathname !== "/household") {
+      return <Navigate to="/household" replace />;
+    }
+    if (!pendingInvite && location.pathname !== "/budget") {
+      return <Navigate to="/budget" replace state={{ onboarding: true }} />;
+    }
   }
 
   return (
@@ -109,6 +117,8 @@ function AppRouter() {
         <Route path="/goals" element={<Goals />} />
         <Route path="/advisor" element={<Advisor />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/bills" element={<Bills />} />
+        <Route path="/household" element={<Household />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

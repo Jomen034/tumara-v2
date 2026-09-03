@@ -111,6 +111,50 @@ export default function Dashboard() {
 
       <WeeklyRecap />
 
+      {data.upcoming_bills?.length > 0 && (
+        <Card data-testid="upcoming-bills-card" className="border-amber/40">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-head font-bold flex items-center gap-2"><Icons.CalendarClock size={18} className="text-amber" /> Tagihan Jatuh Tempo</h2>
+            <button onClick={() => navigate("/bills")} className="text-xs font-semibold text-brand">Lihat semua</button>
+          </div>
+          <div className="space-y-2">
+            {data.upcoming_bills.slice(0, 4).map((b) => (
+              <div key={b.id} className="flex items-center justify-between bg-elevated rounded-xl px-4 py-2.5">
+                <div>
+                  <p className="text-sm font-medium">{b.name}</p>
+                  <p className="text-xs" style={{ color: b.days_until < 0 ? "var(--rose)" : "var(--amber)" }}>
+                    {b.days_until < 0 ? `Telat ${Math.abs(b.days_until)} hari` : b.days_until === 0 ? "Hari ini" : `${b.days_until} hari lagi`}
+                  </p>
+                </div>
+                <span className={`font-mono text-sm font-semibold ${privacy ? "privacy-blur" : ""}`}>{formatRp(b.amount, privacy)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {data.is_shared && data.member_breakdown?.length > 0 && (
+        <Card data-testid="member-breakdown-card">
+          <h2 className="font-head font-bold flex items-center gap-2 mb-3"><Icons.Users size={18} className="text-cyan" /> Pengeluaran per Anggota</h2>
+          <div className="space-y-3">
+            {data.member_breakdown.map((m, i) => {
+              const total = data.member_breakdown.reduce((a, x) => a + x.amount, 0);
+              const pct = total > 0 ? (m.amount / total) * 100 : 0;
+              return (
+                <div key={i}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <img src={m.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${m.name}`} alt="" className="w-6 h-6 rounded-full" />
+                    <span className="text-sm font-medium flex-1">{m.name}</span>
+                    <span className={`font-mono text-sm ${privacy ? "privacy-blur" : ""}`}>{formatRp(m.amount, privacy)}</span>
+                  </div>
+                  <Progress value={pct} color={i === 0 ? "var(--cyan)" : "var(--brand)"} />
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
       {/* Wallets */}
       <div>
         <SectionHead title="Dompet" onClick={() => navigate("/wallets")} />
@@ -172,7 +216,7 @@ export default function Dashboard() {
           <Card><EmptyState icon={Icons.Receipt} title="Belum ada transaksi" subtitle="Catat transaksi pertamamu." action={<Button onClick={openAdd} size="sm">Tambah</Button>} /></Card>
         ) : (
           <Card className="divide-y divide-[color:var(--border)] p-0 overflow-hidden">
-            {data.recent_transactions.map((t) => <TxnRow key={t.id} t={t} privacy={privacy} />)}
+            {data.recent_transactions.map((t) => <TxnRow key={t.id} t={t} privacy={privacy} memberMap={Object.fromEntries((data.members || []).map((m) => [m.user_id, m]))} />)}
           </Card>
         )}
       </div>
@@ -233,11 +277,12 @@ function SectionHead({ title, onClick }) {
   );
 }
 
-export function TxnRow({ t, privacy, onDelete }) {
+export function TxnRow({ t, privacy, onDelete, memberMap }) {
   const m = catMeta(t.category);
   const Ic = Icons[m.icon] || Icons.MoreHorizontal;
   const isIncome = t.type === "income";
   const isTransfer = t.type === "transfer";
+  const mem = memberMap?.[t.member_id];
   return (
     <div className="flex items-center gap-3 px-5 py-3.5">
       <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${m.color}22` }}>
@@ -245,7 +290,10 @@ export function TxnRow({ t, privacy, onDelete }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{t.note || t.category}</p>
-        <p className="text-xs text-tmuted">{isTransfer ? "Transfer" : t.category} · {t.date}</p>
+        <p className="text-xs text-tmuted flex items-center gap-1.5">
+          {mem && <img src={mem.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${mem.name}`} alt="" title={mem.name} className="w-4 h-4 rounded-full object-cover inline-block" />}
+          {isTransfer ? "Transfer" : t.category} · {t.date}
+        </p>
       </div>
       <span className={`font-mono text-sm font-semibold ${privacy ? "privacy-blur" : ""} ${isIncome ? "text-brand" : isTransfer ? "text-cyan" : "text-tprimary"}`}>
         {isIncome ? "+" : isTransfer ? "" : "-"}{formatRp(t.amount, privacy)}

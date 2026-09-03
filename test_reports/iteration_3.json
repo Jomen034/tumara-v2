@@ -1,0 +1,33 @@
+{
+  "summary": "Round 3 (household sharing + bills + CSV) tested end-to-end. New pytest suite /app/backend/tests/test_round3.py — 14/14 PASS: GET /household returns members+role+can_invite, dashboard shows members/is_shared/member_breakdown/upcoming_bills, admin-only guard on /invite (partner=403), reusable pending invite (same code returned twice), full invite→join flow (wife reset→admin invite→wife joins→3rd stranger join rejected with 400 for cap), partner cannot remove member (403), member attribution (partner txn has member_id=user_wife01, member_id filter works both ways), bills CRUD+list+upcoming(days=7)+pay (advances next_due_date for monthly, decrements wallet balance by exact amount, once-bill marks is_paid_current_cycle=true and disappears from /upcoming), CSV export returns text/csv with correct headers date,type,amount,category,wallet,to_wallet,note,member, CSV import auto-creates missing cash wallet and balances net (+50000 income −15000 expense = 35000). Frontend playwright with admin session cookie: /dashboard shows member-breakdown-card + upcoming-bills-card (Netflix Rp186.000 due in 2 days, 435k/50k member split); /household shows Rumah Test 2/2 anggota, admin+partner rows with 'Admin'/'Partner' badges, no create-invite-button (household full), remove-member-user_wife01 present; /bills add-bill flow (add-bill-button→bill-name/amount/date-input→bill-save-button) creates and lists bill with pay-bill-<id> and delete-bill-<id>; /transactions export-csv-button triggers download (nusa-transaksi.csv, 404 bytes valid CSV), import-csv-button + import-csv-input present, member-filter-user_testcfo01 & member-filter-user_wife01 chips work (clicked Sarah → shows only her 'beli buku 50.000' txn). Invite capture verified: visiting /household?code=ABC123XYZ writes localStorage 'nusa-invite'='ABC123XYZ' via index.js. State restored via module-scoped fixture (wife back as partner). Prior suites regression: backend_test.py 13/13 pass + test_new_features.py 6/7 (the 1 failure is stale seed — user_newcfo02 already onboarded=true from iter 2, not a bug).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_round3.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/round3.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes_household.create_invite: reuses ANY pending invite even if it was created for a different email; body.email is only stored, never enforced during join. Acceptable for the invite-code model but worth documenting.",
+    "routes_household.remove_member: reassigns the removed user to a fresh household (onboarded=false), but their existing bills/txns/wallets stay in the ex-household. If that user later logs in, ensure_household() creates them a blank household — their historical data is effectively archived under admin. Consider a follow-up flow to copy/split (or at least explicit warning in UI).",
+    "routes_bills.pay_bill: no idempotency — clicking Bayar twice quickly on a 'once' bill just re-inserts a duplicate expense and re-decrements the wallet. For 'monthly' it advances the date twice. Add a guard on is_paid_current_cycle or use a debounce on the UI button.",
+    "routes_finance._parse_amount: strips commas AND dots unconditionally when count(',')<=1 — 'Rp 12,50' (decimal) will be parsed as 1250, not 12.50. Only Indonesian-style thousand separators are supported; document or normalize.",
+    "routes_finance.import_transactions: transfer rows resolve to_wallet via resolve_wallet which auto-creates a cash wallet if missing — silent side effect for typos. Consider requiring existing wallet for transfers or returning a warning row.",
+    "Dashboard upcoming_bills filter is computed in Python after fetching ALL unpaid bills; for households with many bills this is O(n). Push the 7-day filter into Mongo as it is done in /bills/upcoming.",
+    "MAX_HOUSEHOLD_MEMBERS = 2 hard-coded in models.py — fine for MVP but should live in config/env for future paid tier."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_round3.py",
+    "/app/test_reports/iteration_3.json",
+    "/app/test_reports/pytest/round3.xml"
+  ],
+  "success_rate": {"backend": "100% (14/14 round3, 13/13 backend_test.py, 6/7 new_features — 1 stale seed)", "frontend": "100% of tested flows (5/5)"},
+  "test_credentials": "Admin user_testcfo01 / session test_session_cfo_001 and Partner user_wife01 / session sess_wife are back to SHARED state in household hh_96a2402a3f33 after tests (fixture-restored). Seeded new user_stranger_r3 / sess_stranger_r3 (household_id:null) for the cap-enforcement test — kept for future runs.",
+  "seed_data_creation": "user_stranger_r3 user + sess_stranger_r3 session (module-scoped fixture, upsert-safe); temporary UI_TEST_Bill_R3 in bills cleaned up post-test via mongosh.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Household test users are back in shared state (admin+partner). To re-test invite/join fresh: reset per /app/memory/test_credentials.md OR just re-run test_round3.py (its fixture handles reset+restore). New CSV import auto-creates cash wallets — clean these up if left over (name starts with TEST_ImportCashR3 gets deleted by test itself). Bill-pay idempotency is a known UX concern (see review comments) — main agent may want to add a guard.",
+  "rca of the issue": "N/A — no bugs. The single test_new_features failure is stale seed leakage from iteration 2 (user_newcfo02.onboarded=true persisted). Not related to Round 3."
+}

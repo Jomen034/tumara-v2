@@ -3,6 +3,13 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App";
 
+// Capture household invite code from URL (?invite= or ?code=) before routing/redirects.
+try {
+  const p = new URLSearchParams(window.location.search);
+  const code = p.get("invite") || p.get("code");
+  if (code) localStorage.setItem("nusa-invite", code);
+} catch {}
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<App />);
 

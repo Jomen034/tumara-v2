@@ -86,6 +86,10 @@ async def create_session(request: Request, response: Response):
         key=COOKIE_NAME, value=session_token, httponly=True, secure=True,
         samesite="none", path="/", max_age=SESSION_DAYS * 24 * 60 * 60,
     )
+    from deps import ensure_household
+    fresh = await db.users.find_one({"user_id": user.user_id}, {"_id": 0})
+    await ensure_household(User(**fresh))
+    user = User(**await db.users.find_one({"user_id": user.user_id}, {"_id": 0}))
     return {"user": user.model_dump(), "session_token": session_token}
 
 

@@ -24,3 +24,10 @@ print('token='+token+' user='+userId);
 ## Notes
 - Backend base: `${REACT_APP_BACKEND_URL}/api`
 - All protected endpoints require the session (cookie or Bearer).
+
+## Household test users (Round 3)
+- Admin: user_id=user_testcfo01, session_token=test_session_cfo_001 (household owner/admin).
+- Partner: user_id=user_wife01, session_token=sess_wife (name "Sarah") — joined admin's household as partner.
+- To reset for a fresh invite/join test:
+  mongosh --eval "use('fincfo_db'); db.users.updateOne({user_id:'user_wife01'},{\$set:{household_id:null,role:'admin',onboarded:false}}); db.household_invites.deleteMany({});"
+- Household cap = 2 active members (admin + partner). New endpoints under /api/household and /api/bills. CSV: GET /api/transactions/export, POST /api/transactions/import.

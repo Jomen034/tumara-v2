@@ -38,8 +38,15 @@ Build a personal AI finance CFO inspired by budggt.com — unique, not identical
 - Net worth history chart on Reports (snapshots recorded on wallet/txn changes; GET /api/networth/history).
 - SW registered production-only (dev unregisters to avoid stale-cache hangs).
 
+## Implemented — Round 3 (2026-06): Household + Bills + CSV
+- Household sharing: admin invites 1 partner (max 2 active members) via shareable invite link/code (free, Google login to join). All wallets/budgets/transactions/reports shared; each transaction attributed to the member who logged it; per-member spend breakdown + member filter on Transactions. Endpoints: /api/household(+invite/join/members). Auto-migration backfills legacy single-user data into a household.
+- Bill reminders: recurring bills (weekly/monthly/yearly/once) with due dates, "due soon" card on dashboard, mark-as-paid (auto-records expense + advances due date). /api/bills(+upcoming/{id}/pay). Double-pay guarded in UI.
+- CSV export (/api/transactions/export) + import (/api/transactions/import, auto-creates missing cash wallet, flexible ID/EN headers).
+- Verified: 14/14 round3 backend + 13/13 regression + frontend flows.
+
 ## Backlog / Next
-- P2: Recurring transactions & bill reminders
-- P2: Multi-currency, export CSV/PDF
-- P2: Push weekly recap notification; empty-state on net-worth chart for brand-new users
+- P2: Real push notifications (Web Push/VAPID) for bill reminders
+- P2: Bill-pay backend idempotency guard (is_paid_current_cycle)
+- P2: Member data split/merge when a partner leaves a household
+- P2: Multi-currency; MAX_HOUSEHOLD_MEMBERS to config for paid tier
 - P2: Credit-card/PayLater spend should auto-increase debt balance

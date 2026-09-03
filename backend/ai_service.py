@@ -22,11 +22,12 @@ def _rp(n):
 
 
 async def build_financial_context(user_id: str) -> str:
-    wallets = await db.wallets.find({"user_id": user_id}, {"_id": 0}).to_list(200)
-    txns = await db.transactions.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(40)
-    goals = await db.goals.find({"user_id": user_id}, {"_id": 0}).to_list(50)
+    hid = user_id  # now receives household_id
+    wallets = await db.wallets.find({"household_id": hid}, {"_id": 0}).to_list(200)
+    txns = await db.transactions.find({"household_id": hid}, {"_id": 0}).sort("created_at", -1).to_list(40)
+    goals = await db.goals.find({"household_id": hid}, {"_id": 0}).to_list(50)
     month = datetime.now(timezone.utc).strftime("%Y-%m")
-    budget = await db.budgets.find_one({"user_id": user_id, "month": month}, {"_id": 0})
+    budget = await db.budgets.find_one({"household_id": hid, "month": month}, {"_id": 0})
 
     total_balance = sum(w.get("balance", 0) for w in wallets if w.get("type") not in ("credit_card", "paylater"))
     debt = sum(w.get("balance", 0) for w in wallets if w.get("type") in ("credit_card", "paylater"))
@@ -192,8 +193,9 @@ WEEKLY_PROMPT = (
 
 async def generate_weekly_recap(user_id: str) -> str:
     from datetime import timedelta
+    hid = user_id  # now receives household_id
     since = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
-    txns = await db.transactions.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(300)
+    txns = await db.transactions.find({"household_id": hid}, {"_id": 0}).sort("created_at", -1).to_list(300)
     week = [t for t in txns if (t.get("date") or "") >= since]
     income = sum(t["amount"] for t in week if t["type"] == "income")
     expense = sum(t["amount"] for t in week if t["type"] == "expense")
