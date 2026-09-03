@@ -22,6 +22,7 @@
 13. [Troubleshooting (Common Issues)](#13-troubleshooting-common-issues)
 14. [Security & Privacy Notes](#14-security--privacy-notes)
 15. [Roadmap / Backlog](#15-roadmap--backlog)
+16. [FAQ — Data, Gemini & Going Independent](#16-faq--data-gemini--going-independent)
 
 ---
 
@@ -456,3 +457,59 @@ Point Kilo Code at this file and the PRD so it understands the project:
 ---
 
 _Built with 💚 for Indonesians who want to finally take control of their money. — Nusa © 2026_
+
+---
+
+## 16. FAQ — Data, Gemini & Going Independent
+
+### Q1. Where does the database live and where does my data go?
+The app uses **MongoDB**, and it lives **wherever `MONGO_URL` (in `backend/.env`) points** — the code never hardcodes a location.
+
+| Context | Where the DB is | Persistence |
+|---------|-----------------|-------------|
+| Emergent **preview** (development) | MongoDB inside your app container (`mongodb://localhost:27017`, db `fincfo_db`) | For dev/testing; can be reset |
+| Emergent **Deploy** (production) | Managed, persistent MongoDB provisioned by the platform | Survives restarts |
+| **Self-hosted** | Your own MongoDB — e.g. a free **MongoDB Atlas** cluster or a VPS | You own & control it |
+
+To move your data to your own database, set `MONGO_URL` to your connection string (and `DB_NAME`) and restart the backend. Everything (users, wallets, transactions, households, bills…) is stored there. There is no separate/hidden storage — all app data is in this one MongoDB.
+
+### Q2. How is Gemini integrated? Which account / API key is used?
+- **Library:** `emergentintegrations` (installed in the backend). See `ai_service.py`.
+- **Model:** `gemini-3-flash-preview`.
+- **Credential:** the **Emergent Universal LLM Key** — `EMERGENT_LLM_KEY` in `backend/.env`. This is **NOT** a personal Google Cloud / Google AI Studio account. It's one Emergent-issued key that transparently routes to Google Gemini (and can also reach OpenAI/Anthropic).
+- **Billing:** usage is charged against your **Emergent credits** (Profile → Manage plan → Universal Key → Add Balance / enable auto top-up). If the balance runs out, AI features (advisor, receipt scan, text parse, weekly recap) will error until topped up.
+- **Where it's called:** only server-side in `ai_service.py`. The key is never exposed to the browser.
+
+**Using your OWN Gemini key instead (when self-hosting):** get a key from Google AI Studio, then in `ai_service.py` replace the Emergent client with the standard Google Generative AI SDK (or set the SDK to your key). This removes the Emergent dependency for AI, and billing moves to your Google account. (This is the only place AI is wired, so it's a contained change.)
+
+### Q3. Can I do ALL future work only in VS Code + Kilo Code — even on Kilo's free model?
+**Yes, for the coding/maintenance work.** A free model via the Kilo Code Gateway can read this repository and implement features, fixes, and refactors. But understand these realities:
+
+**There are TWO separate "AIs" — don't confuse them:**
+| | Coding AI (Kilo Code) | App runtime AI (in Nusa) |
+|---|---|---|
+| Purpose | Helps *you write/edit code* in VS Code | Powers advisor chat, receipt scan, text parse, weekly recap for end-users |
+| Credential | Your Kilo provider (free Kilo gateway model, or your own key) | `EMERGENT_LLM_KEY` (or your own Gemini key) |
+| Who pays | Free tier (rate-limited) | Emergent credits / your Google account |
+
+➡️ **Using Kilo's free model to code does *not* make the app's AI free.** The running app still needs `EMERGENT_LLM_KEY` (or your own Gemini key) for its AI features.
+
+**What you CAN do fully in VS Code + Kilo (free model):**
+- Read/understand the codebase (point Kilo at this file + `memory/PRD.md`).
+- Add fields, pages, endpoints; fix bugs; restyle; adjust prompts.
+- Commit with git and push to your GitHub.
+
+**Practical caveats of the free model:**
+- More rate-limited and less "smart" than paid models → keep tasks **small and specific**, review each diff, and test after every change. Large multi-file refactors may need several careful steps.
+- Give it guardrails via a `.kilocode/rules.md` (see §10) so it follows project conventions.
+
+**Things Kilo alone does NOT handle (you still need to do these):**
+1. **Run/host the app.** Kilo only edits files. You must run it locally (Node + Python + MongoDB, see §8) or deploy it (see §11).
+2. **A database.** Use local MongoDB or a free MongoDB Atlas cluster.
+3. **The app's AI key.** Keep `EMERGENT_LLM_KEY`, or switch `ai_service.py` to your own Gemini key.
+4. **Authentication.** Google login is **Emergent-managed**. Two options when going independent:
+   - Keep calling Emergent's OAuth endpoint (simplest — auth keeps working as-is), or
+   - Swap in your own auth (e.g., Google OAuth with your own client ID, or email/password). This touches `auth.py` (backend) and the login button in `Landing.js` + `AuthContext.js` (frontend).
+
+**Bottom line:** Ongoing maintenance and feature development can absolutely be done in VS Code with Kilo Code on a free model. Just budget for (a) hosting, (b) a MongoDB, and (c) the app's own AI usage — those are separate from your free coding assistant.
+
