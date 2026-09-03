@@ -47,7 +47,8 @@ export default function Advisor() {
         const { done, value } = await reader.read();
         if (done) break;
         acc += decoder.decode(value, { stream: true });
-        setMessages((m) => { const n = [...m]; n[n.length - 1] = { ...n[n.length - 1], content: acc, pending: false }; return n; });
+        const cur = acc;
+        setMessages((m) => { const n = [...m]; n[n.length - 1] = { ...n[n.length - 1], content: cur, pending: false }; return n; });
       }
     } catch {
       toast.error("Gagal terhubung ke Nusa AI");

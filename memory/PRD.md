@@ -30,9 +30,16 @@ Build a personal AI finance CFO inspired by budggt.com — unique, not identical
 - Full frontend (Landing, Dashboard, Wallets, Transactions, Budget wizard, Goals, Advisor, Reports)
 - Google OAuth flow, PWA (icons, manifest, SW, install banner incl. iOS hint)
 
+## Implemented — Round 2 (2026-06)
+- Natural-language transaction entry: type "isi bensin bp 92 400k pakai debit ocbc" → Gemini parses → confirmation modal (approve / correct / reject). Endpoint POST /api/ai/parse-transaction (matches wallet + category).
+- First-run onboarding: new users auto-redirected into the budget wizard (with skip). POST /api/auth/complete-onboarding.
+- Itemized receipts: scanner returns per-item categories; toggle to save each item as its own transaction.
+- Weekly AI recap card on dashboard (GET /api/ai/weekly-recap, cached per ISO week + manual refresh).
+- Net worth history chart on Reports (snapshots recorded on wallet/txn changes; GET /api/networth/history).
+- SW registered production-only (dev unregisters to avoid stale-cache hangs).
+
 ## Backlog / Next
-- P1: Onboarding budget wizard auto-trigger for new users
-- P1: Net worth trend history over time
 - P2: Recurring transactions & bill reminders
 - P2: Multi-currency, export CSV/PDF
-- P2: AI report analyzer & monthly summary push
+- P2: Push weekly recap notification; empty-state on net-worth chart for brand-new users
+- P2: Credit-card/PayLater spend should auto-increase debt balance

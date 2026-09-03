@@ -94,6 +94,13 @@ async def me(user: User = Depends(get_current_user)):
     return user.model_dump()
 
 
+@router.post("/complete-onboarding")
+async def complete_onboarding(user: User = Depends(get_current_user)):
+    await db.users.update_one({"user_id": user.user_id}, {"$set": {"onboarded": True}})
+    user.onboarded = True
+    return user.model_dump()
+
+
 @router.post("/logout")
 async def logout(request: Request, response: Response):
     token = request.cookies.get(COOKIE_NAME)

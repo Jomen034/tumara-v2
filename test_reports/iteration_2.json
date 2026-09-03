@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 2 focused on the NEW features (weekly recap, free-text AI txn, itemized receipt endpoint, net-worth history chart, first-run onboarding gate) plus regressions. Backend: added /app/backend/tests/test_new_features.py — 7/7 tests pass (parse-transaction happy+empty+unauth, weekly-recap fetch+cache+refresh, networth history, complete-onboarding, scan-receipt items). Frontend playwright with session cookies: dashboard renders net-worth-card+health-score-widget+weekly-recap-card, weekly recap loads real Bahasa Indonesia content (473 chars) and recap-refresh-button works, quick-add-ai-text → ai-text-input → ai-parse-button parses 'isi bensin bp 92 400k pakai debit ocbc' correctly (amount=400000, category=Transportasi, wallet auto-matched to wal_ocbctest 'OCBC Debit'), txn-save-button approves and OCBC Debit wallet balance decreases by exactly 400000, Reports page shows networth-history-chart, brand-new user (onboarded=false, cookie=test_session_new_002) redirects /dashboard → /budget wizard with budget-income-input + skip-onboarding-button visible; clicking skip calls /auth/complete-onboarding (user.onboarded flips to true) and navigates back to /dashboard, scan-receipt modal opens (itemize-toggle appears post-scan by code inspection; backend endpoint verified with items array). Old iteration-1 pytest suite still passes.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/new_features.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Dashboard.js WeeklyRecap: useEffect has empty deps and does not react to `version` from RefreshContext — the weekly recap won't refetch when other pages bump version (minor; explicit refresh button exists).",
+    "routes_ai.weekly_recap: cache key is ISO week only, no invalidation when new txns are added mid-week — user must click refresh to see updated recap (acceptable but worth documenting).",
+    "App.js Shell onboarding gate at line 83 relies on localStorage flag `nusa-skip-onboarding`; if a user clears storage after skipping and their DB flag onboarded=true, they still won't get redirected (correct because DB flag wins). BUT the initial skipOnboarding path in Budget.js also writes localStorage first and then awaits `complete-onboarding` — if the API call fails silently, DB stays onboarded=false but user proceeds. Add error toast on failure.",
+    "AddTransactionModal.save() posts wallet_id from state without re-checking membership after list refresh — low risk, but if user parses AI then wallets list mutates in another tab, could send stale id.",
+    "Reports.js networth-history-chart is conditionally rendered only when `hasNet` — a first-run user with zero snapshots will see nothing there (no explicit empty-state on that specific card). Consider EmptyState when net.length===0."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/iteration_2.json",
+    "/app/test_reports/pytest/new_features.xml"
+  ],
+  "success_rate": {"backend": "100% (7/7 new + 13/13 regression)", "frontend": "100% of tested flows (6/6)"},
+  "test_credentials": "Existing user_testcfo01 / session_token=test_session_cfo_001 (onboarded=true). NEW seeded onboarding user user_newcfo02 / session_token=test_session_new_002 (onboarded=false initially, flipped to true by test skip flow). Wallet wal_ocbctest 'OCBC Debit' (balance 2,000,000) seeded on user_testcfo01 for wallet-match test.",
+  "seed_data_creation": "Seeded via mongosh: user_newcfo02 + session test_session_new_002 (onboarded=false, will be true after the frontend test runs), wallet wal_ocbctest for user_testcfo01. Any transactions created during the AI-text test are cleaned up by the test itself.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All new features working end-to-end. If re-testing onboarding, reset with: mongosh --eval \"use('fincfo_db'); db.users.updateOne({user_id:'user_newcfo02'},{\\$set:{onboarded:false}});\" and also clear browser localStorage key 'nusa-skip-onboarding'. Free-text AI wallet-match relies on seeded wallet wal_ocbctest — keep it. Weekly-recap caches by ISO week per user; use ?refresh=true to bust.",
+  "rca of the issue": "N/A — all features passed."
+}

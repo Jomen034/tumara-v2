@@ -16,6 +16,20 @@ def _month():
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
+async def _snapshot_networth(user_id: str):
+    """Record/refresh today's net worth snapshot for the history chart."""
+    wallets = await db.wallets.find({"user_id": user_id}, {"_id": 0}).to_list(500)
+    assets = sum(w["balance"] for w in wallets if w["type"] not in ("credit_card", "paylater"))
+    debt = sum(w["balance"] for w in wallets if w["type"] in ("credit_card", "paylater"))
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    await db.networth_snapshots.update_one(
+        {"user_id": user_id, "date": today},
+        {"$set": {"user_id": user_id, "date": today, "assets": assets,
+                  "debt": debt, "net_worth": assets - debt, "updated_at": now_utc()}},
+        upsert=True,
+    )
+
+
 # ---------------- Wallets ----------------
 @router.get("/wallets")
 async def list_wallets(user: User = Depends(get_current_user)):
@@ -26,6 +40,7 @@ async def list_wallets(user: User = Depends(get_current_user)):
 async def create_wallet(body: WalletCreate, user: User = Depends(get_current_user)):
     w = Wallet(user_id=user.user_id, **body.model_dump())
     await db.wallets.insert_one(w.model_dump())
+    await _snapshot_networth(user.user_id)
     return w.model_dump()
 
 
@@ -36,12 +51,14 @@ async def update_wallet(wallet_id: str, body: WalletCreate, user: User = Depends
     )
     if res.matched_count == 0:
         raise HTTPException(404, "Wallet not found")
+    await _snapshot_networth(user.user_id)
     return await db.wallets.find_one({"id": wallet_id}, {"_id": 0})
 
 
 @router.delete("/wallets/{wallet_id}")
 async def delete_wallet(wallet_id: str, user: User = Depends(get_current_user)):
     await db.wallets.delete_one({"id": wallet_id, "user_id": user.user_id})
+    await _snapshot_networth(user.user_id)
     return {"ok": True}
 
 
@@ -71,6 +88,7 @@ async def create_transaction(body: TransactionCreate, user: User = Depends(get_c
     t = Transaction(user_id=user.user_id, **data)
     await db.transactions.insert_one(t.model_dump())
     await _apply_txn(t, +1)
+    await _snapshot_networth(user.user_id)
     return t.model_dump()
 
 
@@ -81,7 +99,14 @@ async def delete_transaction(txn_id: str, user: User = Depends(get_current_user)
         raise HTTPException(404, "Not found")
     await _apply_txn(Transaction(**doc), -1)
     await db.transactions.delete_one({"id": txn_id})
+    await _snapshot_networth(user.user_id)
     return {"ok": True}
+
+
+@router.get("/networth/history")
+async def networth_history(user: User = Depends(get_current_user)):
+    snaps = await db.networth_snapshots.find({"user_id": user.user_id}, {"_id": 0}).sort("date", 1).to_list(400)
+    return snaps
 
 
 # ---------------- Budget ----------------

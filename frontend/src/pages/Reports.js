@@ -15,9 +15,14 @@ export default function Reports() {
   const { theme, privacy } = useTheme();
   const { version } = useRefresh();
   const [data, setData] = useState(null);
+  const [netHistory, setNetHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { api.get("/analytics").then((r) => setData(r.data)).finally(() => setLoading(false)); }, [version]);
+  useEffect(() => {
+    Promise.all([api.get("/analytics"), api.get("/networth/history")])
+      .then(([a, n]) => { setData(a.data); setNetHistory(n.data); })
+      .finally(() => setLoading(false));
+  }, [version]);
 
   if (loading) return <div className="flex justify-center py-20"><Spinner size={30} className="text-brand" /></div>;
 
@@ -26,7 +31,9 @@ export default function Reports() {
   const trend = (data?.trend || []).map((t) => ({ ...t, label: monthLabel(t.month) }));
   const cats = (data?.category_breakdown || []).map((c) => ({ ...c, color: catMeta(c.category).color }));
   const totalCat = cats.reduce((a, c) => a + c.amount, 0);
+  const net = (netHistory || []).map((s) => ({ ...s, label: s.date.slice(5) }));
   const hasData = trend.length > 0 || cats.length > 0;
+  const hasNet = net.length > 0;
 
   const tip = (props) => {
     const { active, payload, label } = props;
@@ -48,8 +55,29 @@ export default function Reports() {
         <p className="text-tsecondary text-sm mt-1">Lihat uangmu dari berbagai sudut.</p>
       </div>
 
+      {hasNet && (
+        <Card data-testid="networth-history-chart">
+          <h2 className="font-head font-bold mb-1">Perkembangan Net Worth</h2>
+          <p className="text-xs text-tmuted mb-4">Kekayaan bersihmu dari waktu ke waktu</p>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={net} margin={{ left: -10, right: 8, top: 4 }}>
+                <defs>
+                  <linearGradient id="gNet" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--cyan)" stopOpacity={0.4} /><stop offset="100%" stopColor="var(--cyan)" stopOpacity={0} /></linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={grid} vertical={false} />
+                <XAxis dataKey="label" stroke={axis} fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke={axis} fontSize={11} tickFormatter={(v) => formatShort(v)} tickLine={false} axisLine={false} width={60} />
+                <Tooltip content={tip} />
+                <Area type="monotone" dataKey="net_worth" name="Net Worth" stroke="var(--cyan)" strokeWidth={2.5} fill="url(#gNet)" dot={net.length < 8} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      )}
+
       {!hasData ? (
-        <Card><EmptyState icon={Icons.BarChart3} title="Belum ada data" subtitle="Catat beberapa transaksi dulu untuk melihat analitik." /></Card>
+        <Card><EmptyState icon={Icons.BarChart3} title="Belum ada data transaksi" subtitle="Catat beberapa transaksi dulu untuk melihat tren & kategori." /></Card>
       ) : (
         <>
           {/* Trend */}

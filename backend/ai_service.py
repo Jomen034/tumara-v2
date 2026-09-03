@@ -107,15 +107,115 @@ def _resize_image(raw: bytes) -> bytes:
     return out.getvalue()
 
 
+CATEGORY_LIST = '["Makanan & Minuman","Transportasi","Belanja","Tagihan & Utilitas","Hiburan","Kesehatan","Pendidikan","Investasi","Gaji","Bonus","Lainnya"]'
+
 RECEIPT_PROMPT = (
     "Kamu adalah mesin OCR struk belanja. Analisis gambar struk ini dan kembalikan HANYA JSON valid "
     "(tanpa markdown, tanpa penjelasan) dengan skema: "
     '{"merchant": string, "total": number, "date": "YYYY-MM-DD" | null, '
     '"category": salah satu dari ["Makanan & Minuman","Transportasi","Belanja","Tagihan & Utilitas","Hiburan","Kesehatan","Pendidikan","Lainnya"], '
-    '"items": [{"name": string, "price": number}]}. '
+    '"items": [{"name": string, "price": number, "category": salah satu dari kategori di atas}]}. '
+    "Untuk setiap item, tebak kategori paling sesuai (mis. minuman -> Makanan & Minuman). "
     "Nilai uang sebagai angka tanpa titik/koma pemisah ribuan (contoh 15000). "
-    "Tebak kategori paling sesuai. Jika tidak terbaca, isi total 0 dan items []."
+    "Tebak kategori keseluruhan paling sesuai. Jika tidak terbaca, isi total 0 dan items []."
 )
+
+
+def _extract_json(text: str) -> dict:
+    text = (text or "").strip()
+    if text.startswith("```"):
+        text = text.split("```")[1]
+        if text.startswith("json"):
+            text = text[4:]
+    try:
+        return json.loads(text.strip())
+    except Exception:
+        s, e = text.find("{"), text.rfind("}")
+        if s != -1 and e != -1:
+            return json.loads(text[s:e + 1])
+        raise
+
+
+async def parse_transaction_text(text: str, wallets: list) -> dict:
+    """Parse a free-text Indonesian sentence into a structured transaction draft."""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    wallet_lines = "\n".join([f'- id="{w["id"]}" nama="{w["name"]}" jenis={w["type"]}' for w in wallets]) or "(belum ada dompet)"
+    prompt = (
+        f"Hari ini {today}. Ubah kalimat pengguna menjadi SATU transaksi keuangan.\n"
+        f"Daftar dompet pengguna:\n{wallet_lines}\n\n"
+        "Kembalikan HANYA JSON valid tanpa markdown dengan skema:\n"
+        '{"type": "expense"|"income"|"transfer", "amount": number, '
+        f'"category": salah satu dari {CATEGORY_LIST}, '
+        '"wallet_id": id dompet paling cocok dari daftar (atau null jika tak yakin), '
+        '"wallet_name": nama dompet yang kamu maksud (string, boleh tebakan), '
+        '"note": ringkasan singkat (mis. nama merchant/keterangan), '
+        '"date": "YYYY-MM-DD", '
+        '"confidence": angka 0-1, '
+        '"understood": kalimat singkat Bahasa Indonesia yang menjelaskan interpretasimu}\n'
+        "Aturan angka: '400k'/'400rb'=400000, '1.5jt'/'1,5jt'=1500000, '2m'=2000000. "
+        "Kata seperti 'isi bensin','makan','beli','bayar','top up' -> expense. "
+        "'gaji','bonus','terima','masuk' -> income. 'transfer','pindah','tf' -> transfer. "
+        "Cocokkan dompet dari kata kunci (mis. 'debit ocbc'->dompet OCBC, 'gopay'->GoPay). "
+        "Jika tanggal tidak disebut, pakai hari ini. Jika 'kemarin', kurangi 1 hari.\n\n"
+        f'Kalimat pengguna: "{text}"'
+    )
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY, session_id="txn-parse",
+        system_message="You convert Indonesian financial sentences into structured JSON transactions. Reply with pure JSON only.",
+    ).with_model(MODEL_PROVIDER, MODEL_NAME)
+    resp = await chat.send_message(UserMessage(text=prompt))
+    raw = resp if isinstance(resp, str) else getattr(resp, "content", str(resp))
+    data = _extract_json(raw)
+    data.setdefault("type", "expense")
+    data.setdefault("amount", 0)
+    data.setdefault("category", "Lainnya")
+    data.setdefault("wallet_id", None)
+    data.setdefault("wallet_name", "")
+    data.setdefault("note", "")
+    data.setdefault("date", today)
+    data.setdefault("confidence", 0.5)
+    data.setdefault("understood", "")
+    # validate wallet_id belongs to the user's list
+    ids = {w["id"] for w in wallets}
+    if data["wallet_id"] not in ids:
+        data["wallet_id"] = None
+    return data
+
+
+WEEKLY_PROMPT = (
+    "Buat rangkuman keuangan MINGGUAN yang singkat, hangat, dan memotivasi dalam Bahasa Indonesia "
+    "berdasarkan data 7 hari terakhir di bawah. Format: 2-3 kalimat rangkuman + 1 baris tips actionable "
+    "diawali '💡 Tips:'. Sebut angka nyata (Rupiah) dan kategori terbesar bila ada. "
+    "Jangan pakai heading atau bullet berlebihan. Maksimal 90 kata."
+)
+
+
+async def generate_weekly_recap(user_id: str) -> str:
+    from datetime import timedelta
+    since = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+    txns = await db.transactions.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(300)
+    week = [t for t in txns if (t.get("date") or "") >= since]
+    income = sum(t["amount"] for t in week if t["type"] == "income")
+    expense = sum(t["amount"] for t in week if t["type"] == "expense")
+    cat = {}
+    for t in week:
+        if t["type"] == "expense":
+            cat[t["category"]] = cat.get(t["category"], 0) + t["amount"]
+    ctx = [f"Periode: 7 hari terakhir (sejak {since})",
+           f"Total pemasukan: {_rp(income)}", f"Total pengeluaran: {_rp(expense)}",
+           f"Jumlah transaksi: {len(week)}"]
+    if cat:
+        ctx.append("Pengeluaran per kategori:")
+        for k, v in sorted(cat.items(), key=lambda x: -x[1]):
+            ctx.append(f"- {k}: {_rp(v)}")
+    if not week:
+        ctx.append("Tidak ada transaksi minggu ini.")
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY, session_id=f"recap_{user_id}",
+        system_message=WEEKLY_PROMPT,
+    ).with_model(MODEL_PROVIDER, MODEL_NAME)
+    resp = await chat.send_message(UserMessage(text="\n".join(ctx)))
+    return resp if isinstance(resp, str) else getattr(resp, "content", str(resp))
 
 
 async def scan_receipt(raw: bytes) -> dict:
@@ -147,4 +247,8 @@ async def scan_receipt(raw: bytes) -> dict:
     data.setdefault("date", None)
     data.setdefault("category", "Lainnya")
     data.setdefault("items", [])
+    for it in data["items"]:
+        it.setdefault("category", data.get("category", "Lainnya"))
+        it.setdefault("price", 0)
+        it.setdefault("name", "Item")
     return data

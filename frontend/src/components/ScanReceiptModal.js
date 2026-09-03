@@ -14,8 +14,9 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
   const [wallets, setWallets] = useState([]);
   const [walletId, setWalletId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [itemized, setItemized] = useState(false);
 
-  const reset = () => { setPreview(null); setFile(null); setResult(null); };
+  const reset = () => { setPreview(null); setFile(null); setResult(null); setItemized(false); };
 
   const pick = (e) => {
     const f = e.target.files?.[0];
@@ -52,12 +53,23 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
     if (!walletId) return toast.error("Pilih dompet");
     setSaving(true);
     try {
-      await api.post("/transactions", {
-        type: "expense", amount: result.total, wallet_id: walletId,
-        category: result.category || "Lainnya", note: result.merchant || "Struk",
-        date: result.date || undefined, source: "ai_receipt",
-      });
-      toast.success("Tersimpan sebagai transaksi!");
+      const items = (result.items || []).filter((it) => Number(it.price) > 0);
+      if (itemized && items.length > 0) {
+        await Promise.all(items.map((it) => api.post("/transactions", {
+          type: "expense", amount: Number(it.price), wallet_id: walletId,
+          category: it.category || result.category || "Lainnya",
+          note: `${it.name}${result.merchant ? " · " + result.merchant : ""}`,
+          date: result.date || undefined, source: "ai_receipt",
+        })));
+        toast.success(`${items.length} item tersimpan!`);
+      } else {
+        await api.post("/transactions", {
+          type: "expense", amount: result.total, wallet_id: walletId,
+          category: result.category || "Lainnya", note: result.merchant || "Struk",
+          date: result.date || undefined, source: "ai_receipt",
+        });
+        toast.success("Tersimpan sebagai transaksi!");
+      }
       onSaved?.();
       onClose(); reset();
     } catch {
@@ -106,19 +118,30 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
               {result.date && <div className="flex justify-between text-sm"><span className="text-tsecondary">Tanggal</span><span>{result.date}</span></div>}
               {result.items?.length > 0 && (
                 <div className="pt-2 border-t border-borderc space-y-1">
-                  {result.items.slice(0, 6).map((it, i) => (
+                  {result.items.slice(0, 8).map((it, i) => (
                     <div key={i} className="flex justify-between text-xs text-tsecondary">
-                      <span className="truncate mr-2">{it.name}</span><span className="font-mono">{formatRp(it.price)}</span>
+                      <span className="truncate mr-2">{it.name}{it.category ? ` · ${it.category}` : ""}</span><span className="font-mono">{formatRp(it.price)}</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
+
+            {result.items?.filter((it) => Number(it.price) > 0).length > 1 && (
+              <button data-testid="itemize-toggle" onClick={() => setItemized((v) => !v)}
+                className="w-full flex items-center justify-between bg-elevated rounded-xl px-4 py-3 text-sm">
+                <span className="text-left"><span className="font-medium">Catat tiap item terpisah</span><br /><span className="text-xs text-tmuted">Simpan {result.items.filter((it) => Number(it.price) > 0).length} item dengan kategorinya sendiri</span></span>
+                <span className={`w-11 h-6 rounded-full p-0.5 transition-colors ${itemized ? "bg-brand" : "bg-borderc"}`}>
+                  <span className={`block w-5 h-5 rounded-full bg-white transition-transform ${itemized ? "translate-x-5" : ""}`} />
+                </span>
+              </button>
+            )}
+
             <Select label="Bayar dari dompet" value={walletId} onChange={(e) => setWalletId(e.target.value)} data-testid="receipt-wallet-select">
               {wallets.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
             </Select>
             <Button data-testid="receipt-save-button" onClick={saveTxn} disabled={saving} className="w-full" size="lg">
-              {saving ? "Menyimpan..." : <><Check size={18} /> Simpan Transaksi</>}
+              {saving ? "Menyimpan..." : <><Check size={18} /> {itemized ? "Simpan Semua Item" : "Simpan Transaksi"}</>}
             </Button>
           </div>
         )}

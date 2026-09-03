@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import * as Icons from "lucide-react";
-import { TrendingUp, TrendingDown, ScanLine, Plus, Sparkles, ArrowRight, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, ScanLine, Plus, Sparkles, ArrowRight, AlertTriangle, Wand2, RefreshCw } from "lucide-react";
 import api from "../lib/api";
 import { useRefresh } from "../context/RefreshContext";
 import { useTheme } from "../context/ThemeContext";
@@ -102,11 +102,14 @@ export default function Dashboard() {
       </div>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-3 gap-3">
-        <QuickAction icon={Plus} label="Transaksi" onClick={openAdd} testid="quick-add-transaction" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <QuickAction icon={Wand2} label="Teks AI" onClick={() => openAdd("ai")} testid="quick-add-ai-text" />
+        <QuickAction icon={Plus} label="Transaksi" onClick={() => openAdd("manual")} testid="quick-add-transaction" />
         <QuickAction icon={ScanLine} label="Scan Struk" onClick={openScan} testid="quick-scan-receipt" />
         <QuickAction icon={Sparkles} label="Tanya Nusa" onClick={() => navigate("/advisor")} testid="quick-ask-ai" />
       </div>
+
+      <WeeklyRecap />
 
       {/* Wallets */}
       <div>
@@ -184,6 +187,40 @@ function QuickAction({ icon: Icon, label, onClick, testid }) {
       <div className="w-10 h-10 rounded-xl bg-elevated flex items-center justify-center"><Icon size={20} className="text-brand" /></div>
       <span className="text-xs font-semibold">{label}</span>
     </button>
+  );
+}
+
+function WeeklyRecap() {
+  const [content, setContent] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchRecap = async (refresh = false) => {
+    setLoading(true);
+    try {
+      const { data } = await api.get("/ai/weekly-recap", { params: refresh ? { refresh: true } : {} });
+      setContent(data.content);
+    } catch { setContent("Belum bisa membuat rangkuman. Coba lagi nanti."); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchRecap(false); }, []);
+
+  return (
+    <Card data-testid="weekly-recap-card" className="relative overflow-hidden border-brand/30">
+      <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full opacity-10 blur-2xl" style={{ background: "var(--brand)" }} />
+      <div className="flex items-center justify-between mb-2 relative">
+        <h2 className="font-head font-bold flex items-center gap-2"><Sparkles size={18} className="text-brand" /> Rangkuman Mingguan</h2>
+        <button onClick={() => fetchRecap(true)} disabled={loading} data-testid="recap-refresh-button"
+          className="p-2 rounded-lg hover:bg-elevated text-tsecondary disabled:opacity-50">
+          <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+        </button>
+      </div>
+      {loading && !content ? (
+        <div className="flex items-center gap-2 text-sm text-tsecondary py-2"><Spinner size={16} className="text-brand" /> Nusa lagi merangkum minggumu...</div>
+      ) : (
+        <p className="text-sm text-tsecondary leading-relaxed whitespace-pre-wrap relative">{content}</p>
+      )}
+    </Card>
   );
 }
 

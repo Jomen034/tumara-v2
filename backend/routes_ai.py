@@ -1,13 +1,18 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from db import db
 from models import User, ChatRequest, now_utc, new_id
 from auth import get_current_user
-from ai_service import advisor_stream, scan_receipt
+from ai_service import advisor_stream, scan_receipt, parse_transaction_text, generate_weekly_recap
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+
+class ParseRequest(BaseModel):
+    text: str
 
 
 @router.get("/chat/history")
@@ -65,3 +70,36 @@ async def scan_receipt_endpoint(file: UploadFile = File(...), user: User = Depen
     except Exception as e:
         raise HTTPException(500, f"Gagal memindai struk: {str(e)[:120]}")
     return data
+
+
+
+@router.post("/parse-transaction")
+async def parse_transaction_endpoint(body: ParseRequest, user: User = Depends(get_current_user)):
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(400, "Teks kosong")
+    wallets = await db.wallets.find({"user_id": user.user_id}, {"_id": 0}).to_list(200)
+    try:
+        draft = await parse_transaction_text(text, wallets)
+    except Exception as e:
+        raise HTTPException(500, f"Gagal memahami teks: {str(e)[:120]}")
+    return draft
+
+
+@router.get("/weekly-recap")
+async def weekly_recap(refresh: bool = False, user: User = Depends(get_current_user)):
+    week = datetime.now(timezone.utc).strftime("%G-W%V")
+    if not refresh:
+        cached = await db.ai_recaps.find_one({"user_id": user.user_id, "week": week}, {"_id": 0})
+        if cached:
+            return {"content": cached["content"], "week": week, "cached": True}
+    try:
+        content = await generate_weekly_recap(user.user_id)
+    except Exception as e:
+        raise HTTPException(500, f"Gagal membuat rangkuman: {str(e)[:120]}")
+    await db.ai_recaps.update_one(
+        {"user_id": user.user_id, "week": week},
+        {"$set": {"user_id": user.user_id, "week": week, "content": content, "created_at": now_utc()}},
+        upsert=True,
+    )
+    return {"content": content, "week": week, "cached": False}

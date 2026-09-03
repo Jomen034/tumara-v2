@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { AlertTriangle, Check, Percent, SlidersHorizontal, ArrowRight, ArrowLeft, Pencil } from "lucide-react";
 import clsx from "clsx";
 import api from "../lib/api";
 import { useRefresh } from "../context/RefreshContext";
+import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { formatRp, formatShort } from "../lib/format";
 import { Card, Button, Input, Progress, Badge, Spinner } from "../components/ui";
@@ -25,6 +27,10 @@ const GROUP_COLOR = { needs: "var(--brand)", wants: "var(--amber)", savings: "va
 export default function Budget() {
   const { privacy } = useTheme();
   const { version, bump } = useRefresh();
+  const { user, checkAuth } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const onboarding = location.state?.onboarding || (user && !user.onboarded);
   const [budget, setBudget] = useState(null);
   const [dash, setDash] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +43,18 @@ export default function Budget() {
   const load = () => Promise.all([api.get("/budget"), api.get("/dashboard")])
     .then(([b, d]) => { setBudget(b.data); setDash(d.data); }).finally(() => setLoading(false));
   useEffect(() => { load(); }, [version]);
+
+  // auto-start wizard for first-run onboarding
+  useEffect(() => {
+    if (!loading && onboarding && !budget) startWizard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  const skipOnboarding = async () => {
+    localStorage.setItem("nusa-skip-onboarding", "1");
+    try { await api.post("/auth/complete-onboarding"); await checkAuth(); } catch {}
+    navigate("/dashboard");
+  };
 
   const startWizard = () => {
     setStep(0);
@@ -63,7 +81,9 @@ export default function Budget() {
   const save = async () => {
     try {
       await api.post("/budget", { monthly_income: parseFloat(income), mode, categories: cats.map((c) => ({ category: c.category, group: c.group, limit: parseFloat(c.limit) || 0 })) });
-      toast.success("Budget tersimpan! 🎯"); setWizard(false); load(); bump();
+      toast.success("Budget tersimpan! 🎯"); setWizard(false); bump();
+      if (onboarding) { localStorage.setItem("nusa-skip-onboarding", "1"); await checkAuth(); navigate("/dashboard"); }
+      else { load(); }
     } catch { toast.error("Gagal menyimpan budget"); }
   };
 
@@ -75,6 +95,12 @@ export default function Budget() {
   if (wizard) {
     return (
       <div className="max-w-lg mx-auto space-y-6">
+        {onboarding && (
+          <div className="text-center">
+            <h1 className="font-head font-extrabold text-2xl">Selamat datang di Nusa 👋</h1>
+            <p className="text-sm text-tsecondary mt-1">Yuk atur budget pertamamu — cuma 3 langkah.</p>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           {[0, 1, 2].map((s) => <div key={s} className={clsx("h-1.5 flex-1 rounded-full transition-colors", s <= step ? "bg-brand" : "bg-elevated")} />)}
         </div>
@@ -84,6 +110,7 @@ export default function Budget() {
             <div><h2 className="font-head font-bold text-xl">Berapa penghasilan bulananmu?</h2><p className="text-sm text-tsecondary mt-1">Gaji + pemasukan rutin lainnya.</p></div>
             <Input prefix="Rp" type="number" placeholder="0" value={income} onChange={(e) => setIncome(e.target.value)} data-testid="budget-income-input" autoFocus className="text-lg" />
             <Button onClick={next} className="w-full" size="lg" data-testid="budget-next-button">Lanjut <ArrowRight size={16} /></Button>
+            {onboarding && <button onClick={skipOnboarding} data-testid="skip-onboarding-button" className="w-full text-sm text-tmuted hover:text-tsecondary">Lewati dulu, atur nanti</button>}
           </Card>
         )}
 

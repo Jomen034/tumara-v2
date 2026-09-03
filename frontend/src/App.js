@@ -70,13 +70,24 @@ function Protected({ children }) {
 
 function Shell() {
   const [addOpen, setAddOpen] = useState(false);
+  const [addMode, setAddMode] = useState("manual");
   const [scanOpen, setScanOpen] = useState(false);
   const { bump } = useRefresh();
+  const { user } = useAuth();
+  const location = useLocation();
+
+  const openAdd = (mode = "manual") => { setAddMode(typeof mode === "string" ? mode : "manual"); setAddOpen(true); };
+
+  // First-run: guide brand-new users into the budget wizard
+  const skipped = localStorage.getItem("nusa-skip-onboarding") === "1";
+  if (user && !user.onboarded && !skipped && location.pathname !== "/budget") {
+    return <Navigate to="/budget" replace state={{ onboarding: true }} />;
+  }
 
   return (
-    <Layout onAdd={() => setAddOpen(true)} onScan={() => setScanOpen(true)}>
-      <Outlet context={{ openAdd: () => setAddOpen(true), openScan: () => setScanOpen(true) }} />
-      <AddTransactionModal open={addOpen} onClose={() => setAddOpen(false)} onSaved={bump} />
+    <Layout onAdd={() => openAdd("manual")} onScan={() => setScanOpen(true)}>
+      <Outlet context={{ openAdd, openScan: () => setScanOpen(true) }} />
+      <AddTransactionModal open={addOpen} onClose={() => setAddOpen(false)} onSaved={bump} initialMode={addMode} />
       <ScanReceiptModal open={scanOpen} onClose={() => setScanOpen(false)} onSaved={bump} />
       <InstallPrompt />
     </Layout>
