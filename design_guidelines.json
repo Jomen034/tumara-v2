@@ -1,0 +1,168 @@
+{
+  "project_name": "FinCFO (Budggt v2 Inspired) - Personal AI Finance CFO",
+  "archetype": "Bibit & Stockbit Inspired - High Performance Fintech & AI Advisor",
+  "target_audience": "Indonesian Gen-Z & Millennials seeking effortless financial control with AI guidance",
+  "theme_strategy": {
+    "default_mode": "dark",
+    "toggle_supported": true,
+    "dark_theme": {
+      "background": "#0B0F17",
+      "surface_card": "#131C2E",
+      "surface_elevated": "#1A263D",
+      "border": "rgba(255, 255, 255, 0.08)",
+      "primary_green": "#00E676",
+      "stockbit_mint": "#10B981",
+      "accent_cyan": "#00F0FF",
+      "accent_amber": "#FFB800",
+      "accent_rose": "#FF4D4D",
+      "text_primary": "#F9FAFB",
+      "text_secondary": "#9CA3AF",
+      "text_muted": "#6B7280"
+    },
+    "light_theme": {
+      "background": "#F4F7F5",
+      "surface_card": "#FFFFFF",
+      "surface_elevated": "#EAEFF0",
+      "border": "rgba(0, 0, 0, 0.08)",
+      "primary_green": "#00B87C",
+      "bibit_emerald": "#059669",
+      "accent_cyan": "#0284C7",
+      "accent_amber": "#D97706",
+      "accent_rose": "#E11D48",
+      "text_primary": "#0F172A",
+      "text_secondary": "#475569",
+      "text_muted": "#94A3B8"
+    }
+  },
+  "typography": {
+    "heading_font": "Plus Jakarta Sans, sans-serif",
+    "body_font": "Inter, sans-serif",
+    "mono_numeric_font": "JetBrains Mono, monospace",
+    "font_imports": "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');",
+    "scale": {
+      "hero_h1": "text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight",
+      "section_h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight",
+      "card_h3": "text-xl sm:text-2xl font-semibold",
+      "widget_h4": "text-lg font-medium",
+      "body_lg": "text-base sm:text-lg leading-relaxed",
+      "body_md": "text-sm sm:text-base leading-normal",
+      "caption": "text-xs text-muted-foreground uppercase tracking-wider font-semibold"
+    }
+  },
+  "currency_and_localization": {
+    "primary_currency": "IDR",
+    "currency_symbol": "Rp",
+    "locale": "id-ID",
+    "formatting_rules": "Format numbers with Indonesian thousand separator dot, e.g. Rp 12.500.000",
+    "default_language": "Indonesian (Bahasa Indonesia) with English tech terms (e.g., Net Worth, Budget, AI Advisor)"
+  },
+  "layout_and_grid": {
+    "bento_mode": "High Density Dashboard Grid (MODE B)",
+    "container_padding": "px-4 sm:px-6 lg:px-8 py-6",
+    "card_padding": "p-5 sm:p-6",
+    "mobile_first": true,
+    "sidebar_navigation": "Sticky left navigation on desktop (collapsible), bottom navigation bar on mobile screen",
+    "gap_scale": "gap-4 sm:gap-6"
+  },
+  "key_features_design": {
+    "dashboard": {
+      "components": [
+        "Net Worth Banner with Privacy Eye Toggle (Hide/Show amounts)",
+        "Financial Health Score Gauge (0-100 with actionable feedback badge)",
+        "Quick Action Bar (Scan Struk, Tambah Transaksi, Tanya AI, Transfer)",
+        "Wallet Summary Slider (BCA, Mandiri, GoPay, OVO, Dana, ShopeePay, Credit Card, PayLater)",
+        "Monthly Budget Progress Bar & Overbudget Alerts",
+        "Recent Transactions List with Category Badges & AI Tag"
+      ]
+    },
+    "multi_wallet_management": {
+      "supported_types": ["Bank Account (BCA, Mandiri, BNI, BRI)", "E-Wallet (GoPay, OVO, Dana, ShopeePay)", "Credit Card", "PayLater (GoPay Later, Shopee PayLater)"],
+      "features": ["Initial balance setup", "Custom color/icon per wallet", "Privacy mode toggle", "Manual sync note"]
+    },
+    "budget_setup_wizard": {
+      "modes": ["Percentage Budgeting (50/30/20 Rule)", "Custom Fixed Category Limits"],
+      "steps": [
+        "Monthly Income Input",
+        "Budget Rule Selection",
+        "Category Limit Fine-Tuning (Needs, Wants, Savings)",
+        "Alert Thresholds Setup",
+        "Confirmation & Activation"
+      ]
+    },
+    "transaction_logger": {
+      "categories": ["Makanan & Minuman", "Transportasi", "Belanja", "Tagihan & Utilitas", "Hiburan", "Kesehatan", "Investasi", "Lainnya"],
+      "fields": ["Type (Pengeluaran/Pemasukan)", "Amount (Rp)", "Wallet", "Category", "Date", "Notes", "Receipt Attachment"]
+    },
+    "ai_financial_advisor": {
+      "name": "CFO AI Assistant (Bagus AI)",
+      "capabilities": [
+        "Personalized financial advice based on user spending history",
+        "Prompt suggestions (e.g. 'Berapa sisa budget makan minggu ini?', 'Bagaimana cara kurangi pengeluaran GoFood?')",
+        "Financial Health Analysis report generator",
+        "Interactive conversational UI with streaming response effect"
+      ]
+    },
+    "ai_receipt_scanner": {
+      "method": "Drag-and-drop or camera photo upload",
+      "auto_extraction": ["Merchant Name", "Total Amount (Rp)", "Category Detection", "Items Breakdown", "Transaction Date"],
+      "action": "One-click save to transaction database"
+    },
+    "savings_goals": {
+      "card_style": "Progress bar with target deadline countdown, target amount vs saved amount, and deposit modal",
+      "preset_examples": ["Dana Darurat 6 Bulan", "Liburan ke Bali", "DP Rumah / Apartemen", "Beli Gadget Baru"]
+    },
+    "reports_and_analytics": {
+      "visuals": [
+        "Spending Trend Line Chart (Recharts / Shadcn Chart)",
+        "Category Breakdown Pie / Donut Chart",
+        "Month-over-Month Comparison Bar Chart",
+        "Cash Flow Summary (Income vs Expense vs Savings Rate)"
+      ]
+    },
+    "authentication": {
+      "methods": ["Google Social Login button (mocked with OAuth flow)", "Guest / Demo Mode switch"],
+      "user_profile": "Indonesian avatar with level badge (e.g. 'Pro CFO Level 2')"
+    }
+  },
+  "component_library_mapping": {
+    "primitives": "Shadcn/UI components (Dialog, DropdownMenu, Tabs, Select, Switch, Progress, Sheet, Tooltip, Avatar, Badge, Button)",
+    "toast_notification": "Sonner (located at src/components/ui/sonner)",
+    "charts": "Recharts with custom Bibit/Stockbit emerald & dark theme tooltips",
+    "icons": "lucide-react for UI icons, @phosphor-icons/react for duotone accents",
+    "animations": "framer-motion for smooth list entry, tab switching, and dialog transitions"
+  },
+  "image_assets": {
+    "dashboard_preview_1": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?crop=entropy&cs=srgb&fm=jpg&q=85",
+    "dashboard_preview_2": "https://images.unsplash.com/photo-1609921141835-710b7fa6e438?crop=entropy&cs=srgb&fm=jpg&q=85",
+    "user_avatar_1": "https://images.unsplash.com/photo-1544168190-79c17527004f?crop=entropy&cs=srgb&fm=jpg&q=85",
+    "user_avatar_2": "https://images.unsplash.com/photo-1740252117013-4fb21771e7ca?crop=entropy&cs=srgb&fm=jpg&q=85"
+  },
+  "testing_and_data_attributes": {
+    "rule": "Every interactive element, tab, button, input, balance card, and modal must contain data-testid in kebab-case format.",
+    "required_test_ids": [
+      "google-login-button",
+      "privacy-toggle-button",
+      "theme-toggle-button",
+      "net-worth-card",
+      "health-score-widget",
+      "add-transaction-button",
+      "scan-receipt-button",
+      "wallet-card-bca",
+      "wallet-card-gopay",
+      "ai-advisor-chat-input",
+      "ai-advisor-send-button",
+      "budget-wizard-start-button",
+      "savings-goal-card-emergency-fund",
+      "analytics-tab-monthly",
+      "language-selector"
+    ]
+  },
+  "universal_guidelines": {
+    "no_center_app_container": "Do NOT center align the main application container (.App { text-align: center }). Maintain standard left-aligned readable dashboard layout.",
+    "no_universal_transition": "Do NOT apply 'transition: all' globally. Use target transitions for background-color, border-color, and opacity.",
+    "no_ai_emojis_as_icons": "Do NOT use AI emoji characters like 🤖🧠💭💡 for primary UI icons. Use SVG icons from lucide-react or phosphor-icons.",
+    "generous_spacing": "Use 2x padding inside card containers (p-6) to prevent text collision with borders.",
+    "privacy_mode_behavior": "When privacy mode is ON, all currency amounts must blur or display 'Rp •••••••' while preserving the UI height and layout stability.",
+    "file_type": "JavaScript (.js and .jsx files) as specified in the environment."
+  }
+}
