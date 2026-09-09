@@ -25,7 +25,8 @@ api.include_router(household_router)
 api.include_router(bills_router)
 app.include_router(api)
 
-origins = os.environ.get("CORS_ORIGINS", "*").split(",")
+raw_origins = os.environ.get("CORS_ORIGINS", "*")
+origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins if origins != ["*"] else ["*"],
