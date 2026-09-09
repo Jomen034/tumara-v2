@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Sparkles, ScanLine, Wallet, Target, ShieldCheck, TrendingUp,
-  ArrowRight, Moon, Smartphone, PieChart, Check, Mail, Lock, User
+  ArrowRight, Moon, Smartphone, PieChart, Check
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
-import { Spinner, Modal, Button } from "../components/ui";
+import { Spinner, Modal } from "../components/ui";
 import api from "../lib/api";
 
 function GoogleIcon() {
@@ -33,12 +33,6 @@ const FEATURES = [
 export default function Landing() {
   const { user, setUser, loading } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authTab, setAuthTab] = useState("login"); // 'login' | 'register'
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
-  const [devLoading, setDevLoading] = useState(false);
   const navigate = useNavigate();
 
   const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
@@ -48,7 +42,7 @@ export default function Landing() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (!googleClientId || !authModalOpen) return;
+    if (!googleClientId) return;
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
@@ -69,10 +63,15 @@ export default function Landing() {
             }
           },
         });
+
+        // Auto prompt Google One-Tap
+        window.google.accounts.id.prompt();
+
+        // Render official Google button into container when modal opens
         const container = document.getElementById("googleSignInDiv");
         if (container) {
           window.google.accounts.id.renderButton(container, {
-            theme: "outline", size: "large", width: "100%", text: "continue_with"
+            theme: "filled_blue", size: "large", width: "100%", text: "continue_with"
           });
         }
       }
@@ -81,75 +80,11 @@ export default function Landing() {
     return () => { try { document.body.removeChild(script); } catch {} };
   }, [googleClientId, authModalOpen, setUser, navigate]);
 
-  const handleAuthSubmit = async (e) => {
-    e.preventDefault();
-    if (!email || !password) return toast.error("Isi email dan password");
-    if (authTab === "register" && !name) return toast.error("Isi nama lengkapmu");
-
-    setAuthLoading(true);
-    try {
-      const endpoint = authTab === "register" ? "/auth/register" : "/auth/login";
-      const payload = authTab === "register" ? { email, password, name } : { email, password };
-      const res = await api.post(endpoint, payload);
-      if (res.data?.user) {
-        setUser(res.data.user);
-        toast.success(authTab === "register" ? "Akun berhasil dibuat! 🎉" : "Selamat datang kembali!");
-        navigate("/dashboard", { replace: true });
-      }
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || "Gagal masuk. Cek email & password.");
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleDevLogin = async (customEmail, customName) => {
-    setDevLoading(true);
-    const targetEmail = customEmail || email || "local.user@example.com";
-    const targetName = customName || name || "Demo User";
-    try {
-      const res = await api.post("/auth/dev-login", {
-        email: targetEmail,
-        name: targetName,
-      });
-      if (res.data?.user) {
-        setUser(res.data.user);
-        toast.success(`Masuk sebagai ${res.data.user.name}`);
-        navigate("/dashboard", { replace: true });
-      }
-    } catch (err) {
-      console.error("Local login error", err);
-      toast.error("Gagal masuk mode local demo.");
-    } finally {
-      setDevLoading(false);
-    }
-  };
-
-  const [googleEmail, setGoogleEmail] = useState("");
-
-  const handleGoogleSubmit = async (e) => {
-    if (e) e.preventDefault();
-    if (googleClientId && window.google?.accounts?.id) {
+  const handleGoogleClick = () => {
+    if (window.google?.accounts?.id) {
       window.google.accounts.id.prompt();
-      return;
-    }
-
-    const emailClean = (googleEmail || email || "").trim().toLowerCase();
-    if (!emailClean || !emailClean.includes("@")) {
-      return toast.error("Masukkan alamat email Google yang valid");
-    }
-
-    const userName = emailClean.split("@")[0].replace(".", " ").replace(/\b\w/g, (l) => l.toUpperCase());
-    await handleDevLogin(emailClean, userName);
-  };
-
-  const handleGoogleLogin = async () => {
-    if (googleClientId && window.google?.accounts?.id) {
-      window.google.accounts.id.prompt();
-      return;
     }
     setAuthModalOpen(true);
-    setAuthTab("google");
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-bg"><Spinner size={30} className="text-brand" /></div>;
@@ -170,16 +105,10 @@ export default function Landing() {
           </div>
           <span className="font-head font-extrabold text-xl">Tumara</span>
         </div>
-        <div className="flex items-center gap-2">
-          <button data-testid="nav-dev-login-button" onClick={handleDevLogin} disabled={devLoading}
-            className="text-xs sm:text-sm font-medium px-4 py-2 rounded-full border border-brand/40 text-brand hover:bg-brand/10 transition-colors">
-            {devLoading ? "Masuk..." : "Demo Mode"}
-          </button>
-          <button data-testid="nav-login-button" onClick={() => { setAuthTab("login"); setAuthModalOpen(true); }}
-            className="text-sm font-semibold px-5 py-2.5 rounded-full bg-elevated hover:bg-borderc transition-colors">
-            Masuk
-          </button>
-        </div>
+        <button data-testid="nav-login-button" onClick={handleGoogleClick}
+          className="text-sm font-semibold px-5 py-2.5 rounded-full bg-elevated hover:bg-borderc transition-colors flex items-center gap-2">
+          <GoogleIcon /> Masuk dengan Google
+        </button>
       </header>
 
       {/* hero */}
@@ -196,13 +125,9 @@ export default function Landing() {
             dipandu asisten AI yang memberi arah jelas.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
-            <button data-testid="google-login-button" onClick={handleGoogleLogin}
+            <button data-testid="google-login-button" onClick={handleGoogleClick}
               className="inline-flex items-center justify-center gap-3 bg-white text-gray-900 font-semibold px-6 py-3.5 rounded-full hover:brightness-95 transition shadow-lg">
               <GoogleIcon /> Mulai dengan Google
-            </button>
-            <button onClick={() => { setAuthTab("register"); setAuthModalOpen(true); }}
-              className="inline-flex items-center justify-center gap-2 bg-brand text-black font-semibold px-6 py-3.5 rounded-full hover:brightness-110 transition shadow-lg shadow-[var(--glow)]">
-              Daftar Email <ArrowRight size={18} />
             </button>
           </div>
           <div className="flex items-center gap-5 mt-8 text-xs text-tmuted">
@@ -219,128 +144,21 @@ export default function Landing() {
       </section>
 
       {/* Auth Modal */}
-      <Modal open={authModalOpen} onClose={() => setAuthModalOpen(false)} title="Masuk / Daftar Tumara">
-        <div className="space-y-4">
-          <div className="flex bg-elevated rounded-full p-1 mb-4">
-            <button
-              type="button"
-              onClick={() => setAuthTab("google")}
-              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-1.5 ${authTab === "google" ? "bg-brand text-black" : "text-tsecondary"}`}>
-              <GoogleIcon /> Google
-            </button>
-            <button
-              type="button"
-              onClick={() => setAuthTab("login")}
-              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-full transition-colors ${authTab === "login" ? "bg-brand text-black" : "text-tsecondary"}`}>
-              Masuk
-            </button>
-            <button
-              type="button"
-              onClick={() => setAuthTab("register")}
-              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-full transition-colors ${authTab === "register" ? "bg-brand text-black" : "text-tsecondary"}`}>
-              Daftar Baru
-            </button>
-          </div>
+      <Modal open={authModalOpen} onClose={() => setAuthModalOpen(false)} title="Masuk dengan Akun Google">
+        <div className="space-y-4 py-2">
+          <p className="text-xs text-tsecondary text-center">
+            Gunakan akun Google kamu untuk masuk atau mendaftar ke Tumara secara aman.
+          </p>
 
-          {authTab === "google" && (
-            <div className="space-y-3">
-              <div id="googleSignInDiv" className="w-full min-h-[40px]"></div>
+          <div id="googleSignInDiv" className="w-full flex justify-center min-h-[48px]"></div>
 
-              <form onSubmit={handleGoogleSubmit} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-tsecondary mb-1">Email Google Kamu</label>
-                  <div className="relative">
-                    <Mail size={16} className="absolute left-3.5 top-3.5 text-tmuted" />
-                    <input
-                      type="email"
-                      value={googleEmail}
-                      onChange={(e) => setGoogleEmail(e.target.value)}
-                      placeholder="misal: jomenpardede@gmail.com"
-                      className="w-full bg-elevated border border-borderc rounded-xl pl-10 pr-4 py-2.5 text-tprimary placeholder:text-tmuted focus:border-brand focus:outline-none text-sm"
-                    />
-                  </div>
-                </div>
-
-                <Button type="submit" disabled={devLoading} className="w-full" size="lg">
-                  {devLoading ? <Spinner size={18} /> : "Lanjutkan dengan Google"}
-                </Button>
-              </form>
-
-              <div className="space-y-2 pt-2 border-t border-borderc">
-                <p className="text-[11px] text-tmuted text-center">Pilih Akun Uji Coba Cepat (1-Click):</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { setGoogleEmail("jomenpardede@gmail.com"); handleDevLogin("jomenpardede@gmail.com", "Jomen Admin"); }}
-                    disabled={devLoading}
-                    className="flex flex-col items-center justify-center p-2.5 bg-elevated hover:bg-borderc border border-borderc rounded-xl text-xs font-semibold text-tprimary transition text-center">
-                    <span className="truncate w-full">jomenpardede@gmail.com</span>
-                    <span className="text-[10px] text-brand font-normal">Account 1 (Admin)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setGoogleEmail("jomend.pardede@gmail.com"); handleDevLogin("jomend.pardede@gmail.com", "Jomend Partner"); }}
-                    disabled={devLoading}
-                    className="flex flex-col items-center justify-center p-2.5 bg-elevated hover:bg-borderc border border-borderc rounded-xl text-xs font-semibold text-tprimary transition text-center">
-                    <span className="truncate w-full">jomend.pardede@gmail.com</span>
-                    <span className="text-[10px] text-cyan font-normal">Account 2 (Partner)</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {(authTab === "login" || authTab === "register") && (
-            <form onSubmit={handleAuthSubmit} className="space-y-3">
-              {authTab === "register" && (
-                <div>
-                  <label className="block text-xs font-medium text-tsecondary mb-1">Nama Lengkap</label>
-                  <div className="relative">
-                    <User size={16} className="absolute left-3.5 top-3.5 text-tmuted" />
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Budi Santoso"
-                      className="w-full bg-elevated border border-borderc rounded-xl pl-10 pr-4 py-2.5 text-tprimary placeholder:text-tmuted focus:border-brand focus:outline-none text-sm"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-medium text-tsecondary mb-1">Email</label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-3.5 top-3.5 text-tmuted" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="budi@example.com"
-                    className="w-full bg-elevated border border-borderc rounded-xl pl-10 pr-4 py-2.5 text-tprimary placeholder:text-tmuted focus:border-brand focus:outline-none text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-tsecondary mb-1">Password</label>
-                <div className="relative">
-                  <Lock size={16} className="absolute left-3.5 top-3.5 text-tmuted" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-elevated border border-borderc rounded-xl pl-10 pr-4 py-2.5 text-tprimary placeholder:text-tmuted focus:border-brand focus:outline-none text-sm"
-                  />
-                </div>
-              </div>
-
-              <Button type="submit" disabled={authLoading} className="w-full mt-2" size="lg">
-                {authLoading ? <Spinner size={18} /> : (authTab === "login" ? "Masuk ke Dashboard" : "Daftar & Mulai")}
-              </Button>
-            </form>
-          )}
+          <button
+            type="button"
+            onClick={handleGoogleClick}
+            className="w-full flex items-center justify-center gap-2.5 bg-white text-gray-900 hover:bg-gray-100 text-sm font-semibold py-3 rounded-xl transition shadow-sm">
+            <GoogleIcon />
+            Lanjutkan dengan Google
+          </button>
         </div>
       </Modal>
 
@@ -393,7 +211,7 @@ export default function Landing() {
             <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> Data tidak dijual</span>
             <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> Mode privasi</span>
           </div>
-          <button onClick={() => { setAuthTab("register"); setAuthModalOpen(true); }} data-testid="cta-login-button"
+          <button onClick={handleGoogleClick} data-testid="cta-login-button"
             className="mt-8 inline-flex items-center gap-2 bg-brand text-black font-semibold px-8 py-4 rounded-full hover:brightness-110 transition shadow-lg shadow-[var(--glow)] relative">
             Mulai atur keuangan <ArrowRight size={18} />
           </button>

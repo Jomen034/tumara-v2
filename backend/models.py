@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 def now_utc() -> datetime:
@@ -14,6 +14,8 @@ def new_id(prefix: str) -> str:
 
 # ---------- Auth ----------
 class User(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     user_id: str
     email: str
     name: str

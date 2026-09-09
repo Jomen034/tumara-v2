@@ -153,27 +153,47 @@ async def google_auth(body: GoogleAuthRequest, response: Response):
     if not token:
         raise HTTPException(status_code=400, detail="Missing Google ID token")
 
-    async with httpx.AsyncClient(timeout=10) as hc:
-        # Check token with official Google OAuth verification endpoint
-        res = await hc.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}")
-        if res.status_code != 200:
-            res = await hc.get("https://www.googleapis.com/oauth2/v3/userinfo", headers={"Authorization": f"Bearer {token}"})
+    data = None
+    # 1. Try verification with google-auth library
+    try:
+        from google.oauth2 import id_token as google_id_token
+        from google.auth.transport import requests as google_requests
+        id_info = google_id_token.verify_oauth2_token(token, google_requests.Request())
+        data = {
+            "email": id_info.get("email"),
+            "name": id_info.get("name") or id_info.get("given_name") or "Pengguna Tumara",
+            "picture": id_info.get("picture"),
+        }
+    except Exception as exc:
+        print(f"[Auth] google.oauth2 verify fallback: {exc}")
 
-    if res.status_code != 200:
+    # 2. Fallback HTTP tokeninfo verification
+    if not data or not data.get("email"):
+        async with httpx.AsyncClient(timeout=10) as hc:
+            res = await hc.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}")
+            if res.status_code != 200:
+                res = await hc.get("https://www.googleapis.com/oauth2/v3/userinfo", headers={"Authorization": f"Bearer {token}"})
+
+            if res.status_code == 200:
+                res_data = res.json()
+                data = {
+                    "email": res_data.get("email"),
+                    "name": res_data.get("name") or res_data.get("given_name") or "Pengguna Tumara",
+                    "picture": res_data.get("picture"),
+                }
+
+    if not data or not data.get("email"):
         raise HTTPException(status_code=401, detail="Gagal verifikasi akun Google")
 
-    data = res.json()
-    email = data.get("email")
-    name = data.get("name") or data.get("given_name") or "Pengguna Tumara"
+    email = data["email"].strip().lower()
+    name = data["name"]
     picture = data.get("picture")
-
-    if not email:
-        raise HTTPException(status_code=400, detail="Data email Google tidak ditemukan")
 
     existing = await db.users.find_one({"email": email}, {"_id": 0})
     if existing:
+        existing.pop("password_hash", None)
         user = User(**existing)
-        if picture:
+        if picture or name:
             await db.users.update_one({"user_id": user.user_id}, {"$set": {"picture": picture, "name": name}})
     else:
         user_doc = {
