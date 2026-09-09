@@ -73,15 +73,23 @@ async def _create_user_session(user: User, response: Response) -> dict:
 
 
 async def get_current_user(request: Request) -> User:
-    token = request.cookies.get(COOKIE_NAME)
+    token = None
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        token = auth[7:].strip()
+
     if not token:
-        auth = request.headers.get("Authorization", "")
-        if auth.startswith("Bearer "):
-            token = auth[7:]
+        token = request.cookies.get(COOKIE_NAME)
+
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     session = await db.user_sessions.find_one({"session_token": token}, {"_id": 0})
+    if not session and auth.startswith("Bearer "):
+        cookie_token = request.cookies.get(COOKIE_NAME)
+        if cookie_token and cookie_token != token:
+            session = await db.user_sessions.find_one({"session_token": cookie_token}, {"_id": 0})
+
     if not session:
         raise HTTPException(status_code=401, detail="Invalid session")
 
