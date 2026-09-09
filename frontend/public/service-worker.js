@@ -1,4 +1,4 @@
-const CACHE = "nusa-v1";
+const CACHE = "tumara-v1";
 const ASSETS = ["/", "/index.html", "/manifest.json"];
 
 self.addEventListener("install", (e) => {

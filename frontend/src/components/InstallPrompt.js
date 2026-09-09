@@ -9,7 +9,7 @@ export default function InstallPrompt() {
 
   useEffect(() => {
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
-    if (isStandalone || localStorage.getItem("nusa-install-dismissed") === "1") return;
+    if (isStandalone || (localStorage.getItem("tumara-install-dismissed") || localStorage.getItem("nusa-install-dismissed")) === "1") return;
 
     const handler = (e) => {
       e.preventDefault();
@@ -38,6 +38,7 @@ export default function InstallPrompt() {
   const dismiss = () => {
     setShow(false);
     setIosShow(false);
+    localStorage.setItem("tumara-install-dismissed", "1");
     localStorage.setItem("nusa-install-dismissed", "1");
   };
 
@@ -54,10 +55,10 @@ export default function InstallPrompt() {
         >
           <div className="bg-surface border border-brand/40 rounded-2xl p-4 shadow-2xl shadow-[var(--glow)] flex items-start gap-3">
             <div className="w-11 h-11 rounded-xl bg-brand flex items-center justify-center shrink-0">
-              <span className="text-black font-head font-extrabold text-lg">N</span>
+              <span className="text-black font-head font-extrabold text-lg">T</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm">Install Nusa di HP kamu</p>
+              <p className="font-semibold text-sm">Install Tumara di HP kamu</p>
               {iosShow ? (
                 <p className="text-xs text-tsecondary mt-0.5 flex items-center gap-1 flex-wrap">
                   Tap <Share size={13} className="inline" /> lalu "Add to Home Screen".

@@ -67,7 +67,7 @@ export default function AddTransactionModal({ open, onClose, onSaved, initialMod
       if (matched) setWalletId(data.wallet_id);
       else if (wallets[0]) setWalletId(wallets[0].id);
       setDraft({ understood: data.understood, confidence: data.confidence, matched, wallet_name: data.wallet_name });
-      toast.success("Nusa sudah paham — cek & konfirmasi ya");
+      toast.success("Tumara sudah paham — cek & konfirmasi ya");
     } catch (e) {
       toast.error(e?.response?.data?.detail || "Gagal memahami teks");
     } finally {
@@ -136,7 +136,7 @@ export default function AddTransactionModal({ open, onClose, onSaved, initialMod
             ))}
           </div>
           <Button data-testid="ai-parse-button" onClick={() => parse()} disabled={parsing} className="w-full" size="lg">
-            {parsing ? <><Spinner size={16} /> Nusa lagi mikir...</> : <><Wand2 size={16} /> Pahami dengan Nusa</>}
+            {parsing ? <><Spinner size={16} /> Tumara lagi mikir...</> : <><Wand2 size={16} /> Pahami dengan Tumara</>}
           </Button>
         </div>
       )}
@@ -147,7 +147,7 @@ export default function AddTransactionModal({ open, onClose, onSaved, initialMod
           <div className="flex items-start gap-2">
             <Sparkles size={16} className="text-brand shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">{draft.understood || "Nusa sudah mengekstrak transaksimu."}</p>
+              <p className="text-sm font-medium">{draft.understood || "Tumara sudah mengekstrak transaksimu."}</p>
               <p className="text-xs text-tsecondary mt-1">
                 Keyakinan {Math.round((draft.confidence || 0) * 100)}%.
                 {!draft.matched && <span className="text-amber"> Dompet belum yakin{draft.wallet_name ? ` ("${draft.wallet_name}")` : ""} — pilih manual di bawah.</span>}

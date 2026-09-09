@@ -1,11 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { RefreshProvider, useRefresh } from "./context/RefreshContext";
-import api from "./lib/api";
 
 import Layout from "./components/Layout";
 import InstallPrompt from "./components/InstallPrompt";
@@ -32,36 +31,6 @@ function FullLoader() {
   );
 }
 
-function AuthCallback() {
-  const navigate = useNavigate();
-  const { setUser } = useAuth();
-  const processed = useRef(false);
-
-  useEffect(() => {
-    if (processed.current) return;
-    processed.current = true;
-    const hash = window.location.hash;
-    const sid = new URLSearchParams(hash.replace("#", "")).get("session_id");
-    (async () => {
-      try {
-        const res = await api.post("/auth/session", {}, { headers: { "X-Session-ID": sid } });
-        setUser(res.data.user);
-        window.history.replaceState(null, "", "/dashboard");
-        navigate("/dashboard", { replace: true, state: { user: res.data.user } });
-      } catch {
-        navigate("/", { replace: true });
-      }
-    })();
-  }, [navigate, setUser]);
-
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-bg">
-      <Spinner size={32} className="text-brand" />
-      <p className="text-tsecondary text-sm">Menyiapkan dashboard kamu...</p>
-    </div>
-  );
-}
-
 function Protected({ children }) {
   const location = useLocation();
   const { user, loading } = useAuth();
@@ -81,8 +50,8 @@ function Shell() {
   const openAdd = (mode = "manual") => { setAddMode(typeof mode === "string" ? mode : "manual"); setAddOpen(true); };
 
   // First-run: guide brand-new users. Invited users go to Household to accept.
-  const skipped = localStorage.getItem("nusa-skip-onboarding") === "1";
-  const pendingInvite = localStorage.getItem("nusa-invite");
+  const skipped = (localStorage.getItem("tumara-skip-onboarding") || localStorage.getItem("nusa-skip-onboarding")) === "1";
+  const pendingInvite = localStorage.getItem("tumara-invite") || localStorage.getItem("nusa-invite");
   if (user && !user.onboarded && !skipped) {
     if (pendingInvite && location.pathname !== "/household") {
       return <Navigate to="/household" replace />;
@@ -103,9 +72,6 @@ function Shell() {
 }
 
 function AppRouter() {
-  const location = useLocation();
-  if (location.hash?.includes("session_id=")) return <AuthCallback />;
-
   return (
     <Routes>
       <Route path="/" element={<Landing />} />

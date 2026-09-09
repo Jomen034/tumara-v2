@@ -1,6 +1,6 @@
 # Project Rules for AI Agents (Kilo Code / Cline / Roo)
 
-You are working on **Nusa — Personal AI Finance CFO** (React + FastAPI + MongoDB).
+You are working on **Tumara — Personal AI Finance CFO** (React + FastAPI + MongoDB).
 Read `PROJECT_DOCUMENTATION.md` and `memory/PRD.md` before making changes.
 Keep tasks small and focused; review each diff and test after every change.
 

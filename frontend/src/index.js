@@ -7,7 +7,10 @@ import App from "./App";
 try {
   const p = new URLSearchParams(window.location.search);
   const code = p.get("invite") || p.get("code");
-  if (code) localStorage.setItem("nusa-invite", code);
+  if (code) {
+    localStorage.setItem("tumara-invite", code);
+    localStorage.setItem("nusa-invite", code);
+  }
 } catch {}
 
 const root = ReactDOM.createRoot(document.getElementById("root"));

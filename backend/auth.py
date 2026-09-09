@@ -1,16 +1,71 @@
 import os
+import secrets
+import bcrypt
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Request, Response, HTTPException, Depends
+from pydantic import BaseModel, EmailStr
 import httpx
 
 from db import db
-from models import User, now_utc
+from models import User, now_utc, new_id
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-SESSION_DATA_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
 COOKIE_NAME = "session_token"
 SESSION_DAYS = 7
+
+
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+
+
+def _set_session_cookie(response: Response, session_token: str):
+    is_prod = os.environ.get("ENVIRONMENT", "").lower() == "production"
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=session_token,
+        httponly=True,
+        secure=is_prod,
+        samesite="none" if is_prod else "lax",
+        path="/",
+        max_age=SESSION_DAYS * 24 * 60 * 60,
+    )
+
+
+async def _create_user_session(user: User, response: Response) -> dict:
+    session_token = f"sess_{secrets.token_hex(20)}"
+    expires_at = now_utc() + timedelta(days=SESSION_DAYS)
+    
+    await db.user_sessions.update_one(
+        {"user_id": user.user_id},
+        {"$set": {
+            "user_id": user.user_id,
+            "session_token": session_token,
+            "expires_at": expires_at,
+            "created_at": now_utc(),
+        }},
+        upsert=True,
+    )
+
+    _set_session_cookie(response, session_token)
+    from deps import ensure_household
+    fresh = await db.users.find_one({"user_id": user.user_id}, {"_id": 0})
+    await ensure_household(User(**fresh))
+    user_data = await db.users.find_one({"user_id": user.user_id}, {"_id": 0})
+    # Remove sensitive password hash from user response
+    user_data.pop("password_hash", None)
+    return {"user": user_data, "session_token": session_token}
 
 
 async def get_current_user(request: Request) -> User:
@@ -37,72 +92,156 @@ async def get_current_user(request: Request) -> User:
     user_doc = await db.users.find_one({"user_id": session["user_id"]}, {"_id": 0})
     if not user_doc:
         raise HTTPException(status_code=401, detail="User not found")
+    user_doc.pop("password_hash", None)
     return User(**user_doc)
 
 
-@router.post("/session")
-async def create_session(request: Request, response: Response):
-    session_id = request.headers.get("X-Session-ID")
-    if not session_id:
-        try:
-            body = await request.json()
-            session_id = body.get("session_id")
-        except Exception:
-            session_id = None
-    if not session_id:
-        raise HTTPException(status_code=400, detail="Missing session_id")
+@router.post("/register")
+async def register(body: RegisterRequest, response: Response):
+    email = body.email.strip().lower()
+    name = body.name.strip()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Email tidak valid")
+    if not name:
+        raise HTTPException(status_code=400, detail="Nama wajib diisi")
+    if len(body.password) < 6:
+        raise HTTPException(status_code=400, detail="Password minimal 6 karakter")
 
-    async with httpx.AsyncClient(timeout=20) as hc:
-        r = await hc.get(SESSION_DATA_URL, headers={"X-Session-ID": session_id})
-    if r.status_code != 200:
-        raise HTTPException(status_code=401, detail="Failed to verify session")
-    data = r.json()
+    existing = await db.users.find_one({"email": email}, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email sudah terdaftar. Silakan masuk.")
 
-    existing = await db.users.find_one({"email": data["email"]}, {"_id": 0})
+    hashed_pw = bcrypt.hashpw(body.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    user_doc = {
+        "user_id": new_id("user"),
+        "email": email,
+        "name": name,
+        "picture": f"https://api.dicebear.com/7.x/notionists/svg?seed={email}",
+        "password_hash": hashed_pw,
+        "onboarded": False,
+        "household_id": None,
+        "role": "admin",
+        "display_name": name,
+        "active": True,
+        "created_at": now_utc(),
+    }
+    await db.users.insert_one(user_doc)
+    user = User(**user_doc)
+    return await _create_user_session(user, response)
+
+
+@router.post("/login")
+async def login(body: LoginRequest, response: Response):
+    email = body.email.strip().lower()
+    existing = await db.users.find_one({"email": email})
+    if not existing or "password_hash" not in existing:
+        raise HTTPException(status_code=401, detail="Email atau password salah")
+
+    if not bcrypt.checkpw(body.password.encode("utf-8"), existing["password_hash"].encode("utf-8")):
+        raise HTTPException(status_code=401, detail="Email atau password salah")
+
+    existing.pop("_id", None)
+    existing.pop("password_hash", None)
+    user = User(**existing)
+    return await _create_user_session(user, response)
+
+
+@router.post("/google")
+async def google_auth(body: GoogleAuthRequest, response: Response):
+    """Verify Google OAuth id_token directly with Google APIs."""
+    token = body.id_token.strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="Missing Google ID token")
+
+    async with httpx.AsyncClient(timeout=10) as hc:
+        # Check token with official Google OAuth verification endpoint
+        res = await hc.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}")
+        if res.status_code != 200:
+            res = await hc.get("https://www.googleapis.com/oauth2/v3/userinfo", headers={"Authorization": f"Bearer {token}"})
+
+    if res.status_code != 200:
+        raise HTTPException(status_code=401, detail="Gagal verifikasi akun Google")
+
+    data = res.json()
+    email = data.get("email")
+    name = data.get("name") or data.get("given_name") or "Pengguna Tumara"
+    picture = data.get("picture")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Data email Google tidak ditemukan")
+
+    existing = await db.users.find_one({"email": email}, {"_id": 0})
     if existing:
         user = User(**existing)
-        await db.users.update_one(
-            {"user_id": user.user_id},
-            {"$set": {"name": data["name"], "picture": data.get("picture")}},
-        )
+        if picture:
+            await db.users.update_one({"user_id": user.user_id}, {"$set": {"picture": picture, "name": name}})
     else:
-        from models import new_id
-        user = User(
-            user_id=new_id("user"), email=data["email"],
-            name=data["name"], picture=data.get("picture"),
-        )
-        await db.users.insert_one(user.model_dump())
+        user_doc = {
+            "user_id": new_id("user"),
+            "email": email,
+            "name": name,
+            "picture": picture or f"https://api.dicebear.com/7.x/notionists/svg?seed={email}",
+            "onboarded": False,
+            "household_id": None,
+            "role": "admin",
+            "display_name": name,
+            "active": True,
+            "created_at": now_utc(),
+        }
+        await db.users.insert_one(user_doc)
+        user = User(**user_doc)
 
-    session_token = data["session_token"]
-    expires_at = now_utc() + timedelta(days=SESSION_DAYS)
-    await db.user_sessions.update_one(
-        {"session_token": session_token},
-        {"$set": {"user_id": user.user_id, "session_token": session_token,
-                  "expires_at": expires_at, "created_at": now_utc()}},
-        upsert=True,
-    )
+    return await _create_user_session(user, response)
 
-    response.set_cookie(
-        key=COOKIE_NAME, value=session_token, httponly=True, secure=True,
-        samesite="none", path="/", max_age=SESSION_DAYS * 24 * 60 * 60,
-    )
-    from deps import ensure_household
-    fresh = await db.users.find_one({"user_id": user.user_id}, {"_id": 0})
-    await ensure_household(User(**fresh))
-    user = User(**await db.users.find_one({"user_id": user.user_id}, {"_id": 0}))
-    return {"user": user.model_dump(), "session_token": session_token}
+
+@router.post("/dev-login")
+async def dev_login(request: Request, response: Response):
+    """Local / Standalone development demo mode."""
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    email = body.get("email", "local.user@example.com")
+    name = body.get("name", "Local CFO")
+    picture = body.get("picture", "https://api.dicebear.com/7.x/notionists/svg?seed=cfo")
+
+    existing = await db.users.find_one({"email": email}, {"_id": 0})
+    if existing:
+        user = User(**existing)
+    else:
+        user_doc = {
+            "user_id": new_id("user"),
+            "email": email,
+            "name": name,
+            "picture": picture,
+            "onboarded": False,
+            "household_id": None,
+            "role": "admin",
+            "display_name": name,
+            "active": True,
+            "created_at": now_utc(),
+        }
+        await db.users.insert_one(user_doc)
+        user = User(**user_doc)
+
+    return await _create_user_session(user, response)
 
 
 @router.get("/me")
 async def me(user: User = Depends(get_current_user)):
-    return user.model_dump()
+    user_dict = user.model_dump()
+    user_dict.pop("password_hash", None)
+    return user_dict
 
 
 @router.post("/complete-onboarding")
 async def complete_onboarding(user: User = Depends(get_current_user)):
     await db.users.update_one({"user_id": user.user_id}, {"$set": {"onboarded": True}})
     user.onboarded = True
-    return user.model_dump()
+    user_dict = user.model_dump()
+    user_dict.pop("password_hash", None)
+    return user_dict
 
 
 @router.post("/logout")
@@ -116,3 +255,4 @@ async def logout(request: Request, response: Response):
         await db.user_sessions.delete_one({"session_token": token})
     response.delete_cookie(COOKIE_NAME, path="/")
     return {"ok": True}
+

@@ -1,4 +1,4 @@
-# Nusa — Personal AI Finance CFO 📊🤖
+# Tumara — Personal AI Finance CFO 📊🤖
 
 > A household-friendly, AI-powered personal finance manager for Indonesia. Inspired by Budggt, built unique. Track every wallet, budget with the 50/30/20 rule, chat with an AI CFO that knows your numbers, scan receipts, log transactions by talking normally, share everything with your partner, and never miss a bill.
 
@@ -35,7 +35,7 @@
 | **Transactions** | Income / Expense / Transfer; auto-adjusts wallet balances | Grouped by date; delete reverts balance |
 | **AI Text Entry** | Type `isi bensin bp 92 400k pakai debit ocbc` → AI parses → **confirm / correct / reject** modal | Gemini matches wallet + category |
 | **AI Receipt Scanner** | Photo of a receipt → extracts merchant, total, items, category | Optional: save each item as its own categorised transaction |
-| **AI Advisor ("Nusa AI")** | Streaming chat that reads your real financial context | Warm, Indonesian, actionable |
+| **AI Advisor ("Tumara AI")** | Streaming chat that reads your real financial context | Warm, Indonesian, actionable |
 | **Weekly AI Recap** | Dashboard card summarising the last 7 days + a tip | Cached per ISO week, manual refresh |
 | **Budget** | 3-step wizard: 50/30/20 rule or custom limits; over-budget alerts | Per-category groups: needs / wants / savings |
 | **Goals** | Savings goals with target, deadline, emoji, deposits, progress | Preset ideas (Dana Darurat, Liburan…) |
@@ -456,7 +456,7 @@ Point Kilo Code at this file and the PRD so it understands the project:
 
 ---
 
-_Built with 💚 for Indonesians who want to finally take control of their money. — Nusa © 2026_
+_Built with 💚 for Indonesians who want to finally take control of their money. — Tumara © 2026_
 
 ---
 

@@ -1,4 +1,4 @@
-"""Backend API tests for Nusa Personal AI Finance CFO."""
+"""Backend API tests for Tumara Personal AI Finance CFO."""
 import io
 import os
 import time

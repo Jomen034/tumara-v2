@@ -1,7 +1,7 @@
-# Nusa — Personal AI Finance CFO 📊🤖
+# Tumara — Personal AI Finance CFO 📊🤖
 
 A household-friendly, AI-powered personal finance manager for Indonesia (Bahasa Indonesia · IDR · installable PWA).
-Track wallets, budget with 50/30/20, chat with an AI CFO that knows your numbers, scan receipts, log
+Track wallets, budget with 50/30/20, chat with an AI CFO that gives clear financial direction, scan receipts, log
 transactions by typing naturally, share everything with your partner, and never miss a bill.
 
 > 📘 **Full documentation:** see [`PROJECT_DOCUMENTATION.md`](./PROJECT_DOCUMENTATION.md) — features, API reference,
@@ -57,4 +57,4 @@ Point your agent at `PROJECT_DOCUMENTATION.md` first. Note: the coding assistant
 app's runtime AI (Gemini via `EMERGENT_LLM_KEY`) — see the FAQ in the full docs.
 
 ---
-_Nusa © 2026 — built for taking control of your money._
+_Tumara © 2026 — Tumbuh dengan arah._

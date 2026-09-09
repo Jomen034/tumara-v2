@@ -1,7 +1,7 @@
 {
-  "short_name": "Nusa",
-  "name": "Nusa — CFO Pribadi AI",
-  "description": "CFO pribadi bertenaga AI untuk mengatur dompet, budget, dan tujuan keuanganmu.",
+  "short_name": "Tumara",
+  "name": "Tumara — Tumbuh dengan arah",
+  "description": "CFO pribadi bertenaga AI dengan arah keuangan yang jelas.",
   "icons": [
     { "src": "/icons/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any maskable" },
     { "src": "/icons/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any maskable" }

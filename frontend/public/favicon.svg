@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="100%" stop-color="#34D399" />
+    </linearGradient>
+    <linearGradient id="arrowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2DD4BF" />
+      <stop offset="100%" stop-color="#10B981" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Card -->
+  <rect width="512" height="512" rx="112" fill="#0B0F17" />
+  <rect x="32" y="32" width="448" height="448" rx="96" fill="#161F2C" stroke="#10B981" stroke-width="6" stroke-opacity="0.3" />
+
+  <!-- T-bar horizontal -->
+  <rect x="130" y="140" width="252" height="60" rx="30" fill="url(#brandGradient)" />
+
+  <!-- Stem vertical -->
+  <rect x="226" y="160" width="60" height="210" rx="30" fill="url(#brandGradient)" />
+
+  <!-- Growth Arrow Head (Tumbuh dengan arah) -->
+  <polygon points="380,90 320,120 350,160" fill="url(#arrowGradient)" />
+
+  <!-- Accent Leaf Dot -->
+  <circle cx="256" cy="350" r="18" fill="#A7F3D0" />
+</svg>

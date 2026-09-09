@@ -106,7 +106,7 @@ export default function Dashboard() {
         <QuickAction icon={Wand2} label="Teks AI" onClick={() => openAdd("ai")} testid="quick-add-ai-text" />
         <QuickAction icon={Plus} label="Transaksi" onClick={() => openAdd("manual")} testid="quick-add-transaction" />
         <QuickAction icon={ScanLine} label="Scan Struk" onClick={openScan} testid="quick-scan-receipt" />
-        <QuickAction icon={Sparkles} label="Tanya Nusa" onClick={() => navigate("/advisor")} testid="quick-ask-ai" />
+        <QuickAction icon={Sparkles} label="Tanya Tumara" onClick={() => navigate("/advisor")} testid="quick-ask-ai" />
       </div>
 
       <WeeklyRecap />
@@ -260,7 +260,7 @@ function WeeklyRecap() {
         </button>
       </div>
       {loading && !content ? (
-        <div className="flex items-center gap-2 text-sm text-tsecondary py-2"><Spinner size={16} className="text-brand" /> Nusa lagi merangkum minggumu...</div>
+        <div className="flex items-center gap-2 text-sm text-tsecondary py-2"><Spinner size={16} className="text-brand" /> Tumara lagi merangkum minggumu...</div>
       ) : (
         <p className="text-sm text-tsecondary leading-relaxed whitespace-pre-wrap relative">{content}</p>
       )}

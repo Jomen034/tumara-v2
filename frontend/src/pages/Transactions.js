@@ -44,7 +44,7 @@ export default function Transactions() {
       const res = await api.get("/transactions/export", { responseType: "blob" });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement("a");
-      a.href = url; a.download = "nusa-transaksi.csv"; a.click();
+      a.href = url; a.download = "tumara-transaksi.csv"; a.click();
       URL.revokeObjectURL(url);
       toast.success("CSV diunduh!");
     } catch { toast.error("Gagal export"); }

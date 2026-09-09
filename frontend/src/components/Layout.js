@@ -19,7 +19,7 @@ const NAV = [
   { to: "/budget", label: "Budget", icon: PieChart },
   { to: "/goals", label: "Tujuan", icon: Target },
   { to: "/reports", label: "Laporan", icon: PieChart },
-  { to: "/advisor", label: "Nusa AI", icon: Sparkles },
+  { to: "/advisor", label: "Tumara AI", icon: Sparkles },
   { to: "/household", label: "Rumah", icon: Users },
 ];
 
@@ -27,7 +27,7 @@ const BOTTOM = [
   { to: "/dashboard", label: "Beranda", icon: LayoutDashboard },
   { to: "/transactions", label: "Transaksi", icon: ArrowLeftRight },
   { to: "/bills", label: "Tagihan", icon: ReceiptText },
-  { to: "/advisor", label: "Nusa AI", icon: Sparkles },
+  { to: "/advisor", label: "Tumara AI", icon: Sparkles },
   { to: "/household", label: "Rumah", icon: Users },
 ];
 
@@ -35,9 +35,9 @@ function Logo({ small }) {
   return (
     <div className="flex items-center gap-2.5">
       <div className="w-9 h-9 rounded-xl bg-brand flex items-center justify-center shadow-lg shadow-[var(--glow)]">
-        <span className="text-black font-head font-extrabold text-lg">N</span>
+        <span className="text-black font-head font-extrabold text-lg">T</span>
       </div>
-      {!small && <span className="font-head font-extrabold text-xl tracking-tight">Nusa</span>}
+      {!small && <span className="font-head font-extrabold text-xl tracking-tight">Tumara</span>}
     </div>
   );
 }

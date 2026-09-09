@@ -132,7 +132,7 @@ async def export_transactions(ctx: Ctx = Depends(get_ctx)):
                     wallets.get(t.get("wallet_id"), ""), wallets.get(t.get("to_wallet_id"), ""),
                     t.get("note", ""), members.get(t.get("member_id"), "")])
     buf.seek(0)
-    fname = f"nusa-transaksi-{_month()}.csv"
+    fname = f"tumara-transaksi-{_month()}.csv"
     return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
                              headers={"Content-Disposition": f"attachment; filename={fname}"})
 

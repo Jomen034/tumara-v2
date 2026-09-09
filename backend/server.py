@@ -8,14 +8,14 @@ from routes_ai import router as ai_router
 from routes_household import router as household_router
 from routes_bills import router as bills_router
 
-app = FastAPI(title="Nusa — Personal AI Finance CFO")
+app = FastAPI(title="Tumara — Personal AI Finance CFO")
 
 api = APIRouter(prefix="/api")
 
 
 @api.get("/")
 async def root():
-    return {"status": "ok", "app": "Nusa CFO API"}
+    return {"status": "ok", "app": "Tumara CFO API"}
 
 
 api.include_router(auth_router)

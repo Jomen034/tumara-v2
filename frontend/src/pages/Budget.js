@@ -51,6 +51,7 @@ export default function Budget() {
   }, [loading]);
 
   const skipOnboarding = async () => {
+    localStorage.setItem("tumara-skip-onboarding", "1");
     localStorage.setItem("nusa-skip-onboarding", "1");
     try { await api.post("/auth/complete-onboarding"); await checkAuth(); } catch {}
     navigate("/dashboard");
@@ -82,7 +83,11 @@ export default function Budget() {
     try {
       await api.post("/budget", { monthly_income: parseFloat(income), mode, categories: cats.map((c) => ({ category: c.category, group: c.group, limit: parseFloat(c.limit) || 0 })) });
       toast.success("Budget tersimpan! 🎯"); setWizard(false); bump();
-      if (onboarding) { localStorage.setItem("nusa-skip-onboarding", "1"); await checkAuth(); navigate("/dashboard"); }
+      if (onboarding) {
+        localStorage.setItem("tumara-skip-onboarding", "1");
+        localStorage.setItem("nusa-skip-onboarding", "1");
+        await checkAuth(); navigate("/dashboard");
+      }
       else { load(); }
     } catch { toast.error("Gagal menyimpan budget"); }
   };
@@ -97,8 +102,8 @@ export default function Budget() {
       <div className="max-w-lg mx-auto space-y-6">
         {onboarding && (
           <div className="text-center">
-            <h1 className="font-head font-extrabold text-2xl">Selamat datang di Nusa 👋</h1>
-            <p className="text-sm text-tsecondary mt-1">Yuk atur budget pertamamu — cuma 3 langkah.</p>
+            <h1 className="font-head font-extrabold text-2xl">Selamat datang di Tumara 👋</h1>
+            <p className="text-sm text-tsecondary mt-1">Yuk atur budget pertamamu — cuma 3 langkah untuk tumbuh dengan arah.</p>
           </div>
         )}
         <div className="flex items-center gap-2">

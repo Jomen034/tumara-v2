@@ -51,7 +51,7 @@ export default function Advisor() {
         setMessages((m) => { const n = [...m]; n[n.length - 1] = { ...n[n.length - 1], content: cur, pending: false }; return n; });
       }
     } catch {
-      toast.error("Gagal terhubung ke Nusa AI");
+      toast.error("Gagal terhubung ke Tumara AI");
       setMessages((m) => { const n = [...m]; n[n.length - 1] = { ...n[n.length - 1], content: "Maaf, aku lagi ada kendala. Coba lagi ya.", pending: false }; return n; });
     } finally {
       setStreaming(false);
@@ -69,8 +69,8 @@ export default function Advisor() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center shadow-lg shadow-[var(--glow)]"><Sparkles size={20} className="text-black" /></div>
           <div>
-            <h1 className="font-head font-extrabold text-xl leading-tight">Nusa AI</h1>
-            <p className="text-xs text-tsecondary">CFO pribadimu · paham kondisimu</p>
+            <h1 className="font-head font-extrabold text-xl leading-tight">Tumara AI</h1>
+            <p className="text-xs text-tsecondary">CFO pribadimu · Tumbuh dengan arah</p>
           </div>
         </div>
         {messages.length > 0 && <button onClick={clear} data-testid="clear-chat-button" className="p-2 rounded-lg hover:bg-elevated text-tmuted hover:text-rose"><Trash2 size={17} /></button>}
@@ -80,8 +80,8 @@ export default function Advisor() {
         {loading ? <div className="flex justify-center py-10"><Spinner className="text-brand" /></div> : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <div className="w-16 h-16 rounded-2xl bg-elevated flex items-center justify-center mb-4 pulse-ring"><Sparkles size={30} className="text-brand" /></div>
-            <h2 className="font-head font-bold text-lg">Halo! Aku Nusa 👋</h2>
-            <p className="text-sm text-tsecondary mt-1 max-w-sm">Aku tahu kondisi keuanganmu. Tanya apa aja, aku kasih saran yang personal.</p>
+            <h2 className="font-head font-bold text-lg">Halo! Aku Tumara 👋</h2>
+            <p className="text-sm text-tsecondary mt-1 max-w-sm">Aku tahu kondisi keuanganmu. Tanya apa aja, aku kasih arah yang jelas dan personal.</p>
             <div className="grid sm:grid-cols-2 gap-2 mt-6 w-full max-w-md">
               {SUGGESTIONS.map((s) => (
                 <button key={s} onClick={() => send(s)} data-testid="chat-suggestion"
