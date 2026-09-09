@@ -20,6 +20,16 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-09-10 02:30:00 WIB] — Fix Render Deployment: Pin Python 3.11.9 Runtime & Relax Requirements
+- **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
+- **Goal:** Fix Render build error where `pillow` wheel compilation failed under experimental Python 3.14.3.
+- **Key Actions & Changes:**
+  - `runtime.txt` & `backend/runtime.txt`: Created runtime file pinning Python to stable version `3.11.9` for Render.
+  - `backend/requirements.txt`: Relaxed exact version constraints (`>=` instead of `==`) to allow pip to use pre-built binary wheels for Linux.
+  - Pushed commit `c822634` to GitHub `main` branch to trigger automatic Render redeployment.
+- **Notes & Important Context:**
+  - Render will now use Python 3.11.9 with pre-compiled wheels for fast and error-free builds.
+
 ### [2026-09-09 02:25:00 WIB] — Cleanup: Removed Legacy `.emergent/` Folder
 - **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
 - **Goal:** Remove legacy Emergent platform cron scripts, manifests, and system dependency files.
