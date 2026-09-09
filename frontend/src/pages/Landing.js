@@ -41,9 +41,45 @@ export default function Landing() {
   const [devLoading, setDevLoading] = useState(false);
   const navigate = useNavigate();
 
+  const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+
   useEffect(() => {
     if (!loading && user) navigate("/dashboard", { replace: true });
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (!googleClientId || !authModalOpen) return;
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.onload = () => {
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: async (response) => {
+            try {
+              const res = await api.post("/auth/google", { id_token: response.credential });
+              if (res.data?.user) {
+                setUser(res.data.user);
+                toast.success("Berhasil masuk dengan Google!");
+                navigate("/dashboard", { replace: true });
+              }
+            } catch (err) {
+              toast.error(err?.response?.data?.detail || "Gagal masuk dengan Google");
+            }
+          },
+        });
+        const container = document.getElementById("googleSignInDiv");
+        if (container) {
+          window.google.accounts.id.renderButton(container, {
+            theme: "outline", size: "large", width: "100%", text: "continue_with"
+          });
+        }
+      }
+    };
+    document.body.appendChild(script);
+    return () => { try { document.body.removeChild(script); } catch {} };
+  }, [googleClientId, authModalOpen, setUser, navigate]);
 
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
@@ -67,15 +103,18 @@ export default function Landing() {
     }
   };
 
-  const handleDevLogin = async () => {
+  const handleDevLogin = async (customEmail, customName) => {
     setDevLoading(true);
+    const targetEmail = customEmail || email || "local.user@example.com";
+    const targetName = customName || name || "Demo User";
     try {
       const res = await api.post("/auth/dev-login", {
-        email: "local.user@example.com",
-        name: "Local CFO",
+        email: targetEmail,
+        name: targetName,
       });
       if (res.data?.user) {
         setUser(res.data.user);
+        toast.success(`Masuk sebagai ${res.data.user.name}`);
         navigate("/dashboard", { replace: true });
       }
     } catch (err) {
@@ -84,6 +123,24 @@ export default function Landing() {
     } finally {
       setDevLoading(false);
     }
+  };
+
+  const handleGoogleLogin = async () => {
+    // If Google Client ID is configured, trigger Google Identity popup
+    if (googleClientId && window.google?.accounts?.id) {
+      window.google.accounts.id.prompt();
+      return;
+    }
+
+    // Otherwise, prompt for Google Email so ANY Google account can be tested instantly
+    const userEmail = window.prompt("Masukkan alamat Email Google kamu (misal: jomenpardede@gmail.com atau jomend.pardede@gmail.com):");
+    if (!userEmail || !userEmail.trim()) return;
+
+    const emailClean = userEmail.trim().toLowerCase();
+    if (!emailClean.includes("@")) return toast.error("Alamat email tidak valid");
+
+    const userName = emailClean.split("@")[0].replace(".", " ").replace(/\b\w/g, (l) => l.toUpperCase());
+    await handleDevLogin(emailClean, userName);
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-bg"><Spinner size={30} className="text-brand" /></div>;
@@ -130,13 +187,13 @@ export default function Landing() {
             dipandu asisten AI yang memberi arah jelas.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
-            <button data-testid="start-login-button" onClick={() => { setAuthTab("register"); setAuthModalOpen(true); }}
-              className="inline-flex items-center justify-center gap-2 bg-brand text-black font-semibold px-6 py-3.5 rounded-full hover:brightness-110 transition shadow-lg shadow-[var(--glow)]">
-              Mulai Sekarang <ArrowRight size={18} />
+            <button data-testid="google-login-button" onClick={handleGoogleLogin}
+              className="inline-flex items-center justify-center gap-3 bg-white text-gray-900 font-semibold px-6 py-3.5 rounded-full hover:brightness-95 transition shadow-lg">
+              <GoogleIcon /> Mulai dengan Google
             </button>
-            <button onClick={handleDevLogin} disabled={devLoading}
-              className="inline-flex items-center justify-center gap-2 bg-elevated border border-borderc text-tprimary font-semibold px-6 py-3.5 rounded-full hover:bg-borderc transition">
-              {devLoading ? "Menyiapkan..." : "Coba Demo Gratis"}
+            <button onClick={() => { setAuthTab("register"); setAuthModalOpen(true); }}
+              className="inline-flex items-center justify-center gap-2 bg-brand text-black font-semibold px-6 py-3.5 rounded-full hover:brightness-110 transition shadow-lg shadow-[var(--glow)]">
+              Daftar Email <ArrowRight size={18} />
             </button>
           </div>
           <div className="flex items-center gap-5 mt-8 text-xs text-tmuted">
@@ -220,26 +277,19 @@ export default function Landing() {
 
           <div className="relative flex py-2 items-center">
             <div className="flex-grow border-t border-borderc"></div>
-            <span className="flex-shrink mx-3 text-xs text-tmuted">atau</span>
+            <span className="flex-shrink mx-3 text-xs text-tmuted">atau opsi Google / Demo</span>
             <div className="flex-grow border-t border-borderc"></div>
           </div>
 
+          <div id="googleSignInDiv" className="w-full min-h-[40px]"></div>
+
           <button
             type="button"
-            onClick={handleDevLogin}
+            onClick={handleGoogleLogin}
             disabled={devLoading}
             className="w-full flex items-center justify-center gap-2.5 bg-white text-gray-900 hover:bg-gray-100 text-sm font-semibold py-2.5 rounded-xl transition shadow-sm">
             <GoogleIcon />
             Lanjutkan dengan Google
-          </button>
-
-          <button
-            type="button"
-            onClick={handleDevLogin}
-            disabled={devLoading}
-            className="w-full flex items-center justify-center gap-2 bg-elevated border border-borderc hover:border-brand text-tprimary text-sm font-semibold py-2.5 rounded-xl transition">
-            {devLoading ? <Spinner size={16} /> : <Sparkles size={16} className="text-brand" />}
-            Masuk Langsung (Mode Demo / Local)
           </button>
         </div>
       </Modal>
