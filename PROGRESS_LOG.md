@@ -20,6 +20,16 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-09-10 04:15:00 WIB] — Fix Page Refresh Re-authentication Bug (Bearer Header Priority)
+- **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
+- **Goal:** Fix bug where refreshing the page caused user session loss and redirected to Google Sign-In.
+- **Key Actions & Changes:**
+  - `backend/auth.py`: Updated `get_current_user` so that the `Authorization: Bearer <token>` header from `localStorage` always takes **precedence** over stale/expired browser cookies. Added fallback verification.
+  - End-to-End Test: Verified that passing a stale/expired cookie alongside a valid `Authorization: Bearer` token returns `200 OK` and maintains the user session.
+  - Pushed commit `19f49ef` to GitHub `main` branch.
+- **Notes & Important Context:**
+  - Page refresh now preserves user session seamlessly across all browsers and devices.
+
 ### [2026-09-10 04:00:00 WIB] — Fix Cross-Site Session Persistence (`Authorization: Bearer <token>`) & Dashboard Blank Screen
 - **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
 - **Goal:** Fix `Invalid session` error when adding transactions/wallets on live production, and fix blank Beranda screen.
