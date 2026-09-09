@@ -31,7 +31,7 @@ const FEATURES = [
 ];
 
 export default function Landing() {
-  const { user, setUser, loading } = useAuth();
+  const { user, loginWithSession, loading } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -56,7 +56,7 @@ export default function Landing() {
             try {
               const res = await api.post("/auth/google", { id_token: response.credential });
               if (res.data?.user) {
-                setUser(res.data.user);
+                loginWithSession(res.data.user, res.data.session_token);
                 toast.success("Berhasil masuk dengan Google!");
                 navigate("/dashboard", { replace: true });
               }
@@ -73,7 +73,7 @@ export default function Landing() {
     };
     document.body.appendChild(script);
     return () => { try { document.body.removeChild(script); } catch {} };
-  }, [googleClientId, setUser, navigate]);
+  }, [googleClientId, loginWithSession, navigate]);
 
   useEffect(() => {
     if (authModalOpen && window.google?.accounts?.id) {

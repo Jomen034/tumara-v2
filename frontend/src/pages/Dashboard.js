@@ -38,12 +38,33 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  const [error, setError] = useState(false);
+
+  const fetchDashboard = () => {
+    setLoading(true);
+    setError(false);
+    api.get("/dashboard")
+      .then((r) => { setData(r.data); setError(false); })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  };
+
   useEffect(() => {
-    api.get("/dashboard").then((r) => setData(r.data)).finally(() => setLoading(false));
+    fetchDashboard();
   }, [version]);
 
   if (loading) return <div className="flex justify-center py-20"><Spinner size={30} className="text-brand" /></div>;
-  if (!data) return null;
+
+  if (error || !data) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <AlertTriangle size={36} className="text-amber" />
+        <h2 className="font-head font-bold text-lg">Gagal memuat data beranda</h2>
+        <p className="text-sm text-tsecondary max-w-sm">Terjadi kendala koneksi atau sesi. Silakan coba muat ulang.</p>
+        <Button onClick={fetchDashboard}>Coba Lagi</Button>
+      </div>
+    );
+  }
 
   const empty = data.wallet_count === 0;
 

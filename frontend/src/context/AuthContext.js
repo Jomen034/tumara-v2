@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
       setUser(res.data);
     } catch {
       setUser(null);
+      localStorage.removeItem("tumara_session_token");
     } finally {
       setLoading(false);
     }
@@ -23,14 +24,22 @@ export function AuthProvider({ children }) {
     checkAuth();
   }, [checkAuth]);
 
+  const loginWithSession = useCallback((userData, sessionToken) => {
+    if (sessionToken) {
+      localStorage.setItem("tumara_session_token", sessionToken);
+    }
+    setUser(userData);
+  }, []);
+
   const logout = async () => {
     try { await api.post("/auth/logout"); } catch {}
+    localStorage.removeItem("tumara_session_token");
     setUser(null);
     window.location.href = "/";
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, checkAuth, logout }}>
+    <AuthContext.Provider value={{ user, setUser, loginWithSession, loading, checkAuth, logout }}>
       {children}
     </AuthContext.Provider>
   );
