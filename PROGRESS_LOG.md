@@ -20,6 +20,16 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-09-10 03:20:00 WIB] — Fix Google OAuth 2.0 Token Verification & UI Clean-up
+- **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
+- **Goal:** Fix Google OAuth token verification fallback and remove duplicate button from auth modal.
+- **Key Actions & Changes:**
+  - `backend/auth.py`: Updated `google_auth` endpoint with clock skew tolerance (`clock_skew_in_seconds=10`), support for both `id_token` and `credential` field names, and fallbacks to Google `v3/tokeninfo` and `v3/userinfo` endpoints.
+  - `frontend/src/pages/Landing.js`: Removed duplicate button inside the modal and rendered Google's official Sign-In button (`#googleSignInDiv`).
+  - Pushed commit `f43e519` to GitHub `main` branch.
+- **Notes & Important Context:**
+  - Live production authentication on `https://tumara-v2.vercel.app` is now fully operational with Google OAuth 2.0.
+
 ### [2026-09-10 03:00:00 WIB] — Pure Google OAuth Login & Sanitized User Model
 - **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
 - **Goal:** Make Google OAuth the single, clean authentication mechanism for live production and sanitize User model deserialization.
