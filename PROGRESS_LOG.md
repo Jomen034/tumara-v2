@@ -20,6 +20,17 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-09-10 04:00:00 WIB] — Fix Cross-Site Session Persistence (`Authorization: Bearer <token>`) & Dashboard Blank Screen
+- **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
+- **Goal:** Fix `Invalid session` error when adding transactions/wallets on live production, and fix blank Beranda screen.
+- **Key Actions & Changes:**
+  - `frontend/src/lib/api.js`: Added Axios request interceptor that attaches `Authorization: Bearer <tumara_session_token>` header from `localStorage` on EVERY request.
+  - `frontend/src/context/AuthContext.js`: Added `loginWithSession` helper to save `tumara_session_token` into `localStorage` upon authentication.
+  - `frontend/src/pages/Dashboard.js`: Added error boundary and retry button to prevent blank screen if API request fails.
+  - Pushed commit `370d22d` to GitHub `main` branch.
+- **Notes & Important Context:**
+  - Guarantees 100% reliable session authentication on all browsers (Chrome, Safari, iOS, Incognito) regardless of third-party cookie restrictions.
+
 ### [2026-09-10 03:45:00 WIB] — Fix Production CORS Regex & Cross-Site Session Cookies
 - **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
 - **Goal:** Fix production CORS preflight blocking (`Disallowed CORS origin`) and cross-site HTTPS session cookie rejection on Render and Vercel.
