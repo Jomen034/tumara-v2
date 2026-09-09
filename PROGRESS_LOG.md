@@ -20,6 +20,16 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-09-10 03:45:00 WIB] — Fix Production CORS Regex & Cross-Site Session Cookies
+- **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
+- **Goal:** Fix production CORS preflight blocking (`Disallowed CORS origin`) and cross-site HTTPS session cookie rejection on Render and Vercel.
+- **Key Actions & Changes:**
+  - `backend/server.py`: Configured `allow_origin_regex=r"https://.*\.vercel\.app|http://(localhost|127\.0\.0\.1)(:\d+)?"` to permit all Vercel domains (`https://tumara-v2.vercel.app`, `https://tumara.vercel.app`, preview PR branches) with full credential support. Added `.strip()` to parse `CORS_ORIGINS`.
+  - `backend/auth.py`: Added `Optional` import from `typing`. Updated `_set_session_cookie` to set `secure=True` and `samesite="none"` when `ENVIRONMENT` is production or when serving over HTTPS.
+  - Pushed commit `13fa259` to GitHub `main` branch to trigger automatic Render deployment.
+- **Notes & Important Context:**
+  - Verified live backend CORS preflight response for Vercel.
+
 ### [2026-09-10 03:20:00 WIB] — Fix Google OAuth 2.0 Token Verification & UI Clean-up
 - **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
 - **Goal:** Fix Google OAuth token verification fallback and remove duplicate button from auth modal.

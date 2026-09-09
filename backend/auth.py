@@ -1,6 +1,7 @@
 import os
 import secrets
 import bcrypt
+from typing import Optional
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Request, Response, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
@@ -32,8 +33,9 @@ class GoogleAuthRequest(BaseModel):
     access_token: Optional[str] = None
 
 
-def _set_session_cookie(response: Response, session_token: str):
-    is_prod = os.environ.get("ENVIRONMENT", "").lower() == "production"
+def _set_session_cookie(response: Response, session_token: str, request: Optional[Request] = None):
+    env = os.environ.get("ENVIRONMENT", "").lower()
+    is_prod = env in ("production", "prod", "true", "1") or (request and request.url.scheme == "https")
     response.set_cookie(
         key=COOKIE_NAME,
         value=session_token,

@@ -25,10 +25,13 @@ api.include_router(household_router)
 api.include_router(bills_router)
 app.include_router(api)
 
-origins = os.environ.get("CORS_ORIGINS", "*").split(",")
+raw_origins = os.environ.get("CORS_ORIGINS", "*")
+origins = [o.strip().rstrip("/") for o in raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins if origins != ["*"] else ["*"],
+    allow_origins=origins if "*" not in origins else ["*"],
+    allow_origin_regex=r"https://.*\.vercel\.app|http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
