@@ -37,6 +37,8 @@ export default function Landing() {
 
   const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
+  const [gisLoaded, setGisLoaded] = useState(false);
+
   useEffect(() => {
     if (!loading && user) navigate("/dashboard", { replace: true });
   }, [user, loading, navigate]);
@@ -59,26 +61,31 @@ export default function Landing() {
                 navigate("/dashboard", { replace: true });
               }
             } catch (err) {
-              toast.error(err?.response?.data?.detail || "Gagal masuk dengan Google");
+              const msg = err?.response?.data?.detail || "Gagal masuk dengan Google";
+              toast.error(msg);
             }
           },
         });
-
+        setGisLoaded(true);
         // Auto prompt Google One-Tap
         window.google.accounts.id.prompt();
-
-        // Render official Google button into container when modal opens
-        const container = document.getElementById("googleSignInDiv");
-        if (container) {
-          window.google.accounts.id.renderButton(container, {
-            theme: "filled_blue", size: "large", width: "100%", text: "continue_with"
-          });
-        }
       }
     };
     document.body.appendChild(script);
     return () => { try { document.body.removeChild(script); } catch {} };
-  }, [googleClientId, authModalOpen, setUser, navigate]);
+  }, [googleClientId, setUser, navigate]);
+
+  useEffect(() => {
+    if (authModalOpen && window.google?.accounts?.id) {
+      const container = document.getElementById("googleSignInDiv");
+      if (container) {
+        container.innerHTML = "";
+        window.google.accounts.id.renderButton(container, {
+          theme: "outline", size: "large", width: 320, text: "continue_with"
+        });
+      }
+    }
+  }, [authModalOpen, gisLoaded]);
 
   const handleGoogleClick = () => {
     if (window.google?.accounts?.id) {
@@ -151,14 +158,6 @@ export default function Landing() {
           </p>
 
           <div id="googleSignInDiv" className="w-full flex justify-center min-h-[48px]"></div>
-
-          <button
-            type="button"
-            onClick={handleGoogleClick}
-            className="w-full flex items-center justify-center gap-2.5 bg-white text-gray-900 hover:bg-gray-100 text-sm font-semibold py-3 rounded-xl transition shadow-sm">
-            <GoogleIcon />
-            Lanjutkan dengan Google
-          </button>
         </div>
       </Modal>
 

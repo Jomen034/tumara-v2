@@ -20,6 +20,17 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-09-10 03:00:00 WIB] — Pure Google OAuth Login & Sanitized User Model
+- **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
+- **Goal:** Make Google OAuth the single, clean authentication mechanism for live production and sanitize User model deserialization.
+- **Key Actions & Changes:**
+  - `backend/models.py`: Added `model_config = ConfigDict(extra="ignore")` to `User` model so Pydantic v2 gracefully handles extra fields (like `password_hash`).
+  - `backend/auth.py`: Updated `google_auth` endpoint with dual-verification fallback (`google.oauth2.id_token` library + HTTP `tokeninfo` endpoint) and removed `password_hash` before instantiating `User`.
+  - `frontend/src/pages/Landing.js`: Removed all demo mode buttons, test account pills, and manual forms. Streamlined the entire landing page and modal to official Google OAuth 2.0 (`google.accounts.id`).
+  - Pushed commit `a2c99cb` to GitHub `main` branch.
+- **Notes & Important Context:**
+  - Google Sign-In is now the sole authentication method for live production.
+
 ### [2026-09-10 02:30:00 WIB] — Fix Render Deployment: Pin Python 3.11.9 Runtime & Relax Requirements
 - **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
 - **Goal:** Fix Render build error where `pillow` wheel compilation failed under experimental Python 3.14.3.

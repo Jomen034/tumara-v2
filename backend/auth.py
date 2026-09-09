@@ -27,7 +27,9 @@ class LoginRequest(BaseModel):
 
 
 class GoogleAuthRequest(BaseModel):
-    id_token: str
+    id_token: Optional[str] = None
+    credential: Optional[str] = None
+    access_token: Optional[str] = None
 
 
 def _set_session_cookie(response: Response, session_token: str):
@@ -149,41 +151,56 @@ async def login(body: LoginRequest, response: Response):
 @router.post("/google")
 async def google_auth(body: GoogleAuthRequest, response: Response):
     """Verify Google OAuth id_token directly with Google APIs."""
-    token = body.id_token.strip()
+    token = (body.id_token or body.credential or body.access_token or "").strip()
     if not token:
-        raise HTTPException(status_code=400, detail="Missing Google ID token")
+        raise HTTPException(status_code=400, detail="Token Google tidak ditemukan")
 
     data = None
+    last_err = None
+
     # 1. Try verification with google-auth library
     try:
         from google.oauth2 import id_token as google_id_token
         from google.auth.transport import requests as google_requests
-        id_info = google_id_token.verify_oauth2_token(token, google_requests.Request())
-        data = {
-            "email": id_info.get("email"),
-            "name": id_info.get("name") or id_info.get("given_name") or "Pengguna Tumara",
-            "picture": id_info.get("picture"),
-        }
+        id_info = google_id_token.verify_oauth2_token(
+            token, google_requests.Request(), clock_skew_in_seconds=10
+        )
+        if id_info and id_info.get("email"):
+            data = {
+                "email": id_info["email"],
+                "name": id_info.get("name") or id_info.get("given_name") or "Pengguna Tumara",
+                "picture": id_info.get("picture"),
+            }
     except Exception as exc:
+        last_err = str(exc)
         print(f"[Auth] google.oauth2 verify fallback: {exc}")
 
     # 2. Fallback HTTP tokeninfo verification
     if not data or not data.get("email"):
-        async with httpx.AsyncClient(timeout=10) as hc:
-            res = await hc.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}")
-            if res.status_code != 200:
-                res = await hc.get("https://www.googleapis.com/oauth2/v3/userinfo", headers={"Authorization": f"Bearer {token}"})
+        try:
+            async with httpx.AsyncClient(timeout=12) as hc:
+                res = await hc.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}")
+                if res.status_code != 200:
+                    res = await hc.get(f"https://www.googleapis.com/oauth2/v3/tokeninfo?id_token={token}")
+                if res.status_code != 200:
+                    res = await hc.get("https://www.googleapis.com/oauth2/v3/userinfo", headers={"Authorization": f"Bearer {token}"})
 
-            if res.status_code == 200:
-                res_data = res.json()
-                data = {
-                    "email": res_data.get("email"),
-                    "name": res_data.get("name") or res_data.get("given_name") or "Pengguna Tumara",
-                    "picture": res_data.get("picture"),
-                }
+                if res.status_code == 200:
+                    res_data = res.json()
+                    data = {
+                        "email": res_data.get("email"),
+                        "name": res_data.get("name") or res_data.get("given_name") or "Pengguna Tumara",
+                        "picture": res_data.get("picture"),
+                    }
+                else:
+                    last_err = f"Google endpoint returned {res.status_code}: {res.text[:100]}"
+        except Exception as exc:
+            last_err = str(exc)
+            print(f"[Auth] httpx tokeninfo verify fallback error: {exc}")
 
     if not data or not data.get("email"):
-        raise HTTPException(status_code=401, detail="Gagal verifikasi akun Google")
+        detail_msg = f"Gagal verifikasi akun Google: {last_err}" if last_err else "Gagal verifikasi akun Google"
+        raise HTTPException(status_code=401, detail=detail_msg)
 
     email = data["email"].strip().lower()
     name = data["name"]
