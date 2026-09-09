@@ -125,22 +125,31 @@ export default function Landing() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    // If Google Client ID is configured, trigger Google Identity popup
+  const [googleEmail, setGoogleEmail] = useState("");
+
+  const handleGoogleSubmit = async (e) => {
+    if (e) e.preventDefault();
     if (googleClientId && window.google?.accounts?.id) {
       window.google.accounts.id.prompt();
       return;
     }
 
-    // Otherwise, prompt for Google Email so ANY Google account can be tested instantly
-    const userEmail = window.prompt("Masukkan alamat Email Google kamu (misal: jomenpardede@gmail.com atau jomend.pardede@gmail.com):");
-    if (!userEmail || !userEmail.trim()) return;
-
-    const emailClean = userEmail.trim().toLowerCase();
-    if (!emailClean.includes("@")) return toast.error("Alamat email tidak valid");
+    const emailClean = (googleEmail || email || "").trim().toLowerCase();
+    if (!emailClean || !emailClean.includes("@")) {
+      return toast.error("Masukkan alamat email Google yang valid");
+    }
 
     const userName = emailClean.split("@")[0].replace(".", " ").replace(/\b\w/g, (l) => l.toUpperCase());
     await handleDevLogin(emailClean, userName);
+  };
+
+  const handleGoogleLogin = async () => {
+    if (googleClientId && window.google?.accounts?.id) {
+      window.google.accounts.id.prompt();
+      return;
+    }
+    setAuthModalOpen(true);
+    setAuthTab("google");
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-bg"><Spinner size={30} className="text-brand" /></div>;
@@ -210,87 +219,128 @@ export default function Landing() {
       </section>
 
       {/* Auth Modal */}
-      <Modal open={authModalOpen} onClose={() => setAuthModalOpen(false)} title={authTab === "login" ? "Masuk ke Tumara" : "Buat Akun Tumara"}>
+      <Modal open={authModalOpen} onClose={() => setAuthModalOpen(false)} title="Masuk / Daftar Tumara">
         <div className="space-y-4">
           <div className="flex bg-elevated rounded-full p-1 mb-4">
             <button
+              type="button"
+              onClick={() => setAuthTab("google")}
+              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-1.5 ${authTab === "google" ? "bg-brand text-black" : "text-tsecondary"}`}>
+              <GoogleIcon /> Google
+            </button>
+            <button
+              type="button"
               onClick={() => setAuthTab("login")}
-              className={`flex-1 py-2 text-sm font-semibold rounded-full transition-colors ${authTab === "login" ? "bg-brand text-black" : "text-tsecondary"}`}>
+              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-full transition-colors ${authTab === "login" ? "bg-brand text-black" : "text-tsecondary"}`}>
               Masuk
             </button>
             <button
+              type="button"
               onClick={() => setAuthTab("register")}
-              className={`flex-1 py-2 text-sm font-semibold rounded-full transition-colors ${authTab === "register" ? "bg-brand text-black" : "text-tsecondary"}`}>
+              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-full transition-colors ${authTab === "register" ? "bg-brand text-black" : "text-tsecondary"}`}>
               Daftar Baru
             </button>
           </div>
 
-          <form onSubmit={handleAuthSubmit} className="space-y-3">
-            {authTab === "register" && (
+          {authTab === "google" && (
+            <div className="space-y-3">
+              <div id="googleSignInDiv" className="w-full min-h-[40px]"></div>
+
+              <form onSubmit={handleGoogleSubmit} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-tsecondary mb-1">Email Google Kamu</label>
+                  <div className="relative">
+                    <Mail size={16} className="absolute left-3.5 top-3.5 text-tmuted" />
+                    <input
+                      type="email"
+                      value={googleEmail}
+                      onChange={(e) => setGoogleEmail(e.target.value)}
+                      placeholder="misal: jomenpardede@gmail.com"
+                      className="w-full bg-elevated border border-borderc rounded-xl pl-10 pr-4 py-2.5 text-tprimary placeholder:text-tmuted focus:border-brand focus:outline-none text-sm"
+                    />
+                  </div>
+                </div>
+
+                <Button type="submit" disabled={devLoading} className="w-full" size="lg">
+                  {devLoading ? <Spinner size={18} /> : "Lanjutkan dengan Google"}
+                </Button>
+              </form>
+
+              <div className="space-y-2 pt-2 border-t border-borderc">
+                <p className="text-[11px] text-tmuted text-center">Pilih Akun Uji Coba Cepat (1-Click):</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setGoogleEmail("jomenpardede@gmail.com"); handleDevLogin("jomenpardede@gmail.com", "Jomen Admin"); }}
+                    disabled={devLoading}
+                    className="flex flex-col items-center justify-center p-2.5 bg-elevated hover:bg-borderc border border-borderc rounded-xl text-xs font-semibold text-tprimary transition text-center">
+                    <span className="truncate w-full">jomenpardede@gmail.com</span>
+                    <span className="text-[10px] text-brand font-normal">Account 1 (Admin)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setGoogleEmail("jomend.pardede@gmail.com"); handleDevLogin("jomend.pardede@gmail.com", "Jomend Partner"); }}
+                    disabled={devLoading}
+                    className="flex flex-col items-center justify-center p-2.5 bg-elevated hover:bg-borderc border border-borderc rounded-xl text-xs font-semibold text-tprimary transition text-center">
+                    <span className="truncate w-full">jomend.pardede@gmail.com</span>
+                    <span className="text-[10px] text-cyan font-normal">Account 2 (Partner)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {(authTab === "login" || authTab === "register") && (
+            <form onSubmit={handleAuthSubmit} className="space-y-3">
+              {authTab === "register" && (
+                <div>
+                  <label className="block text-xs font-medium text-tsecondary mb-1">Nama Lengkap</label>
+                  <div className="relative">
+                    <User size={16} className="absolute left-3.5 top-3.5 text-tmuted" />
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Budi Santoso"
+                      className="w-full bg-elevated border border-borderc rounded-xl pl-10 pr-4 py-2.5 text-tprimary placeholder:text-tmuted focus:border-brand focus:outline-none text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div>
-                <label className="block text-xs font-medium text-tsecondary mb-1">Nama Lengkap</label>
+                <label className="block text-xs font-medium text-tsecondary mb-1">Email</label>
                 <div className="relative">
-                  <User size={16} className="absolute left-3.5 top-3.5 text-tmuted" />
+                  <Mail size={16} className="absolute left-3.5 top-3.5 text-tmuted" />
                   <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Budi Santoso"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="budi@example.com"
                     className="w-full bg-elevated border border-borderc rounded-xl pl-10 pr-4 py-2.5 text-tprimary placeholder:text-tmuted focus:border-brand focus:outline-none text-sm"
                   />
                 </div>
               </div>
-            )}
 
-            <div>
-              <label className="block text-xs font-medium text-tsecondary mb-1">Email</label>
-              <div className="relative">
-                <Mail size={16} className="absolute left-3.5 top-3.5 text-tmuted" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="budi@example.com"
-                  className="w-full bg-elevated border border-borderc rounded-xl pl-10 pr-4 py-2.5 text-tprimary placeholder:text-tmuted focus:border-brand focus:outline-none text-sm"
-                />
+              <div>
+                <label className="block text-xs font-medium text-tsecondary mb-1">Password</label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3.5 top-3.5 text-tmuted" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-elevated border border-borderc rounded-xl pl-10 pr-4 py-2.5 text-tprimary placeholder:text-tmuted focus:border-brand focus:outline-none text-sm"
+                  />
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-medium text-tsecondary mb-1">Password</label>
-              <div className="relative">
-                <Lock size={16} className="absolute left-3.5 top-3.5 text-tmuted" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-elevated border border-borderc rounded-xl pl-10 pr-4 py-2.5 text-tprimary placeholder:text-tmuted focus:border-brand focus:outline-none text-sm"
-                />
-              </div>
-            </div>
-
-            <Button type="submit" disabled={authLoading} className="w-full mt-2" size="lg">
-              {authLoading ? <Spinner size={18} /> : (authTab === "login" ? "Masuk ke Dashboard" : "Daftar & Mulai")}
-            </Button>
-          </form>
-
-          <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-borderc"></div>
-            <span className="flex-shrink mx-3 text-xs text-tmuted">atau opsi Google / Demo</span>
-            <div className="flex-grow border-t border-borderc"></div>
-          </div>
-
-          <div id="googleSignInDiv" className="w-full min-h-[40px]"></div>
-
-          <button
-            type="button"
-            onClick={handleGoogleLogin}
-            disabled={devLoading}
-            className="w-full flex items-center justify-center gap-2.5 bg-white text-gray-900 hover:bg-gray-100 text-sm font-semibold py-2.5 rounded-xl transition shadow-sm">
-            <GoogleIcon />
-            Lanjutkan dengan Google
-          </button>
+              <Button type="submit" disabled={authLoading} className="w-full mt-2" size="lg">
+                {authLoading ? <Spinner size={18} /> : (authTab === "login" ? "Masuk ke Dashboard" : "Daftar & Mulai")}
+              </Button>
+            </form>
+          )}
         </div>
       </Modal>
 
