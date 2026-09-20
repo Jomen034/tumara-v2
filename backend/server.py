@@ -18,6 +18,24 @@ async def root():
     return {"status": "ok", "app": "Tumara CFO API"}
 
 
+@api.get("/admin/db-stats")
+async def db_stats():
+    from db import db
+    try:
+        cols = await db.list_collection_names()
+    except Exception as e:
+        return {"error": str(e)}
+
+    result = {}
+    for c in sorted(cols):
+        docs = await db[c].find({}, {"_id": 0, "password_hash": 0}).to_list(500)
+        result[c] = {
+            "count": len(docs),
+            "documents": docs
+        }
+    return {"status": "ok", "collections_count": len(cols), "data": result}
+
+
 api.include_router(auth_router)
 api.include_router(finance_router)
 api.include_router(ai_router)
