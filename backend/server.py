@@ -20,20 +20,34 @@ async def root():
 
 @api.get("/admin/db-stats")
 async def db_stats():
-    from db import db
+    from db import client, db
     try:
-        cols = await db.list_collection_names()
+        db_names = await client.list_database_names()
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": f"Failed to list databases: {e}"}
 
-    result = {}
-    for c in sorted(cols):
-        docs = await db[c].find({}, {"_id": 0, "password_hash": 0}).to_list(500)
-        result[c] = {
-            "count": len(docs),
-            "documents": docs
-        }
-    return {"status": "ok", "collections_count": len(cols), "data": result}
+    all_dbs = {}
+    for dname in db_names:
+        if dname in ("admin", "local", "config"):
+            continue
+        cur_db = client[dname]
+        try:
+            cols = await cur_db.list_collection_names()
+            col_data = {}
+            for c in sorted(cols):
+                docs = await cur_db[c].find({}, {"_id": 0, "password_hash": 0}).to_list(500)
+                col_data[c] = {
+                    "count": len(docs),
+                    "documents": docs
+                }
+            all_dbs[dname] = {
+                "collections_count": len(cols),
+                "collections": col_data
+            }
+        except Exception as err:
+            all_dbs[dname] = {"error": str(err)}
+
+    return {"status": "ok", "databases": all_dbs}
 
 
 api.include_router(auth_router)
