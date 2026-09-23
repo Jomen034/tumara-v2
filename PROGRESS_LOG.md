@@ -20,7 +20,15 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
-### [2026-09-24 14:45:00 WIB] — Restore Dual-Mode Session Persistence (`Authorization: Bearer` & HttpOnly Cookie)
+### [2026-09-24 15:00:00 WIB] — Fix Google Sign-In Flow, Modal Lifecycle & Error Handling
+- **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
+- **Goal:** Fix Google OAuth authentication flow loop, ensure the modal dismisses properly upon user interaction, surface specific error messages, and eliminate redirect stalls.
+- **Key Actions & Changes:**
+  - `frontend/src/pages/Landing.js`: Added `isLoggingIn` state indicator with spinner feedback; automatically dismissed auth modal (`setAuthModalOpen(false)`) immediately upon Google credential callback; passed both `id_token` and `credential` to `/api/auth/google`; improved error message extraction to surface specific backend errors instead of generic fallback.
+  - `backend/tests/test_new_features.py` & `backend/tests/test_round3.py`: Added fallback defaults for `REACT_APP_BACKEND_URL` environment variables.
+  - Build & Test: Verified all 9 security tests pass and React frontend compiles cleanly.
+- **Notes & Important Context:**
+  - Landing page now provides immediate visual loading feedback and navigates cleanly to `/dashboard` upon Google authentication.
 - **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
 - **Goal:** Fix cross-domain authentication failure between Vercel frontend (`tumara-v2.vercel.app`) and Render backend (`onrender.com`) where browser 3rd-party cookie blocking prevented session retrieval.
 - **Key Actions & Changes:**

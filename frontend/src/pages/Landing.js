@@ -33,6 +33,7 @@ const FEATURES = [
 export default function Landing() {
   const { user, loginWithSession, loading } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const navigate = useNavigate();
 
   const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
@@ -54,15 +55,23 @@ export default function Landing() {
           client_id: googleClientId,
           callback: async (response) => {
             try {
-              const res = await api.post("/auth/google", { id_token: response.credential });
+              setIsLoggingIn(true);
+              setAuthModalOpen(false);
+              const res = await api.post("/auth/google", {
+                id_token: response.credential,
+                credential: response.credential,
+              });
               if (res.data?.user) {
                 loginWithSession(res.data.user, res.data.session_token);
                 toast.success("Berhasil masuk dengan Google!");
                 navigate("/dashboard", { replace: true });
               }
             } catch (err) {
-              const msg = err?.response?.data?.detail || "Gagal masuk dengan Google";
+              console.error("[Google Auth Error]", err);
+              const msg = err?.response?.data?.detail || err?.message || "Gagal masuk dengan Google";
               toast.error(msg);
+            } finally {
+              setIsLoggingIn(false);
             }
           },
         });
@@ -88,13 +97,24 @@ export default function Landing() {
   }, [authModalOpen, gisLoaded]);
 
   const handleGoogleClick = () => {
+    if (!googleClientId) {
+      toast.error("Google Client ID belum dikonfigurasi di environment");
+      return;
+    }
     if (window.google?.accounts?.id) {
       window.google.accounts.id.prompt();
     }
     setAuthModalOpen(true);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-bg"><Spinner size={30} className="text-brand" /></div>;
+  if (loading || isLoggingIn) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-bg gap-3">
+        <Spinner size={32} className="text-brand" />
+        {isLoggingIn && <p className="text-sm text-tsecondary animate-pulse">Menghubungkan akun Google...</p>}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-bg text-tprimary overflow-x-hidden">

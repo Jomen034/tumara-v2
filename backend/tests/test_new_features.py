@@ -6,7 +6,7 @@ import pytest
 import requests
 from PIL import Image, ImageDraw
 
-BASE = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "http://localhost:8001").rstrip("/")
 API = f"{BASE}/api"
 TOKEN = "test_session_cfo_001"
 NEW_TOKEN = "test_session_new_002"
