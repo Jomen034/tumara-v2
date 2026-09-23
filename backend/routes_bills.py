@@ -60,12 +60,14 @@ async def update_bill(bill_id: str, body: BillCreate, ctx: Ctx = Depends(get_ctx
     )
     if res.matched_count == 0:
         raise HTTPException(404, "Tagihan tidak ditemukan")
-    return await db.bills.find_one({"id": bill_id}, {"_id": 0})
+    return await db.bills.find_one({"id": bill_id, "household_id": ctx.hid}, {"_id": 0})
 
 
 @router.delete("/{bill_id}")
 async def delete_bill(bill_id: str, ctx: Ctx = Depends(get_ctx)):
-    await db.bills.delete_one({"id": bill_id, "household_id": ctx.hid})
+    res = await db.bills.delete_one({"id": bill_id, "household_id": ctx.hid})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Tagihan tidak ditemukan")
     return {"ok": True}
 
 
@@ -89,10 +91,10 @@ async def pay_bill(bill_id: str, ctx: Ctx = Depends(get_ctx)):
         )
     # advance to next cycle (or mark paid for one-time)
     if bill["recurrence"] == "once":
-        await db.bills.update_one({"id": bill_id}, {"$set": {"is_paid_current_cycle": True}})
+        await db.bills.update_one({"id": bill_id, "household_id": ctx.hid}, {"$set": {"is_paid_current_cycle": True}})
     else:
         nxt = _advance(bill["next_due_date"], bill["recurrence"])
         await db.bills.update_one(
-            {"id": bill_id}, {"$set": {"next_due_date": nxt, "is_paid_current_cycle": False}}
+            {"id": bill_id, "household_id": ctx.hid}, {"$set": {"next_due_date": nxt, "is_paid_current_cycle": False}}
         )
-    return await db.bills.find_one({"id": bill_id}, {"_id": 0})
+    return await db.bills.find_one({"id": bill_id, "household_id": ctx.hid}, {"_id": 0})

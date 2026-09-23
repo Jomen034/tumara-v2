@@ -56,12 +56,14 @@ async def update_wallet(wallet_id: str, body: WalletCreate, ctx: Ctx = Depends(g
     if res.matched_count == 0:
         raise HTTPException(404, "Wallet not found")
     await _snapshot_networth(ctx.hid)
-    return await db.wallets.find_one({"id": wallet_id}, {"_id": 0})
+    return await db.wallets.find_one({"id": wallet_id, "household_id": ctx.hid}, {"_id": 0})
 
 
 @router.delete("/wallets/{wallet_id}")
 async def delete_wallet(wallet_id: str, ctx: Ctx = Depends(get_ctx)):
-    await db.wallets.delete_one({"id": wallet_id, "household_id": ctx.hid})
+    res = await db.wallets.delete_one({"id": wallet_id, "household_id": ctx.hid})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Wallet not found")
     await _snapshot_networth(ctx.hid)
     return {"ok": True}
 
@@ -113,7 +115,7 @@ async def delete_transaction(txn_id: str, ctx: Ctx = Depends(get_ctx)):
     if not doc:
         raise HTTPException(404, "Not found")
     await _apply_txn(ctx.hid, Transaction(**doc), -1)
-    await db.transactions.delete_one({"id": txn_id})
+    await db.transactions.delete_one({"id": txn_id, "household_id": ctx.hid})
     await _snapshot_networth(ctx.hid)
     return {"ok": True}
 
@@ -260,12 +262,14 @@ async def deposit_goal(goal_id: str, body: GoalDeposit, ctx: Ctx = Depends(get_c
     )
     if res.matched_count == 0:
         raise HTTPException(404, "Goal not found")
-    return await db.goals.find_one({"id": goal_id}, {"_id": 0})
+    return await db.goals.find_one({"id": goal_id, "household_id": ctx.hid}, {"_id": 0})
 
 
 @router.delete("/goals/{goal_id}")
 async def delete_goal(goal_id: str, ctx: Ctx = Depends(get_ctx)):
-    await db.goals.delete_one({"id": goal_id, "household_id": ctx.hid})
+    res = await db.goals.delete_one({"id": goal_id, "household_id": ctx.hid})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Goal not found")
     return {"ok": True}
 
 

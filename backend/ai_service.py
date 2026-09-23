@@ -9,17 +9,25 @@ from db import db
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "").strip()
-MODEL_NAME = "gemini-3.6-flash"  # Gemini model supported by current API
+MODEL_NAME = "gemini-2.5-flash"  # Current Google GenAI recommended model
 
-# Initialize direct Google Generative AI if key is available
-genai_client = None
+# Initialize Google GenAI client (modern SDK) or fallback to legacy google.generativeai
+genai_modern_client = None
+genai_legacy_client = None
+
 if GEMINI_API_KEY:
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=GEMINI_API_KEY)
-        genai_client = genai
+        from google import genai
+        genai_modern_client = genai.Client(api_key=GEMINI_API_KEY)
     except Exception as e:
-        print(f"[AI Service] Warning: google-generativeai init failed: {e}")
+        print(f"[AI Service] google.genai modern client init fallback: {e}")
+
+    try:
+        import google.generativeai as genai_legacy
+        genai_legacy.configure(api_key=GEMINI_API_KEY)
+        genai_legacy_client = genai_legacy
+    except Exception as e:
+        print(f"[AI Service] google.generativeai legacy client init warning: {e}")
 
 
 def _rp(n):
@@ -84,44 +92,59 @@ SYSTEM_PROMPT = (
 )
 
 
-def _make_chat(session_id: str, context: str):
-    system = SYSTEM_PROMPT + "\n\n" + context
-    if GEMINI_API_KEY and genai_client:
-        model = genai_client.GenerativeModel(
-            model_name=MODEL_NAME,
-            system_instruction=system,
-        )
-        return ("direct", model)
-    elif EMERGENT_LLM_KEY:
-        from emergentintegrations.llm.chat import LlmChat
-        chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=session_id, system_message=system).with_model(
-            "gemini", "gemini-3-flash-preview"
-        )
-        return ("emergent", chat)
-    else:
-        return ("dummy", None)
-
-
 async def advisor_stream(user_id: str, session_id: str, message: str, history: list):
     context = await build_financial_context(user_id)
-    engine_type, client = _make_chat(session_id, context)
+    system = SYSTEM_PROMPT + "\n\n" + context
 
-    if engine_type == "direct":
-        chat_session = client.start_chat()
-        response = await chat_session.send_message_async(message, stream=True)
-        async for chunk in response:
-            if chunk.text:
-                yield chunk.text
-    elif engine_type == "emergent":
-        from emergentintegrations.llm.chat import TextDelta, StreamDone, UserMessage
-        async for ev in client.stream_message(UserMessage(text=message)):
-            if isinstance(ev, TextDelta):
-                if ev.content:
+    # 1. Modern google.genai SDK
+    if GEMINI_API_KEY and genai_modern_client:
+        try:
+            from google.genai import types
+            chat = genai_modern_client.aio.chats.create(
+                model=MODEL_NAME,
+                config=types.GenerateContentConfig(system_instruction=system)
+            )
+            response_stream = await chat.send_message_stream(message)
+            async for chunk in response_stream:
+                if chunk.text:
+                    yield chunk.text
+            return
+        except Exception as e:
+            print(f"[AI Service] google.genai chat stream error, trying fallback: {e}")
+
+    # 2. Legacy google.generativeai
+    if GEMINI_API_KEY and genai_legacy_client:
+        try:
+            model = genai_legacy_client.GenerativeModel(
+                model_name="gemini-1.5-flash",
+                system_instruction=system,
+            )
+            chat_session = model.start_chat()
+            response = await chat_session.send_message_async(message, stream=True)
+            async for chunk in response:
+                if chunk.text:
+                    yield chunk.text
+            return
+        except Exception as e:
+            print(f"[AI Service] google.generativeai legacy stream error: {e}")
+
+    # 3. Emergent integration fallback
+    if EMERGENT_LLM_KEY:
+        try:
+            from emergentintegrations.llm.chat import LlmChat, TextDelta, StreamDone, UserMessage
+            chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=session_id, system_message=system).with_model(
+                "gemini", "gemini-3-flash-preview"
+            )
+            async for ev in client.stream_message(UserMessage(text=message)):
+                if isinstance(ev, TextDelta) and ev.content:
                     yield ev.content
-            elif isinstance(ev, StreamDone):
-                break
-    else:
-        yield "Halo! Tumara berjalan dalam mode lokal offline. Untuk mengaktifkan respon AI pintar, masukkan `GEMINI_API_KEY` (dari Google AI Studio) di `backend/.env`."
+                elif isinstance(ev, StreamDone):
+                    break
+            return
+        except Exception as e:
+            print(f"[AI Service] emergentintegrations stream error: {e}")
+
+    yield "Halo! Tumara berjalan dalam mode lokal offline. Untuk mengaktifkan respon AI pintar, masukkan `GEMINI_API_KEY` (dari Google AI Studio) di `backend/.env`."
 
 
 def _resize_image(raw: bytes) -> bytes:
@@ -187,22 +210,46 @@ async def parse_transaction_text(text: str, wallets: list) -> dict:
         "Jika tanggal tidak disebut, pakai hari ini. Jika 'kemarin', kurangi 1 hari.\n\n"
         f'Kalimat pengguna: "{text}"'
     )
-    if GEMINI_API_KEY and genai_client:
-        model = genai_client.GenerativeModel(
-            model_name=MODEL_NAME,
-            system_instruction="You convert Indonesian financial sentences into structured JSON transactions. Reply with pure JSON only."
-        )
-        resp = await model.generate_content_async(prompt)
-        raw = resp.text
-    elif EMERGENT_LLM_KEY:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY, session_id="txn-parse",
-            system_message="You convert Indonesian financial sentences into structured JSON transactions. Reply with pure JSON only.",
-        ).with_model("gemini", "gemini-3-flash-preview")
-        resp = await chat.send_message(UserMessage(text=prompt))
-        raw = resp if isinstance(resp, str) else getattr(resp, "content", str(resp))
-    else:
+    raw = None
+
+    if GEMINI_API_KEY and genai_modern_client:
+        try:
+            from google.genai import types
+            resp = await genai_modern_client.aio.models.generate_content(
+                model=MODEL_NAME,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction="You convert Indonesian financial sentences into structured JSON transactions. Reply with pure JSON only."
+                )
+            )
+            raw = resp.text
+        except Exception as e:
+            print(f"[AI Service] google.genai parse_transaction error: {e}")
+
+    if not raw and GEMINI_API_KEY and genai_legacy_client:
+        try:
+            model = genai_legacy_client.GenerativeModel(
+                model_name="gemini-1.5-flash",
+                system_instruction="You convert Indonesian financial sentences into structured JSON transactions. Reply with pure JSON only."
+            )
+            resp = await model.generate_content_async(prompt)
+            raw = resp.text
+        except Exception as e:
+            print(f"[AI Service] google.generativeai legacy parse error: {e}")
+
+    if not raw and EMERGENT_LLM_KEY:
+        try:
+            from emergentintegrations.llm.chat import LlmChat, UserMessage
+            chat = LlmChat(
+                api_key=EMERGENT_LLM_KEY, session_id="txn-parse",
+                system_message="You convert Indonesian financial sentences into structured JSON transactions. Reply with pure JSON only.",
+            ).with_model("gemini", "gemini-3-flash-preview")
+            resp = await chat.send_message(UserMessage(text=prompt))
+            raw = resp if isinstance(resp, str) else getattr(resp, "content", str(resp))
+        except Exception as e:
+            print(f"[AI Service] emergentintegrations parse error: {e}")
+
+    if not raw:
         # Simple offline regex-based parser heuristic
         import re
         amount_match = re.search(r"(\d+(?:\.\d+)?)\s*(k|rb|jt|m)?", text.lower())
@@ -214,12 +261,45 @@ async def parse_transaction_text(text: str, wallets: list) -> dict:
             elif unit == "jt": num *= 1000000
             elif unit == "m": num *= 1000000000
             amount = int(num)
+
+        # Detect wallet
+        lowered = text.lower()
+        matched_wid = None
+        matched_wname = ""
+        for w in wallets:
+            w_n = w.get("name", "").lower()
+            if w_n and (w_n in lowered or any(part in lowered for part in w_n.split() if len(part) >= 3)):
+                matched_wid = w.get("id")
+                matched_wname = w.get("name")
+                break
+        if not matched_wid and wallets:
+            matched_wid = wallets[0]["id"]
+            matched_wname = wallets[0]["name"]
+
+        # Detect type
+        ttype = "expense"
+        if any(k in lowered for k in ("gaji", "bonus", "terima", "masuk", "income", "pemasukan")):
+            ttype = "income"
+        elif any(k in lowered for k in ("transfer", "pindah", "tf", "kirim")):
+            ttype = "transfer"
+
+        # Detect category
+        cat = "Lainnya"
+        if any(k in lowered for k in ("bensin", "bbm", "bp", "shell", "pertamina", "gojek", "grab", "parkir", "tol", "transport")):
+            cat = "Transportasi"
+        elif any(k in lowered for k in ("makan", "minum", "kopi", "resto", "nasi", "cafe", "snack")):
+            cat = "Makanan & Minuman"
+        elif any(k in lowered for k in ("belanja", "beli", "tokopedia", "shopee", "supermarket")):
+            cat = "Belanja"
+        elif any(k in lowered for k in ("listrik", "pln", "wifi", "indihome", "air", "pdam", "pulsa", "tagihan", "utilitas")):
+            cat = "Tagihan & Utilitas"
+
         raw = json.dumps({
-            "type": "expense", "amount": amount, "category": "Lainnya",
-            "wallet_id": wallets[0]["id"] if wallets else None,
-            "wallet_name": wallets[0]["name"] if wallets else "",
-            "note": text, "date": today, "confidence": 0.6,
-            "understood": f"Transaksi: {text} ({_rp(amount)})"
+            "type": ttype, "amount": amount, "category": cat,
+            "wallet_id": matched_wid,
+            "wallet_name": matched_wname,
+            "note": text, "date": today, "confidence": 0.8,
+            "understood": f"Transaksi {ttype}: {text} ({_rp(amount)})"
         })
 
     data = _extract_json(raw)
@@ -269,49 +349,98 @@ async def generate_weekly_recap(user_id: str) -> str:
     if not week:
         ctx.append("Tidak ada transaksi minggu ini.")
     
-    if GEMINI_API_KEY and genai_client:
-        model = genai_client.GenerativeModel(
-            model_name=MODEL_NAME,
-            system_instruction=WEEKLY_PROMPT,
-        )
-        resp = await model.generate_content_async("\n".join(ctx))
-        return resp.text
-    elif EMERGENT_LLM_KEY:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY, session_id=f"recap_{user_id}",
-            system_message=WEEKLY_PROMPT,
-        ).with_model("gemini", "gemini-3-flash-preview")
-        resp = await chat.send_message(UserMessage(text="\n".join(ctx)))
-        return resp if isinstance(resp, str) else getattr(resp, "content", str(resp))
-    else:
-        return f"Rangkuman minggu ini: Pemasukan {_rp(income)}, Pengeluaran {_rp(expense)} ({len(week)} transaksi). 💡 Tips: Jaga proporsi pengeluaran kebutuhan di bawah 50% pendapatan."
+    # 1. Modern google.genai
+    if GEMINI_API_KEY and genai_modern_client:
+        try:
+            from google.genai import types
+            resp = await genai_modern_client.aio.models.generate_content(
+                model=MODEL_NAME,
+                contents="\n".join(ctx),
+                config=types.GenerateContentConfig(system_instruction=WEEKLY_PROMPT)
+            )
+            return resp.text
+        except Exception as e:
+            print(f"[AI Service] google.genai weekly_recap error: {e}")
+
+    # 2. Legacy google.generativeai
+    if GEMINI_API_KEY and genai_legacy_client:
+        try:
+            model = genai_legacy_client.GenerativeModel(
+                model_name="gemini-1.5-flash",
+                system_instruction=WEEKLY_PROMPT,
+            )
+            resp = await model.generate_content_async("\n".join(ctx))
+            return resp.text
+        except Exception as e:
+            print(f"[AI Service] google.generativeai weekly_recap error: {e}")
+
+    # 3. Emergent fallback
+    if EMERGENT_LLM_KEY:
+        try:
+            from emergentintegrations.llm.chat import LlmChat, UserMessage
+            chat = LlmChat(
+                api_key=EMERGENT_LLM_KEY, session_id=f"recap_{user_id}",
+                system_message=WEEKLY_PROMPT,
+            ).with_model("gemini", "gemini-3-flash-preview")
+            resp = await chat.send_message(UserMessage(text="\n".join(ctx)))
+            return resp if isinstance(resp, str) else getattr(resp, "content", str(resp))
+        except Exception as e:
+            print(f"[AI Service] emergentintegrations recap error: {e}")
+
+    return f"Rangkuman minggu ini: Pemasukan {_rp(income)}, Pengeluaran {_rp(expense)} ({len(week)} transaksi). 💡 Tips: Jaga proporsi pengeluaran kebutuhan di bawah 50% pendapatan."
 
 
 async def scan_receipt(raw: bytes) -> dict:
     resized = _resize_image(raw)
+    text = None
     
-    if GEMINI_API_KEY and genai_client:
-        model = genai_client.GenerativeModel(model_name=MODEL_NAME)
-        img = Image.open(io.BytesIO(resized))
-        resp = await model.generate_content_async([RECEIPT_PROMPT, img])
-        text = resp.text
-    elif EMERGENT_LLM_KEY:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-        b64 = base64.b64encode(resized).decode()
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY, session_id="receipt-scan",
-            system_message="You extract structured data from receipt images and reply with pure JSON only.",
-        ).with_model("gemini", "gemini-3-flash-preview")
-        resp = await chat.send_message(
-            UserMessage(text=RECEIPT_PROMPT, file_contents=[ImageContent(image_base64=b64)])
-        )
-        text = resp if isinstance(resp, str) else getattr(resp, "content", str(resp))
-    else:
+    # 1. Modern google.genai
+    if GEMINI_API_KEY and genai_modern_client:
+        try:
+            from google.genai import types
+            resp = await genai_modern_client.aio.models.generate_content(
+                model=MODEL_NAME,
+                contents=[
+                    types.Part.from_bytes(data=resized, mime_type="image/jpeg"),
+                    RECEIPT_PROMPT,
+                ]
+            )
+            text = resp.text
+        except Exception as e:
+            print(f"[AI Service] google.genai scan_receipt error: {e}")
+
+    # 2. Legacy google.generativeai
+    if not text and GEMINI_API_KEY and genai_legacy_client:
+        try:
+            model = genai_legacy_client.GenerativeModel(model_name="gemini-1.5-flash")
+            img = Image.open(io.BytesIO(resized))
+            resp = await model.generate_content_async([RECEIPT_PROMPT, img])
+            text = resp.text
+        except Exception as e:
+            print(f"[AI Service] google.generativeai scan_receipt error: {e}")
+
+    # 3. Emergent fallback
+    if not text and EMERGENT_LLM_KEY:
+        try:
+            from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+            b64 = base64.b64encode(resized).decode()
+            chat = LlmChat(
+                api_key=EMERGENT_LLM_KEY, session_id="receipt-scan",
+                system_message="You extract structured data from receipt images and reply with pure JSON only.",
+            ).with_model("gemini", "gemini-3-flash-preview")
+            resp = await chat.send_message(
+                UserMessage(text=RECEIPT_PROMPT, file_contents=[ImageContent(image_base64=b64)])
+            )
+            text = resp if isinstance(resp, str) else getattr(resp, "content", str(resp))
+        except Exception as e:
+            print(f"[AI Service] emergentintegrations receipt error: {e}")
+
+    if not text:
         text = json.dumps({
-            "merchant": "Struk Lokal", "total": 50000, "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            "merchant": "Struk Belanja", "total": 50000, "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             "category": "Makanan & Minuman", "items": [{"name": "Item Struk", "price": 50000, "category": "Makanan & Minuman"}]
         })
+
     text = text.strip()
     if text.startswith("```"):
         text = text.split("```")[1]

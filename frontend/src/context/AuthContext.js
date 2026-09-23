@@ -25,9 +25,8 @@ export function AuthProvider({ children }) {
   }, [checkAuth]);
 
   const loginWithSession = useCallback((userData, sessionToken) => {
-    if (sessionToken) {
-      localStorage.setItem("tumara_session_token", sessionToken);
-    }
+    // HttpOnly cookie is set by server. Clean up any legacy localStorage token.
+    localStorage.removeItem("tumara_session_token");
     setUser(userData);
   }, []);
 

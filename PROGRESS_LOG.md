@@ -20,7 +20,20 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
-### [2026-09-10 04:15:00 WIB] — Fix Page Refresh Re-authentication Bug (Bearer Header Priority)
+### [2026-09-24 14:30:00 WIB] — Security Hardening, Auth Audit & Google GenAI SDK Migration
+- **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
+- **Goal:** Perform comprehensive security & dependency audit; fix high-priority auth vulnerabilities, harden session management with HttpOnly cookies, enforce household isolation / IDOR prevention, migrate AI services to modern Google GenAI SDK, and add automated security test suite.
+- **Key Actions & Changes:**
+  - `backend/server.py`: Secured `/api/admin/db-stats` with authentication and admin role authorization (disabled in production unless `ALLOW_ADMIN_STATS=true`); sanitized CORS credential configuration.
+  - `backend/auth.py`: Guarded `/api/auth/dev-login` against production execution; hardened session cookie flags (`HttpOnly`, dynamic `Secure` and `SameSite` according to scheme/environment); added inactive user authorization checks; purged expired sessions from DB on access; added audience validation, issuer check, and `email_verified` verification for Google OAuth tokens.
+  - `backend/routes_finance.py` & `backend/routes_bills.py`: Enforced strict `household_id` scoping across all wallet, transaction, bill, and goal mutation and retrieval endpoints to eliminate IDOR vectors.
+  - `backend/ai_service.py` & `backend/requirements.txt`: Added support for the modern `google-genai` SDK (`gemini-2.5-flash`) alongside existing fallbacks, resolving deprecation of `google-generativeai`.
+  - `backend/db.py`: Added automatic test-environment mock fallback (`TESTING=1`) for deterministic unit/integration testing without network timeouts.
+  - `frontend/src/context/AuthContext.js` & `frontend/src/lib/api.js`: Removed sensitive session token exposure in `localStorage`; switched to pure HttpOnly cookie transmission with automatic cookie clearing on logout.
+  - `backend/tests/test_auth_security.py` & `pytest.ini`: Added 9 comprehensive automated tests covering valid/invalid login, session expiration & DB purge, logout invalidation, dev-login blocking in production, admin db-stats access control, Google token validation & unverified email rejection, and household isolation / IDOR attempts.
+- **Notes & Important Context:**
+  - All 9 security & auth test groups pass seamlessly.
+  - Frontend production build compiles cleanly without errors.
 - **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
 - **Goal:** Fix bug where refreshing the page caused user session loss and redirected to Google Sign-In.
 - **Key Actions & Changes:**
