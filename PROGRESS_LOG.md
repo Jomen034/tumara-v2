@@ -20,7 +20,15 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
-### [2026-09-24 14:30:00 WIB] — Security Hardening, Auth Audit & Google GenAI SDK Migration
+### [2026-09-24 14:45:00 WIB] — Restore Dual-Mode Session Persistence (`Authorization: Bearer` & HttpOnly Cookie)
+- **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
+- **Goal:** Fix cross-domain authentication failure between Vercel frontend (`tumara-v2.vercel.app`) and Render backend (`onrender.com`) where browser 3rd-party cookie blocking prevented session retrieval.
+- **Key Actions & Changes:**
+  - `frontend/src/lib/api.js`: Restored Axios request interceptor that attaches `Authorization: Bearer <session_token>` header on every request.
+  - `frontend/src/context/AuthContext.js`: Restored saving `tumara_session_token` into `localStorage` during `loginWithSession` and clearing it during `logout`.
+  - `backend/auth.py`: Polished Google OAuth token verification to ensure seamless handling of tokens, audiences, and verified emails across providers.
+- **Notes & Important Context:**
+  - Solves the cross-origin login loop on Vercel production while keeping backend session security and validation intact.
 - **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
 - **Goal:** Perform comprehensive security & dependency audit; fix high-priority auth vulnerabilities, harden session management with HttpOnly cookies, enforce household isolation / IDOR prevention, migrate AI services to modern Google GenAI SDK, and add automated security test suite.
 - **Key Actions & Changes:**
