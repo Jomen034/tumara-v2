@@ -8,7 +8,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 import { Spinner, Modal } from "../components/ui";
-import api from "../lib/api";
+import { postWithColdStartRetry } from "../lib/api";
 
 function GoogleIcon() {
   return (
@@ -34,6 +34,7 @@ export default function Landing() {
   const { user, loginWithSession, loading } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("Menghubungkan akun Google...");
   const navigate = useNavigate();
 
   const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
@@ -56,19 +57,32 @@ export default function Landing() {
           callback: async (response) => {
             try {
               setIsLoggingIn(true);
+              setStatusMessage("Menghubungkan akun Google...");
               setAuthModalOpen(false);
-              const res = await api.post("/auth/google", {
-                id_token: response.credential,
-                credential: response.credential,
-              });
-              if (res.data?.user) {
+              const res = await postWithColdStartRetry(
+                "/auth/google",
+                {
+                  id_token: response.credential,
+                  credential: response.credential,
+                },
+                (msg) => setStatusMessage(msg),
+                3
+              );
+              if (res?.data?.user) {
                 loginWithSession(res.data.user, res.data.session_token);
                 toast.success("Berhasil masuk dengan Google!");
                 navigate("/dashboard", { replace: true });
               }
             } catch (err) {
               console.error("[Google Auth Error]", err);
-              const msg = err?.response?.data?.detail || err?.message || "Gagal masuk dengan Google";
+              let msg = err?.response?.data?.detail;
+              if (!msg) {
+                if (err?.message === "Network Error" || err?.code === "ECONNABORTED") {
+                  msg = "Koneksi ke server terputus / timeout. Server mungkin sedang cold-start, silakan coba beberapa saat lagi.";
+                } else {
+                  msg = err?.message || "Gagal masuk dengan Google";
+                }
+              }
               toast.error(msg);
             } finally {
               setIsLoggingIn(false);
@@ -109,9 +123,13 @@ export default function Landing() {
 
   if (loading || isLoggingIn) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-bg gap-3">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-bg gap-3 px-4 text-center">
         <Spinner size={32} className="text-brand" />
-        {isLoggingIn && <p className="text-sm text-tsecondary animate-pulse">Menghubungkan akun Google...</p>}
+        {isLoggingIn && (
+          <p className="text-sm text-tsecondary animate-pulse max-w-sm">
+            {statusMessage}
+          </p>
+        )}
       </div>
     );
   }

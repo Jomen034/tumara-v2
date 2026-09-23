@@ -58,6 +58,9 @@ app.include_router(api)
 
 raw_origins = os.environ.get("CORS_ORIGINS", "")
 parsed_origins = [o.strip().rstrip("/") for o in raw_origins.split(",") if o.strip() and o.strip() != "*"]
+for default_origin in ("https://tumara-v2.vercel.app", "https://tumara.vercel.app", "http://localhost:3000"):
+    if default_origin not in parsed_origins:
+        parsed_origins.append(default_origin)
 
 app.add_middleware(
     CORSMiddleware,

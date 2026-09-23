@@ -20,7 +20,16 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
-### [2026-09-24 15:00:00 WIB] — Fix Google Sign-In Flow, Modal Lifecycle & Error Handling
+### [2026-09-24 15:15:00 WIB] — Fix "Network Error" Timeout, Cold-Start Auto-Retry & CORS Resilience
+- **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
+- **Goal:** Resolve "Network Error" timeout when logging in via Google OAuth on Render backend cold starts and ensure seamless cross-origin communication with Vercel.
+- **Key Actions & Changes:**
+  - `frontend/src/lib/api.js`: Set Axios default timeout to 60 seconds (accommodating Render free-tier cold boot delays); cleaned trailing slashes from `REACT_APP_BACKEND_URL`; implemented `postWithColdStartRetry` with progressive status messages and 3 retry attempts on connection drops or 502/503/504 gateway delays.
+  - `frontend/src/pages/Landing.js`: Integrated `postWithColdStartRetry` in Google Auth callback; provided clear, reassuring progress text ("Server sedang bangun (2/3), mohon tunggu...") while the backend spins up.
+  - `backend/server.py`: Hardened CORS middleware to explicitly allow `https://tumara-v2.vercel.app`, `https://tumara.vercel.app`, and `http://localhost:3000` even if `CORS_ORIGINS` environment variable is unset.
+  - Tests & Build: Verified all 9 security tests pass and React frontend compiles cleanly with 0 warnings.
+- **Notes & Important Context:**
+  - Handles cold-start boot times seamlessly without throwing premature Network Errors to the user.
 - **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
 - **Goal:** Fix Google OAuth authentication flow loop, ensure the modal dismisses properly upon user interaction, surface specific error messages, and eliminate redirect stalls.
 - **Key Actions & Changes:**
