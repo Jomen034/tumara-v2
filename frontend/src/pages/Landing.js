@@ -7,19 +7,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
-import { Spinner, Modal } from "../components/ui";
+import { Spinner, Modal, Input, Button } from "../components/ui";
 import { postWithColdStartRetry } from "../lib/api";
-
-function GoogleIcon() {
-  return (
-    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-    </svg>
-  );
-}
 
 const FEATURES = [
   { icon: Wallet, title: "Semua dompet, satu layar", desc: "Bank, e-wallet, kartu kredit & PayLater. Lihat net worth real-time." },
@@ -33,103 +22,173 @@ const FEATURES = [
 export default function Landing() {
   const { user, loginWithSession, loading } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("Menghubungkan akun Google...");
+  const [authTab, setAuthTab] = useState("login"); // 'login' | 'register' | 'forgot'
+  const [registerType, setRegisterType] = useState("admin"); // 'admin' | 'partner'
+
+  // Form states
+  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+  const [registerForm, setRegisterForm] = useState({
+    name: "", email: "", password: "", accessCode: "TUMARA2026", inviteCode: ""
+  });
+  const [forgotForm, setForgotForm] = useState({ email: "", token: "", newPassword: "" });
+  const [forgotStep, setForgotStep] = useState(1); // 1 = request token, 2 = submit new pw
+
+  const [submitting, setSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
   const navigate = useNavigate();
 
-  const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
-
-  const [gisLoaded, setGisLoaded] = useState(false);
+  // Auto detect invite code from query param or localStorage
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const inv = urlParams.get("invite") || localStorage.getItem("tumara-invite") || localStorage.getItem("nusa-invite");
+    if (inv) {
+      setRegisterForm(prev => ({ ...prev, inviteCode: inv }));
+      setRegisterType("partner");
+      setAuthTab("register");
+      setAuthModalOpen(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (!loading && user) navigate("/dashboard", { replace: true });
   }, [user, loading, navigate]);
 
-  useEffect(() => {
-    if (!googleClientId) return;
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.onload = () => {
-      if (window.google?.accounts?.id) {
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: async (response) => {
-            try {
-              setIsLoggingIn(true);
-              setStatusMessage("Menghubungkan akun Google...");
-              setAuthModalOpen(false);
-              const res = await postWithColdStartRetry(
-                "/auth/google",
-                {
-                  id_token: response.credential,
-                  credential: response.credential,
-                },
-                (msg) => setStatusMessage(msg),
-                3
-              );
-              if (res?.data?.user) {
-                loginWithSession(res.data.user, res.data.session_token);
-                toast.success("Berhasil masuk dengan Google!");
-                navigate("/dashboard", { replace: true });
-              }
-            } catch (err) {
-              console.error("[Google Auth Error]", err);
-              let msg = err?.response?.data?.detail;
-              if (!msg) {
-                if (err?.message === "Network Error" || err?.code === "ECONNABORTED") {
-                  msg = "Koneksi ke server terputus / timeout. Server mungkin sedang cold-start, silakan coba beberapa saat lagi.";
-                } else {
-                  msg = err?.message || "Gagal masuk dengan Google";
-                }
-              }
-              toast.error(msg);
-            } finally {
-              setIsLoggingIn(false);
-            }
-          },
-        });
-        setGisLoaded(true);
-        // Auto prompt Google One-Tap
-        window.google.accounts.id.prompt();
-      }
-    };
-    document.body.appendChild(script);
-    return () => { try { document.body.removeChild(script); } catch {} };
-  }, [googleClientId, loginWithSession, navigate]);
-
-  useEffect(() => {
-    if (authModalOpen && window.google?.accounts?.id) {
-      const container = document.getElementById("googleSignInDiv");
-      if (container) {
-        container.innerHTML = "";
-        window.google.accounts.id.renderButton(container, {
-          theme: "outline", size: "large", width: 320, text: "continue_with"
-        });
-      }
-    }
-  }, [authModalOpen, gisLoaded]);
-
-  const handleGoogleClick = () => {
-    if (!googleClientId) {
-      toast.error("Google Client ID belum dikonfigurasi di environment");
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (!loginForm.email || !loginForm.password) {
+      toast.error("Email dan password wajib diisi");
       return;
     }
-    if (window.google?.accounts?.id) {
-      window.google.accounts.id.prompt();
+    setSubmitting(true);
+    setStatusMessage("Memverifikasi kredensial...");
+    try {
+      const res = await postWithColdStartRetry(
+        "/auth/login",
+        loginForm,
+        (msg) => setStatusMessage(msg),
+        3
+      );
+      if (res?.data?.user) {
+        loginWithSession(res.data.user, res.data.session_token);
+        toast.success("Berhasil masuk!");
+        navigate("/dashboard", { replace: true });
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.detail || err?.message || "Email atau password salah";
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
-    setAuthModalOpen(true);
   };
 
-  if (loading || isLoggingIn) {
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    if (!registerForm.name || !registerForm.email || !registerForm.password) {
+      toast.error("Semua field wajib diisi");
+      return;
+    }
+    if (registerForm.password.length < 6) {
+      toast.error("Password minimal 6 karakter");
+      return;
+    }
+
+    const payload = {
+      name: registerForm.name.trim(),
+      email: registerForm.email.trim(),
+      password: registerForm.password,
+    };
+
+    if (registerType === "partner") {
+      if (!registerForm.inviteCode.trim()) {
+        toast.error("Kode undangan keluarga wajib diisi");
+        return;
+      }
+      payload.invite_code = registerForm.inviteCode.trim();
+    } else {
+      if (!registerForm.accessCode.trim()) {
+        toast.error("Kode akses pendaftaran wajib diisi");
+        return;
+      }
+      payload.access_code = registerForm.accessCode.trim().toUpperCase();
+    }
+
+    setSubmitting(true);
+    setStatusMessage("Mendaftarkan akun baru...");
+    try {
+      const res = await postWithColdStartRetry(
+        "/auth/register",
+        payload,
+        (msg) => setStatusMessage(msg),
+        3
+      );
+      if (res?.data?.user) {
+        loginWithSession(res.data.user, res.data.session_token);
+        toast.success("Pendaftaran berhasil! Selamat datang di Tumara.");
+        navigate("/dashboard", { replace: true });
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.detail || err?.message || "Gagal melakukan pendaftaran";
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!forgotForm.email) {
+      toast.error("Masukkan email terdaftar");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await postWithColdStartRetry("/auth/forgot-password", { email: forgotForm.email });
+      if (res?.data?.reset_token) {
+        setForgotForm(prev => ({ ...prev, token: res.data.reset_token }));
+        setForgotStep(2);
+        toast.success("Kode pemulihan berhasil dibuat! Silakan buat password baru.");
+      } else {
+        toast.info(res?.data?.message || "Permintaan pemulihan diproses.");
+        setForgotStep(2);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Gagal memproses pemulihan password");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!forgotForm.token || !forgotForm.newPassword) {
+      toast.error("Token dan password baru wajib diisi");
+      return;
+    }
+    if (forgotForm.newPassword.length < 6) {
+      toast.error("Password baru minimal 6 karakter");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await postWithColdStartRetry("/auth/reset-password", {
+        token: forgotForm.token.trim(),
+        new_password: forgotForm.newPassword
+      });
+      toast.success(res?.data?.message || "Password berhasil diubah!");
+      setAuthTab("login");
+      setForgotStep(1);
+      setForgotForm({ email: "", token: "", newPassword: "" });
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Gagal mengubah password");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-bg gap-3 px-4 text-center">
         <Spinner size={32} className="text-brand" />
-        {isLoggingIn && (
-          <p className="text-sm text-tsecondary animate-pulse max-w-sm">
-            {statusMessage}
-          </p>
-        )}
       </div>
     );
   }
@@ -150,10 +209,16 @@ export default function Landing() {
           </div>
           <span className="font-head font-extrabold text-xl">Tumara</span>
         </div>
-        <button data-testid="nav-login-button" onClick={handleGoogleClick}
-          className="text-sm font-semibold px-5 py-2.5 rounded-full bg-elevated hover:bg-borderc transition-colors flex items-center gap-2">
-          <GoogleIcon /> Masuk dengan Google
-        </button>
+        <div className="flex items-center gap-2">
+          <button data-testid="nav-login-button" onClick={() => { setAuthTab("login"); setAuthModalOpen(true); }}
+            className="text-sm font-semibold px-5 py-2.5 rounded-full bg-elevated hover:bg-borderc transition-colors">
+            Masuk
+          </button>
+          <button data-testid="nav-register-button" onClick={() => { setAuthTab("register"); setAuthModalOpen(true); }}
+            className="text-sm font-semibold px-5 py-2.5 rounded-full bg-brand text-black hover:brightness-110 shadow-lg shadow-[var(--glow)] transition-all">
+            Daftar Akun
+          </button>
+        </div>
       </header>
 
       {/* hero */}
@@ -170,9 +235,13 @@ export default function Landing() {
             dipandu asisten AI yang memberi arah jelas.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
-            <button data-testid="google-login-button" onClick={handleGoogleClick}
-              className="inline-flex items-center justify-center gap-3 bg-white text-gray-900 font-semibold px-6 py-3.5 rounded-full hover:brightness-95 transition shadow-lg">
-              <GoogleIcon /> Mulai dengan Google
+            <button data-testid="hero-register-button" onClick={() => { setAuthTab("register"); setAuthModalOpen(true); }}
+              className="inline-flex items-center justify-center gap-3 bg-brand text-black font-semibold px-7 py-3.5 rounded-full hover:brightness-110 transition shadow-lg shadow-[var(--glow)]">
+              Mulai Sekarang Gratis <ArrowRight size={18} />
+            </button>
+            <button data-testid="hero-login-button" onClick={() => { setAuthTab("login"); setAuthModalOpen(true); }}
+              className="inline-flex items-center justify-center gap-2 bg-elevated text-tprimary font-semibold px-6 py-3.5 rounded-full hover:bg-borderc transition">
+              Sudah punya akun? Masuk
             </button>
           </div>
           <div className="flex items-center gap-5 mt-8 text-xs text-tmuted">
@@ -188,14 +257,222 @@ export default function Landing() {
         </motion.div>
       </section>
 
-      {/* Auth Modal */}
-      <Modal open={authModalOpen} onClose={() => setAuthModalOpen(false)} title="Masuk dengan Akun Google">
+      {/* Unified Auth Modal */}
+      <Modal open={authModalOpen} onClose={() => setAuthModalOpen(false)} title={authTab === "forgot" ? "Pemulihan Password" : "Akses Akun Tumara"}>
         <div className="space-y-4 py-2">
-          <p className="text-xs text-tsecondary text-center">
-            Gunakan akun Google kamu untuk masuk atau mendaftar ke Tumara secara aman.
-          </p>
+          {authTab !== "forgot" && (
+            <div className="flex bg-elevated rounded-xl p-1 border border-borderc">
+              <button
+                type="button"
+                onClick={() => setAuthTab("login")}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                  authTab === "login" ? "bg-brand text-black shadow" : "text-tsecondary hover:text-tprimary"
+                }`}
+              >
+                Masuk
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthTab("register")}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                  authTab === "register" ? "bg-brand text-black shadow" : "text-tsecondary hover:text-tprimary"
+                }`}
+              >
+                Daftar Baru
+              </button>
+            </div>
+          )}
 
-          <div id="googleSignInDiv" className="w-full flex justify-center min-h-[48px]"></div>
+          {/* 1. LOGIN FORM */}
+          {authTab === "login" && (
+            <form onSubmit={handleLogin} className="space-y-3.5">
+              <Input
+                label="Email"
+                type="email"
+                placeholder="nama@email.com"
+                value={loginForm.email}
+                onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                required
+              />
+              <div>
+                <Input
+                  label="Password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  required
+                />
+                <div className="flex justify-end mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => { setAuthTab("forgot"); setForgotStep(1); }}
+                    className="text-xs text-brand hover:underline"
+                  >
+                    Lupa password?
+                  </button>
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full mt-2" disabled={submitting}>
+                {submitting ? (
+                  <span className="flex items-center gap-2">
+                    <Spinner size={16} /> {statusMessage || "Memproses..."}
+                  </span>
+                ) : (
+                  "Masuk ke Akun"
+                )}
+              </Button>
+            </form>
+          )}
+
+          {/* 2. REGISTER FORM */}
+          {authTab === "register" && (
+            <form onSubmit={handleRegister} className="space-y-3.5">
+              <Input
+                label="Nama Lengkap"
+                type="text"
+                placeholder="mis. Budi Santoso"
+                value={registerForm.name}
+                onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
+                required
+              />
+              <Input
+                label="Email"
+                type="email"
+                placeholder="nama@email.com"
+                value={registerForm.email}
+                onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                required
+              />
+              <Input
+                label="Password (min. 6 karakter)"
+                type="password"
+                placeholder="••••••••"
+                value={registerForm.password}
+                onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
+                required
+              />
+
+              {/* Registration Type Selector */}
+              <div className="space-y-1.5 pt-1">
+                <span className="block text-xs font-semibold text-tsecondary uppercase tracking-wider">Tipe Pendaftaran</span>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setRegisterType("admin")}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      registerType === "admin"
+                        ? "border-brand bg-elevated text-tprimary font-semibold"
+                        : "border-borderc bg-bg text-tsecondary hover:bg-elevated"
+                    }`}
+                  >
+                    👑 Rumah Tangga Baru
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRegisterType("partner")}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      registerType === "partner"
+                        ? "border-brand bg-elevated text-tprimary font-semibold"
+                        : "border-borderc bg-bg text-tsecondary hover:bg-elevated"
+                    }`}
+                  >
+                    🤝 Gabung Pasangan
+                  </button>
+                </div>
+              </div>
+
+              {registerType === "admin" ? (
+                <Input
+                  label="Kode Akses Alpha / Beta"
+                  type="text"
+                  placeholder="TUMARA2026"
+                  value={registerForm.accessCode}
+                  onChange={(e) => setRegisterForm({ ...registerForm, accessCode: e.target.value.toUpperCase() })}
+                  required
+                />
+              ) : (
+                <Input
+                  label="Kode Undangan Keluarga"
+                  type="text"
+                  placeholder="mis. inv_abc123"
+                  value={registerForm.inviteCode}
+                  onChange={(e) => setRegisterForm({ ...registerForm, inviteCode: e.target.value })}
+                  required
+                />
+              )}
+
+              <Button type="submit" className="w-full mt-2" disabled={submitting}>
+                {submitting ? (
+                  <span className="flex items-center gap-2">
+                    <Spinner size={16} /> {statusMessage || "Mendaftarkan..."}
+                  </span>
+                ) : (
+                  "Daftar Sekarang"
+                )}
+              </Button>
+            </form>
+          )}
+
+          {/* 3. FORGOT / RESET PASSWORD FORM */}
+          {authTab === "forgot" && (
+            <div className="space-y-3.5">
+              {forgotStep === 1 ? (
+                <form onSubmit={handleForgotPassword} className="space-y-3.5">
+                  <p className="text-xs text-tsecondary">
+                    Masukkan email akun Anda untuk membuat kode pemulihan password secara instan.
+                  </p>
+                  <Input
+                    label="Email Terdaftar"
+                    type="email"
+                    placeholder="nama@email.com"
+                    value={forgotForm.email}
+                    onChange={(e) => setForgotForm({ ...forgotForm, email: e.target.value })}
+                    required
+                  />
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting ? <Spinner size={16} /> : "Dapatkan Kode Pemulihan"}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleResetPassword} className="space-y-3.5">
+                  <p className="text-xs text-brand">
+                    Kode pemulihan telah disiapkan. Masukkan password baru Anda di bawah.
+                  </p>
+                  <Input
+                    label="Token Pemulihan"
+                    type="text"
+                    placeholder="rst_..."
+                    value={forgotForm.token}
+                    onChange={(e) => setForgotForm({ ...forgotForm, token: e.target.value })}
+                    required
+                  />
+                  <Input
+                    label="Password Baru"
+                    type="password"
+                    placeholder="Minimal 6 karakter"
+                    value={forgotForm.newPassword}
+                    onChange={(e) => setForgotForm({ ...forgotForm, newPassword: e.target.value })}
+                    required
+                  />
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting ? <Spinner size={16} /> : "Simpan Password Baru"}
+                  </Button>
+                </form>
+              )}
+
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setAuthTab("login"); setForgotStep(1); }}
+                  className="text-xs text-tsecondary hover:text-tprimary underline"
+                >
+                  Kembali ke Halaman Masuk
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
 
@@ -248,7 +525,7 @@ export default function Landing() {
             <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> Data tidak dijual</span>
             <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> Mode privasi</span>
           </div>
-          <button onClick={handleGoogleClick} data-testid="cta-login-button"
+          <button onClick={() => { setAuthTab("register"); setAuthModalOpen(true); }} data-testid="cta-register-button"
             className="mt-8 inline-flex items-center gap-2 bg-brand text-black font-semibold px-8 py-4 rounded-full hover:brightness-110 transition shadow-lg shadow-[var(--glow)] relative">
             Mulai atur keuangan <ArrowRight size={18} />
           </button>
@@ -280,19 +557,30 @@ function PhoneMockup() {
             </div>
             <div className="rounded-xl bg-elevated p-3">
               <p className="text-[10px] text-tmuted font-semibold">Sisa Budget</p>
-              <p className="text-xl font-head font-bold font-mono">Rp 2,1jt</p>
+              <p className="text-xl font-head font-bold">Rp 2,1jt</p>
             </div>
           </div>
           <div className="rounded-xl bg-elevated p-3 space-y-2">
-            {[["GoFood", "Rp 85.000"], ["Gojek", "Rp 24.000"], ["Indomaret", "Rp 42.500"]].map(([a, b]) => (
-              <div key={a} className="flex justify-between text-xs">
-                <span className="text-tsecondary">{a}</span><span className="font-mono text-rose">-{b}</span>
-              </div>
-            ))}
+            <div className="flex justify-between text-xs">
+              <span className="text-tsecondary">GoFood</span>
+              <span className="text-rose font-mono font-semibold">-Rp 85.000</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-tsecondary">Gojek</span>
+              <span className="text-rose font-mono font-semibold">-Rp 24.000</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-tsecondary">Indomaret</span>
+              <span className="text-rose font-mono font-semibold">-Rp 42.500</span>
+            </div>
           </div>
-          <div className="rounded-xl p-3 flex items-center gap-2 border border-brand/30">
-            <Sparkles size={16} className="text-brand shrink-0" />
-            <p className="text-[11px] text-tsecondary">"GoFood kamu naik 30% minggu ini. Coba masak 2x seminggu buat hemat Rp 240rb."</p>
+          <div className="rounded-xl p-3 bg-brand/10 border border-brand/20 text-xs">
+            <div className="flex items-center gap-1.5 text-brand font-semibold mb-1">
+              <Sparkles size={13} /> Tumara AI
+            </div>
+            <p className="text-tsecondary text-[11px] leading-relaxed">
+              &quot;Pengeluaran makan kamu minggu ini naik 30%. Coba masak 2x seminggu buat hemat Rp 240rb.&quot;
+            </p>
           </div>
         </div>
       </div>

@@ -28,6 +28,26 @@ class User(BaseModel):
     created_at: datetime = Field(default_factory=now_utc)
 
 
+class AccessCode(BaseModel):
+    id: str = Field(default_factory=lambda: new_id("ac"))
+    code: str
+    max_uses: int = 100
+    used_count: int = 0
+    active: bool = True
+    created_by: Optional[str] = "system"
+    note: Optional[str] = None
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
 # ---------- Household ----------
 MAX_HOUSEHOLD_MEMBERS = 2
 

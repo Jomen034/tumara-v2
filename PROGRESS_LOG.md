@@ -20,7 +20,20 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
-### [2026-09-24 15:15:00 WIB] — Fix "Network Error" Timeout, Cold-Start Auto-Retry & CORS Resilience
+### [2026-09-24 15:30:00 WIB] — Pivot to Email/Password with Dynamic Access Codes & Self-Service Password Reset
+- **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
+- **Goal:** Pivot authentication to a reliable, robust Email & Password system with gated access control (dynamic alpha access codes for admins, invite codes for partners) and zero-dependency self-service password reset.
+- **Key Actions & Changes:**
+  - `backend/models.py`: Added `AccessCode`, `ForgotPasswordRequest`, and `ResetPasswordRequest` models with usage quota and active status tracking.
+  - `backend/auth.py`:
+    - Updated `/api/auth/register` to validate dynamic access codes (defaulting to `TUMARA2026` seeded in MongoDB `access_codes`) for household Admins, and household invite codes for Partners (auto-joining household, capped at 2 members).
+    - Implemented `/api/auth/forgot-password` generating a 30-minute self-service reset token (`rst_...`) and `/api/auth/reset-password` updating the password and invalidating old sessions.
+    - Added `/api/auth/access-codes` management endpoints for admins to generate new dynamic access codes.
+  - `frontend/src/pages/Landing.js`: Designed a unified auth modal with **Masuk (Login)**, **Daftar Baru (Register)** with Admin vs Partner tabs, and **Lupa Password (Forgot/Reset)** flow with progressive cold-start retry messaging.
+  - `backend/tests/test_auth_security.py`: Added comprehensive automated tests for gated registration, partner invite linking, and password reset flows (all 11 tests passing).
+- **Notes & Important Context:**
+  - Default alpha access code is `TUMARA2026` (also configurable via `REGISTRATION_CODE` env or dynamically in MongoDB).
+  - Clean, standalone authentication without external OAuth or SMTP blockers.
 - **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
 - **Goal:** Resolve "Network Error" timeout when logging in via Google OAuth on Render backend cold starts and ensure seamless cross-origin communication with Vercel.
 - **Key Actions & Changes:**

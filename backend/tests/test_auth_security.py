@@ -28,20 +28,40 @@ async def test_register_and_login_flow():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         email = f"user_{datetime.now().timestamp()}@example.com"
-        # 1. Register valid user
+        
+        # 1. Attempt register without code -> 400
+        r_no_code = await ac.post("/api/auth/register", json={
+            "name": "Budi Tanpa Kode",
+            "email": email,
+            "password": "secretpassword123"
+        })
+        assert r_no_code.status_code == 400
+
+        # 2. Attempt register with invalid access code -> 400
+        r_bad_code = await ac.post("/api/auth/register", json={
+            "name": "Budi Kode Salah",
+            "email": email,
+            "password": "secretpassword123",
+            "access_code": "INVALID_CODE_999"
+        })
+        assert r_bad_code.status_code == 400
+
+        # 3. Register valid user with access code (Admin)
         r_reg = await ac.post("/api/auth/register", json={
             "name": "Budi Santoso",
             "email": email,
-            "password": "secretpassword123"
+            "password": "secretpassword123",
+            "access_code": "TUMARA2026"
         })
         assert r_reg.status_code == 200
         data = r_reg.json()
         assert "user" in data
         assert data["user"]["email"] == email
+        assert data["user"]["role"] == "admin"
         assert "password_hash" not in data["user"]
         assert "session_token" in r_reg.cookies
 
-        # 2. Login with correct password
+        # 4. Login with correct password
         r_login = await ac.post("/api/auth/login", json={
             "email": email,
             "password": "secretpassword123"
@@ -50,19 +70,119 @@ async def test_register_and_login_flow():
         assert "session_token" in r_login.cookies
         assert "password_hash" not in r_login.json()["user"]
 
-        # 3. Login with wrong password
+        # 5. Login with wrong password
         r_bad_pw = await ac.post("/api/auth/login", json={
             "email": email,
             "password": "wrongpassword"
         })
         assert r_bad_pw.status_code == 401
 
-        # 4. Login with non-existent email
+        # 6. Login with non-existent email
         r_bad_email = await ac.post("/api/auth/login", json={
             "email": "nonexistent@example.com",
             "password": "secretpassword123"
         })
         assert r_bad_email.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_partner_registration_via_invite_code():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        admin_email = f"admin_{datetime.now().timestamp()}@example.com"
+        partner_email = f"partner_{datetime.now().timestamp()}@example.com"
+
+        # 1. Admin registers
+        r_admin = await ac.post("/api/auth/register", json={
+            "name": "Admin Keluarga",
+            "email": admin_email,
+            "password": "password123",
+            "access_code": "TUMARA2026"
+        })
+        assert r_admin.status_code == 200
+        admin_sess = r_admin.cookies.get("session_token")
+
+        # 2. Admin creates household invite
+        r_inv = await ac.post("/api/household/invite", cookies={"session_token": admin_sess}, json={})
+        assert r_inv.status_code == 200
+        invite_code = r_inv.json()["code"]
+
+        # 3. Partner registers directly with invite_code
+        r_partner = await ac.post("/api/auth/register", json={
+            "name": "Pasangan Tercinta",
+            "email": partner_email,
+            "password": "password123",
+            "invite_code": invite_code
+        })
+        assert r_partner.status_code == 200
+        partner_data = r_partner.json()["user"]
+        assert partner_data["role"] == "partner"
+        assert partner_data["household_id"] == r_admin.json()["user"]["household_id"]
+
+        # 4. Attempt to register 3rd member with same invite -> 400 (already accepted/full)
+        r_third = await ac.post("/api/auth/register", json={
+            "name": "Member Ketiga",
+            "email": f"third_{datetime.now().timestamp()}@example.com",
+            "password": "password123",
+            "invite_code": invite_code
+        })
+        assert r_third.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_forgot_and_reset_password_flow():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        email = f"reset_test_{datetime.now().timestamp()}@example.com"
+        # 1. Register user
+        reg = await ac.post("/api/auth/register", json={
+            "name": "Reset Test User",
+            "email": email,
+            "password": "oldpassword123",
+            "access_code": "TUMARA2026"
+        })
+        assert reg.status_code == 200
+
+        # 2. Request forgot password
+        fp = await ac.post("/api/auth/forgot-password", json={"email": email})
+        assert fp.status_code == 200
+        token = fp.json().get("reset_token")
+        assert token and token.startswith("rst_")
+
+        # 3. Reset password with invalid token -> 400
+        r_bad_tok = await ac.post("/api/auth/reset-password", json={
+            "token": "rst_invalid_fake_token",
+            "new_password": "brandnewpassword123"
+        })
+        assert r_bad_tok.status_code == 400
+
+        # 4. Reset password with valid token
+        r_good_reset = await ac.post("/api/auth/reset-password", json={
+            "token": token,
+            "new_password": "brandnewpassword123"
+        })
+        assert r_good_reset.status_code == 200
+
+        # 5. Old password should fail
+        r_old_login = await ac.post("/api/auth/login", json={
+            "email": email,
+            "password": "oldpassword123"
+        })
+        assert r_old_login.status_code == 401
+
+        # 6. New password should succeed
+        r_new_login = await ac.post("/api/auth/login", json={
+            "email": email,
+            "password": "brandnewpassword123"
+        })
+        assert r_new_login.status_code == 200
+
+        # 7. Token reuse should fail -> 400
+        r_reuse = await ac.post("/api/auth/reset-password", json={
+            "token": token,
+            "new_password": "anotherpassword123"
+        })
+        assert r_reuse.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -128,7 +248,8 @@ async def test_logout_invalidation():
         reg = await ac.post("/api/auth/register", json={
             "name": "Logout Test",
             "email": email,
-            "password": "password123"
+            "password": "password123",
+            "access_code": "TUMARA2026"
         })
         assert reg.status_code == 200
         token = reg.cookies.get("session_token")
@@ -296,7 +417,10 @@ async def test_household_isolation_and_idor_prevention():
     # Client A for User A
     async with AsyncClient(transport=transport, base_url="http://test") as client_a:
         reg_a = await client_a.post("/api/auth/register", json={
-            "name": "User A", "email": f"user_a_{datetime.now().timestamp()}@example.com", "password": "passwordA123"
+            "name": "User A",
+            "email": f"user_a_{datetime.now().timestamp()}@example.com",
+            "password": "passwordA123",
+            "access_code": "TUMARA2026"
         })
         assert reg_a.status_code == 200
 
@@ -324,7 +448,10 @@ async def test_household_isolation_and_idor_prevention():
     # Client B for User B (completely separate cookie jar and session)
     async with AsyncClient(transport=transport, base_url="http://test") as client_b:
         reg_b = await client_b.post("/api/auth/register", json={
-            "name": "User B", "email": f"user_b_{datetime.now().timestamp()}@example.com", "password": "passwordB123"
+            "name": "User B",
+            "email": f"user_b_{datetime.now().timestamp()}@example.com",
+            "password": "passwordB123",
+            "access_code": "TUMARA2026"
         })
         assert reg_b.status_code == 200
 
