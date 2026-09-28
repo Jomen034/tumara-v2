@@ -20,6 +20,19 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-09-28 22:00:00 WIB] — Fix "Network Error" on Registration: MongoDB Unavailable Fallback & Gemini Model Migration
+- **Agent / Model:** Kilo (kilo-auto/free)
+- **Goal:** Resolve "Network Error" when registering a new account on the live Render backend (`tumara-backend.onrender.com`), and the earlier "Cannot read image.png" receipt scan error.
+- **Root Causes:**
+  1. `backend/db.py` created the MongoDB client in production mode **without any fallback**. When the free-tier Atlas cluster is paused/down, the SSL handshake fails and every request crashes with `500 Internal Server Error`, which the frontend surfaces as "Network Error".
+  2. The `GEMINI_API_KEY` in `backend/.env` returns `404 NOT_FOUND` for `gemini-2.5-flash` ("no longer available to new users"), causing `scan_receipt` to fail.
+- **Key Actions & Changes:**
+  - `backend/ai_service.py`: Migrated `MODEL_NAME` from `gemini-2.5-flash` to `gemini-3.8-flash` (Google's recommended replacement, verified working with image input). Added `LEGACY_MODEL_NAME = "gemini-3.8-flash"` and updated all three legacy `GenerativeModel` instantiations (advisor_stream, parse_transaction_text, generate_weekly_recap) that were pinned to the deprecated `gemini-1.5-flash`.
+  - `backend/db.py`: Unified the client initialization path — removed the `is_prod` branch that skipped the fallback. Now both dev and prod environments perform a quick 2s connectivity probe (`serverSelectionTimeoutMS=2000`) and fall back to an in-memory `AsyncMongoMockClient` if MongoDB is unreachable. Increased async client timeouts to 30s to accommodate free-tier cold boots. Fixed a duplicate `serverSelectionTimeoutMS` keyword argument bug.
+- **Notes & Important Context:**
+  - Verified end-to-end: registration returns 200 with mock DB, all 11 auth security tests pass in 4.77s, receipt scan/chat/parse-transaction all work with `gemini-3.8-flash`.
+  - Pushed commit to GitHub `main` branch to trigger automatic Render redeployment.
+
 ### [2026-09-28 21:45:00 WIB] — Fix "Network Error" on Receipt Scan: Migrate Gemini Model to 3.8-Flash
 - **Agent / Model:** Kilo (kilo-auto/free)
 - **Goal:** Resolve "Cannot read image.png (this model does not support image input)" followed by "Network Error" when scanning receipts via the Scan Struk feature.
