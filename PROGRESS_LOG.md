@@ -20,6 +20,17 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-09-28 21:45:00 WIB] — Fix "Network Error" on Receipt Scan: Migrate Gemini Model to 3.8-Flash
+- **Agent / Model:** Kilo (kilo-auto/free)
+- **Goal:** Resolve "Cannot read image.png (this model does not support image input)" followed by "Network Error" when scanning receipts via the Scan Struk feature.
+- **Key Actions & Changes:**
+  - `backend/ai_service.py`: Diagnosed that the configured `GEMINI_API_KEY` returns `404 NOT_FOUND` for `gemini-2.5-flash` ("no longer available to new users"). Migrated `MODEL_NAME` from `gemini-2.5-flash` to `gemini-3.8-flash` (Google's recommended replacement, verified working with image input).
+  - `backend/ai_service.py`: Added `LEGACY_MODEL_NAME = "gemini-3.8-flash"` and updated all three legacy `GenerativeModel` instantiations (advisor_stream, parse_transaction_text, generate_weekly_recap) that were pinned to the deprecated `gemini-1.5-flash`.
+- **Notes & Important Context:**
+  - Verified end-to-end: `scan_receipt` returns valid JSON, chat stream produces text, and `parse_transaction_text` correctly parses Indonesian sentences.
+  - The 11 auth security tests still pass; pre-existing failures in unrelated test files (`backend_test.py`, `test_new_features.py`, `test_round3.py`) are 404 route errors and missing fixtures unrelated to this change.
+  - Pushed commit to GitHub `main` branch.
+
 ### [2026-09-24 15:30:00 WIB] — Pivot to Email/Password with Dynamic Access Codes & Self-Service Password Reset
 - **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
 - **Goal:** Pivot authentication to a reliable, robust Email & Password system with gated access control (dynamic alpha access codes for admins, invite codes for partners) and zero-dependency self-service password reset.

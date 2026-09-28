@@ -9,7 +9,8 @@ from db import db
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "").strip()
-MODEL_NAME = "gemini-2.5-flash"  # Current Google GenAI recommended model
+MODEL_NAME = "gemini-3.8-flash"  # Current Google GenAI recommended model (gemini-2.5-flash deprecated for new users)
+LEGACY_MODEL_NAME = "gemini-3.8-flash"  # legacy google.generativeai SDK fallback
 
 # Initialize Google GenAI client (modern SDK) or fallback to legacy google.generativeai
 genai_modern_client = None
@@ -116,7 +117,7 @@ async def advisor_stream(user_id: str, session_id: str, message: str, history: l
     if GEMINI_API_KEY and genai_legacy_client:
         try:
             model = genai_legacy_client.GenerativeModel(
-                model_name="gemini-1.5-flash",
+                model_name=LEGACY_MODEL_NAME,
                 system_instruction=system,
             )
             chat_session = model.start_chat()
@@ -229,7 +230,7 @@ async def parse_transaction_text(text: str, wallets: list) -> dict:
     if not raw and GEMINI_API_KEY and genai_legacy_client:
         try:
             model = genai_legacy_client.GenerativeModel(
-                model_name="gemini-1.5-flash",
+                model_name=LEGACY_MODEL_NAME,
                 system_instruction="You convert Indonesian financial sentences into structured JSON transactions. Reply with pure JSON only."
             )
             resp = await model.generate_content_async(prompt)
@@ -366,7 +367,7 @@ async def generate_weekly_recap(user_id: str) -> str:
     if GEMINI_API_KEY and genai_legacy_client:
         try:
             model = genai_legacy_client.GenerativeModel(
-                model_name="gemini-1.5-flash",
+                model_name=LEGACY_MODEL_NAME,
                 system_instruction=WEEKLY_PROMPT,
             )
             resp = await model.generate_content_async("\n".join(ctx))
