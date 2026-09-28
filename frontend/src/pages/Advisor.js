@@ -34,11 +34,15 @@ export default function Advisor() {
     setMessages((m) => [...m, { role: "user", content: msg, id: `u-${Date.now()}` }, { role: "assistant", content: "", id: `a-${Date.now()}`, pending: true }]);
     setStreaming(true);
     try {
+      const token = localStorage.getItem("tumara_session_token");
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
       const res = await fetch(`${API}/ai/chat`, {
         method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ message: msg }),
       });
+      if (res.status === 401) throw new Error("Sesi habis, silakan masuk lagi.");
       if (!res.ok || !res.body) throw new Error("bad response");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -47,11 +51,10 @@ export default function Advisor() {
         const { done, value } = await reader.read();
         if (done) break;
         acc += decoder.decode(value, { stream: true });
-        const cur = acc;
-        setMessages((m) => { const n = [...m]; n[n.length - 1] = { ...n[n.length - 1], content: cur, pending: false }; return n; });
+        setMessages((m) => { const n = [...m]; n[n.length - 1] = { ...n[n.length - 1], content: acc, pending: false }; return n; });
       }
-    } catch {
-      toast.error("Gagal terhubung ke Tumara AI");
+    } catch (e) {
+      toast.error(e?.message || "Gagal terhubung ke Tumara AI");
       setMessages((m) => { const n = [...m]; n[n.length - 1] = { ...n[n.length - 1], content: "Maaf, aku lagi ada kendala. Coba lagi ya.", pending: false }; return n; });
     } finally {
       setStreaming(false);

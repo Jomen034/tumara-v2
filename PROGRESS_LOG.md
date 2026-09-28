@@ -20,6 +20,16 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-09-28 22:30:00 WIB] — Fix "Gagal Terhubung ke Tumara AI": Attach Session Token to Streaming Chat fetch
+- **Agent / Model:** Kilo (kilo-auto/free)
+- **Goal:** Resolve "Gagal terhubung ke Tumara AI" error on the Advisor page after successful registration.
+- **Root Cause:** `frontend/src/pages/Advisor.js` used a raw `fetch()` for the streaming chat endpoint, bypassing the axios request interceptor that attaches `Authorization: Bearer <session_token>`. The backend returned `401 Unauthorized`, which the frontend interpreted as a connection failure.
+- **Key Actions & Changes:**
+  - `frontend/src/pages/Advisor.js`: Read `tumara_session_token` from `localStorage` and attach it as `Authorization: Bearer <token>` header on the streaming `fetch()` request. Added explicit 401 handling with a friendlier message ("Sesi habis, silakan masuk lagi."). Simplified the accumulator variable and surfaced the actual error message in the toast.
+- **Notes & Important Context:**
+  - Verified the `/api/ai/chat` endpoint returns 200 with a streaming text response when called with the correct `Authorization` header against the live backend.
+  - Pushed commit to GitHub `main` branch to trigger Vercel redeploy.
+
 ### [2026-09-28 22:00:00 WIB] — Fix "Network Error" on Registration: MongoDB Unavailable Fallback & Gemini Model Migration
 - **Agent / Model:** Kilo (kilo-auto/free)
 - **Goal:** Resolve "Network Error" when registering a new account on the live Render backend (`tumara-backend.onrender.com`), and the earlier "Cannot read image.png" receipt scan error.
