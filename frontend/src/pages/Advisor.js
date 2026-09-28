@@ -18,6 +18,9 @@ export default function Advisor() {
   const [streaming, setStreaming] = useState(false);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef();
+  // Hold the latest streamed text so the state updater closure inside the
+  // read loop doesn't capture a loop-mutated variable (avoids no-loop-func).
+  const accRef = useRef("");
 
   useEffect(() => {
     api.get("/ai/chat/history").then((r) => setMessages(r.data)).finally(() => setLoading(false));
@@ -33,6 +36,7 @@ export default function Advisor() {
     setInput("");
     setMessages((m) => [...m, { role: "user", content: msg, id: `u-${Date.now()}` }, { role: "assistant", content: "", id: `a-${Date.now()}`, pending: true }]);
     setStreaming(true);
+    accRef.current = "";
     try {
       const token = localStorage.getItem("tumara_session_token");
       const headers = { "Content-Type": "application/json" };
@@ -46,12 +50,12 @@ export default function Advisor() {
       if (!res.ok || !res.body) throw new Error("bad response");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let acc = "";
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        acc += decoder.decode(value, { stream: true });
-        setMessages((m) => { const n = [...m]; n[n.length - 1] = { ...n[n.length - 1], content: acc, pending: false }; return n; });
+        accRef.current += decoder.decode(value, { stream: true });
+        const snapshot = accRef.current;
+        setMessages((m) => { const n = [...m]; n[n.length - 1] = { ...n[n.length - 1], content: snapshot, pending: false }; return n; });
       }
     } catch (e) {
       toast.error(e?.message || "Gagal terhubung ke Tumara AI");

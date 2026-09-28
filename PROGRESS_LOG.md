@@ -20,6 +20,15 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-09-28 23:05:00 WIB] — Fix Vercel Build: no-loop-func ESLint Error in Advisor.js
+- **Agent / Model:** Kilo (kilo-auto/free)
+- **Goal:** Fix Vercel build failure caused by ESLint `no-loop-func` error after the streaming chat fix.
+- **Root Cause:** The `setMessages` updater inside the `while(true)` read loop referenced `acc`, a `let` variable declared outside the loop and mutated inside it. ESLint treats warnings as errors when `CI=true`, so `npm run build` failed with `[eslint] src/pages/Advisor.js Line 54:21: Function declared in a loop contains unsafe references to variable(s) 'acc' no-loop-func`.
+- **Key Actions & Changes:**
+  - `frontend/src/pages/Advisor.js`: Replaced the loop-mutated `let acc` with a `useRef` (`accRef`) and introduced a block-scoped `const snapshot = accRef.current` inside the loop before calling `setMessages`. This eliminates the unsafe reference while preserving the streaming update behavior.
+- **Notes & Important Context:**
+  - Pushed commit to GitHub `main` branch to trigger Vercel redeploy.
+
 ### [2026-09-28 22:30:00 WIB] — Fix "Gagal Terhubung ke Tumara AI": Attach Session Token to Streaming Chat fetch
 - **Agent / Model:** Kilo (kilo-auto/free)
 - **Goal:** Resolve "Gagal terhubung ke Tumara AI" error on the Advisor page after successful registration.
