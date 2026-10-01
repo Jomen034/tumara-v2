@@ -27,7 +27,7 @@ async def health(request: Request):
     in-memory mock" yang akan menghapus semua data saat restart.
     """
     from db import db, mongo_url, db_name
-    from db import _in_memory
+    from db import _in_memory, _last_db_error
     import pymongo
 
     info = {"status": "ok", "db_name": db_name, "storage": "in-memory-mock" if _in_memory else "mongodb"}
