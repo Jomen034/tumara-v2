@@ -20,6 +20,26 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-01 14:20:00 WIB] — Fix Atlas Probe Ter-deploy ke Produksi (Render) + Autostart launchd
+- **Agent / Model:** Kilo (kilo-auto/free)
+- **Goal:** Men jawab kekhawatiran user "kalau laptop mati". Jawaban: pakai deployment cloud yang sudah ada — Vercel (frontend) + Render (backend) — agar data tidak bergantung pada mesin lokal. Tapi bug Atlas yang sama ternyata masih ada di produksi.
+- **Temuan Kunci:** Commit `1aec282` yang memperkenalkan bug probe sudah ter-push ke `main` (2026-09-28 22:47), jadi **backend Render yang live juga berjalan di database in-memory** — data produksi ikut hilang setiap Render restart/redeploy. Tidak terdeteksi karena log fallback hanya satu baris tanpa peringatan.
+- **Key Actions & Changes:**
+  - `backend/db.py`: diperbaiki bug kwargumen ganda; `DB_STRICT` jadi opt-in (bukan dipaksa di produksi) dengan sengaja — fallback in-memory di produksi dipertahankan agar Atlas free-tier yang ter-pause hanya menurunkan kualitas layanan, bukan menjatuhkan seluruh service. Fallback kini mencetak peringatan eksplisit.
+  - `scripts/install-autostart.sh`: 3 launchd agent (`com.tumara.mongodb`, `com.tumara.backend`, `com.tumara.frontend`) dengan `RunAtLoad` + `KeepAlive` → Tumara hidup otomatis setiap login Mac tanpa perintah manual. `scripts/status.sh` & `uninstall-autostart.sh` untuk kelola.
+  - Dua hambatan macOS yang ditemukan & diatasi: (a) TCC menolak eksekusi `.sh` di `~/Downloads` → skrip dicalin ke `~/.tumara/`; (b) launchd tidak mewarisi `PATH` sehingga `npm` tidak ditemukan → `PATH` nvm (`~/.nvm/versions/node/v24.19.0/bin`) disuntikkan lewat plist, plus `TUMARA_ROOT` env agar path relatif skrip tidak pecah.
+  - Commit `3d29af2` di-push ke `main` → Render auto-redeploy, Vercel rebuild.
+- **Verifikasi Produksi (live, `https://tumara-backend.onrender.com`):**
+  - Kode baru terkonfirmasi aktif lewat `GET /openapi.json`: `TransactionCreate.amount` kini punya `exclusiveMinimum: 0`.
+  - Register → 200; belanja 250rb dengan kartu kredit → saldo kartu **naik** 1.000.000 → 1.250.000; bayar tagihan 1jt → saldo kartu **turun** ke 250.000 dan bank 5.000.000 → 4.000.000; `amount` negatif → **422**. Semua sesuai-semua bug ledger sudah tertutup di produksi.
+  - Data uji produksi memakai akun `prod-smoke-test@tumara.invalid` (tidak bisa dihapus dari sisi ini karena tidak ada endpoint delete user di API) — boleh diabaikan/diabhapus manual dari Atlas.
+  - DB lokal sudah dibersihkan dari data skenario (0 user, 0 wallet, 0 transaksi).
+- **Notes & Important Context:**
+  - **Sumber kebenaran ke depan: cloud.** `https://tumara-v2.vercel.app` (frontend, bundle-nya sudah terverifikasi menunjuk ke `https://tumara-backend.onrender.com`) + Atlas. Laptop mati tidak berpengaruh; yang hilang hanya bila Render/Atlas mismo outage.
+  - Stack lokal (`backend/.venv312` + MongoDB lokal di `~/.mongodb-local/data`) tetap berguna untuk development cepat dan tidak bergantung jaringan Atlas yang diblokir di rumah.
+  - Cara memastikan Render benar-benar memakai Atlas (bukan fallback): buka dashboard Render → Logs, cari baris `[DB] Connected to MongoDB for fincfo_db`. Kalau yang muncul peringatan `[DB] !!! PERINGATAN`, berarti Atlas belum terjangkau dari Render.
+  - Suite lama (`backend_test.py`, `test_round3.py`, `test_auth_security.py`) masih memakai token dev hardcode `test_session_cfo_001` dan butuh `mongosh`; tidak bisa dijalankan di lingkungan ini.
+
 ### [2026-10-01 11:43:26 WIB] — Pindah ke MongoDB Lokal Permanen (Atlas Terblokir Jaringan) + dev-up.sh
 - **Agent / Model:** Kilo (kilo-auto/free)
 - **Goal:** Membuat data dev benar-benar persisten. Terkonfirmasi dari Terminal user bahwa Atlas **juga tidak bisa dijangkau** dari jaringan rumah (`nslookup cluster0.tb7jrjb.mongodb.net` → "No answer"; shard `SSL handshake failed: TLSV1_ALERT_INTERNAL_ERROR`). Sementara itu host lain (github, pypi, mongodb.com, example.org, TLS 1.3) normal → ini pemblokiran jaringan spesifik `*.mongodb.net`, bukan kode/sertifikat.
