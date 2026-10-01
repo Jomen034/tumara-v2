@@ -3,12 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Sparkles, ScanLine, Wallet, Target, ShieldCheck, TrendingUp,
-  ArrowRight, Moon, Smartphone, PieChart, Check
+  ArrowRight, Moon, Smartphone, PieChart, Check, Eye, EyeOff, AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 import { Spinner, Modal, Input, Button } from "../components/ui";
-import { postWithColdStartRetry } from "../lib/api";
+import api, { postWithColdStartRetry } from "../lib/api";
 
 const FEATURES = [
   { icon: Wallet, title: "Semua dompet, satu layar", desc: "Bank, e-wallet, kartu kredit & PayLater. Lihat net worth real-time." },
@@ -25,6 +25,10 @@ export default function Landing() {
   const [authTab, setAuthTab] = useState("login"); // 'login' | 'register' | 'forgot'
   const [registerType, setRegisterType] = useState("admin"); // 'admin' | 'partner'
 
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [dbDegraded, setDbDegraded] = useState(false);
+
   // Form states
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [registerForm, setRegisterForm] = useState({
@@ -36,6 +40,17 @@ export default function Landing() {
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const navigate = useNavigate();
+
+  // Check database persistence health on mount
+  useEffect(() => {
+    api.get("/health")
+      .then((res) => {
+        if (res.data?.storage === "in-memory-mock") {
+          setDbDegraded(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Auto detect invite code from query param or localStorage
   useEffect(() => {
@@ -195,6 +210,15 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-bg text-tprimary overflow-x-hidden">
+      {dbDegraded && (
+        <div className="bg-amber-500/15 border-b border-amber-500/30 text-amber-300 px-4 py-2.5 text-xs text-center flex items-center justify-center gap-2">
+          <AlertTriangle size={15} className="text-amber-400 shrink-0" />
+          <span>
+            <strong>Peringatan Mode Memori:</strong> Backend berjalan di database sementara. Hubungkan <code>MONGO_URL</code> (MongoDB Atlas) di Render agar data tidak hilang saat server restart.
+          </span>
+        </div>
+      )}
+
       {/* glow bg */}
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-40 -left-40 w-[36rem] h-[36rem] rounded-full opacity-20 blur-3xl" style={{ background: "var(--brand)" }} />
@@ -297,10 +321,21 @@ export default function Landing() {
               <div>
                 <Input
                   label="Password"
-                  type="password"
+                  type={showLoginPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={loginForm.password}
                   onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  suffix={
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      className="text-tmuted hover:text-tprimary p-1 focus:outline-none transition-colors"
+                      tabIndex={-1}
+                      title={showLoginPassword ? "Sembunyikan password" : "Lihat password"}
+                    >
+                      {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  }
                   required
                 />
                 <div className="flex justify-end mt-1.5">
@@ -347,10 +382,21 @@ export default function Landing() {
               />
               <Input
                 label="Password (min. 6 karakter)"
-                type="password"
+                type={showRegisterPassword ? "text" : "password"}
                 placeholder="••••••••"
                 value={registerForm.password}
                 onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
+                suffix={
+                  <button
+                    type="button"
+                    onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                    className="text-tmuted hover:text-tprimary p-1 focus:outline-none transition-colors"
+                    tabIndex={-1}
+                    title={showRegisterPassword ? "Sembunyikan password" : "Lihat password"}
+                  >
+                    {showRegisterPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                }
                 required
               />
 
@@ -385,7 +431,7 @@ export default function Landing() {
 
               {registerType === "admin" ? (
                 <Input
-                  label="Kode Akses Alpha / Beta"
+                  label="Kode Akses Pendaftaran (Default: TUMARA2026)"
                   type="text"
                   placeholder="TUMARA2026"
                   value={registerForm.accessCode}

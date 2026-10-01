@@ -52,7 +52,7 @@ export function Badge({ children, color, className }) {
   );
 }
 
-export function Input({ label, className, prefix, ...props }) {
+export function Input({ label, className, prefix, suffix, ...props }) {
   return (
     <label className="block">
       {label && <span className="block text-xs font-semibold text-tsecondary uppercase tracking-wider mb-2">{label}</span>}
@@ -62,10 +62,12 @@ export function Input({ label, className, prefix, ...props }) {
           className={clsx(
             "w-full bg-elevated border border-borderc rounded-xl px-4 py-3 text-tprimary placeholder:text-tmuted focus:border-brand focus:outline-none transition-colors",
             prefix && "pl-11",
+            suffix && "pr-11",
             className
           )}
           {...props}
         />
+        {suffix && <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-tmuted flex items-center">{suffix}</div>}
       </div>
     </label>
   );

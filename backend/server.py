@@ -82,6 +82,12 @@ api.include_router(household_router)
 api.include_router(bills_router)
 app.include_router(api)
 
+
+@app.on_event("startup")
+async def on_startup():
+    from db import init_db_indexes
+    await init_db_indexes()
+
 raw_origins = os.environ.get("CORS_ORIGINS", "")
 parsed_origins = [o.strip().rstrip("/") for o in raw_origins.split(",") if o.strip() and o.strip() != "*"]
 for default_origin in ("https://tumara-v2.vercel.app", "https://tumara.vercel.app", "http://localhost:3000"):

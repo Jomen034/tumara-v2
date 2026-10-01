@@ -16,11 +16,12 @@ if "mongodb+srv" in mongo_url or "ssl=true" in mongo_url.lower() or "tls=true" i
     client_kwargs["tlsCAFile"] = certifi.where()
 
 is_testing = os.environ.get("TESTING", "").lower() in ("true", "1") or os.environ.get("PYTEST_CURRENT_TEST") is not None
-# When true, a failed MongoDB connection aborts the boot instead of falling back
-# to an in-memory mock (which silently loses all data on every restart).
-# Recommended for local dev. In production the fallback is kept on purpose so a
-# paused free-tier Atlas cluster degrades instead of taking the service down.
-strict_db = os.environ.get("DB_STRICT", "").lower() in ("true", "1")
+# When strict_db is true, a failed MongoDB connection aborts the boot instead of
+# silently falling back to an in-memory mock (which loses all data on every restart).
+strict_db = os.environ.get("DB_STRICT", "").lower() in ("true", "1") or (
+    os.environ.get("ENVIRONMENT", "").lower() in ("production", "prod")
+    and os.environ.get("ALLOW_DB_FALLBACK", "").lower() not in ("true", "1")
+)
 
 if is_testing:
     from mongomock_motor import AsyncMongoMockClient
@@ -29,11 +30,11 @@ if is_testing:
     _last_db_error = "testing environment (mongomock)"
     print(f"[DB] Using AsyncMongoMockClient for test environment.")
 else:
-    # Quick connectivity probe with a short timeout; fall back to in-memory mock
-    # if the configured MongoDB is unreachable (paused free-tier Atlas, cold Render boot, etc.)
+    # Quick connectivity probe with a 10s timeout to allow DNS/TLS handshake
+    # on cold-starting free-tier clusters
     try:
         import pymongo
-        probe_kwargs = {**client_kwargs, "serverSelectionTimeoutMS": 5000}
+        probe_kwargs = {**client_kwargs, "serverSelectionTimeoutMS": 10000}
         sync_client = pymongo.MongoClient(mongo_url, **probe_kwargs)
         sync_client.admin.command('ping')
         client = AsyncIOMotorClient(mongo_url, **client_kwargs)
@@ -44,6 +45,7 @@ else:
         _in_memory = True
         _last_db_error = f"{type(e).__name__}: {str(e)[:300]}"
         if strict_db:
+            print(f"[DB] FATAL: Failed to connect to MongoDB ({_last_db_error}). Aborting boot because strict_db is enabled.")
             raise
         print(
             f"[DB] MongoDB unavailable ({type(e).__name__}: {str(e)[:120]}). Using in-memory Mongo mock.\n"
@@ -54,5 +56,23 @@ else:
         client = AsyncMongoMockClient()
 
 db = client[db_name]
+
+
+async def init_db_indexes():
+    """Ensure essential uniqueness and TTL indexes exist in MongoDB."""
+    if _in_memory:
+        return
+    try:
+        # Unique constraint on user email
+        await db.users.create_index("email", unique=True, sparse=True)
+        # Unique session token and TTL automatic expiration
+        await db.user_sessions.create_index("session_token", unique=True)
+        await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
+        # Fast query indexes for financial records
+        await db.transactions.create_index([("household_id", 1), ("date", -1)])
+        await db.wallets.create_index("household_id")
+        print(f"[DB] Database indexes verified.")
+    except Exception as exc:
+        print(f"[DB] Index verification notice: {exc}")
 
 
