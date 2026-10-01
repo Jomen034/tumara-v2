@@ -20,6 +20,34 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-01 21:12:00 WIB] — Fix Data Loss & Session Eviction: MongoDB Atlas M0 Integration + Cold-Start Resilience + Password Eye Toggle
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menyelidiki dan menuntaskan masalah "akun/transaksi hilang setelah restart" dan "gagal login 'Email atau password salah' beberapa menit setelah registrasi" di environment produksi (Vercel frontend + Render backend).
+- **Akar Masalah:**
+  1. Backend Render live (`https://tumara-backend.onrender.com/api/health`) sebelumnya berstatus `"status": "degraded"`, `"storage": "in-memory-mock"` karena belum terhubung ke MongoDB Atlas (`MONGO_URL` tidak dikonfigurasi). Pada Render Free tier yang mengalami *spin down/sleep* setelah 15 menit tanpa request, seluruh memori RAM terhapus bersih. Akun yang baru didaftarkan lenyap dari RAM, menyebabkan login gagal ("Email atau password salah") dan registrasi ulang berhasil dengan database kosong.
+  2. Di `frontend/src/context/AuthContext.js`, blok `catch` pada fungsi `checkAuth` secara serampangan menghapus `tumara_session_token` dari `localStorage` saat request `/auth/me` mengalami timeout atau error 502/503 (selama proses cold start Render bangun). Akibatnya user langsung ter-logout otomatis padahal sesi masih valid.
+- **Key Actions & Changes:**
+  - `frontend/src/context/AuthContext.js`: Diperbaiki agar `localStorage.removeItem("tumara_session_token")` HANYA dieksekusi jika server mengembalikan HTTP 401 atau 403. Ditambahkan mekanisme retry otomatis (hingga 3 kali dengan jeda 2 detik) jika error berupa network error, ECONNABORTED, atau 502/503/504 (cold start Render).
+  - `frontend/src/components/ui.js`: Komponen `Input` kini mendukung prop `suffix` untuk elemen trailing seperti tombol intip password.
+  - `frontend/src/pages/Landing.js`:
+    - Menambahkan toggle Show/Hide Password (`Eye` / `EyeOff` dari lucide-react) pada form Login dan Registrasi.
+    - Menambahkan banner peringatan otomatis di atas halaman landing jika `/api/health` mengembalikan `storage === "in-memory-mock"`.
+    - Memperjelas label kode registrasi menjadi `Kode Akses Pendaftaran (Default: TUMARA2026)`.
+  - `backend/db.py`:
+    - Timeout probe koneksi dinaikkan dari 5s ke 10s (`serverSelectionTimeoutMS: 10000`) untuk mengakomodasi inisiasi handshake TLS Atlas saat cold start.
+    - `strict_db` kini default aktif di production (`ENVIRONMENT=production`) agar backend gagal keras dan tidak menelan silent fallback data hilang.
+    - Menambahkan fungsi `init_db_indexes()` untuk memastikan indeks unik (`users.email`, `user_sessions.session_token`) dan TTL index pada `user_sessions.expires_at` (otomatis dibersihkan oleh MongoDB).
+  - `backend/server.py`: Mendaftarkan event `@app.on_event("startup")` untuk mengeksekusi `init_db_indexes()`.
+  - **Infrastruktur & Cloud Database:**
+    - MongoDB Atlas Cluster M0 dikonfigurasi dengan user `jomenpardede_db_user` dan Network Access `0.0.0.0/0` (Allow Access From Anywhere).
+    - Environment variables di Render Web Service `tumara-backend` diisi dengan `MONGO_URL`, `DB_NAME=fincfo_db`, dan `DB_STRICT=true`.
+- **Verifikasi Hasil (Live Produksi):**
+  - Endpoint `https://tumara-backend.onrender.com/api/health` terverifikasi mengembalikan `{"status": "ok", "db_name": "fincfo_db", "storage": "mongodb"}`.
+  - Vercel frontend (`https://tumara-v2.vercel.app`) ter-deploy dan aktif dengan fitur baru.
+  - Data akun dan transaksi tersimpan permanen di cloud MongoDB Atlas tanpa risiko terhapus saat server restart.
+- **Notes & Important Context:**
+  - Pinger berkala (setiap 10 menit via cron-job.org) direkomendasikan pada endpoint `/api/health` untuk meminimalisir jeda 50 detik akibat Render Free tier spin down.
+
 ### [2026-10-01 14:20:00 WIB] — Fix Atlas Probe Ter-deploy ke Produksi (Render) + Autostart launchd
 - **Agent / Model:** Kilo (kilo-auto/free)
 - **Goal:** Men jawab kekhawatiran user "kalau laptop mati". Jawaban: pakai deployment cloud yang sudah ada — Vercel (frontend) + Render (backend) — agar data tidak bergantung pada mesin lokal. Tapi bug Atlas yang sama ternyata masih ada di produksi.
