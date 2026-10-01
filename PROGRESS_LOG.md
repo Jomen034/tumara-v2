@@ -20,6 +20,24 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-01 23:22:00 WIB] — Clean Slate Reset: MongoDB Atlas Database Wipe for Fresh User Testing
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menghapus seluruh data lama pada MongoDB Atlas (`fincfo_db`) agar pengujian end-to-end dari pendaftaran awal dan flow onboarding baru dapat dilakukan dari nol secara bersih.
+- **Key Actions & Changes:**
+  - Terhubung langsung ke replica set MongoDB Atlas (`fincfo_db`) untuk mengosongkan seluruh koleksi produksi:
+    - `ai_recaps`: dibersihkan (2 docs deleted)
+    - `transactions`: dibersihkan (1 doc deleted)
+    - `users`: dibersihkan (2 docs deleted)
+    - `user_sessions`: dibersihkan (1 doc deleted)
+    - `wallets`: dibersihkan (1 doc deleted)
+    - `households`: dibersihkan (2 docs deleted)
+    - `budgets`: dibersihkan (1 doc deleted)
+    - `networth_snapshots`: dibersihkan (1 doc deleted)
+  - Memverifikasi dan menginisialisasi ulang kode akses default registrasi `TUMARA2026` pada koleksi `access_codes` (500 kuota pendaftaran aktif).
+- **Status & Hasil:**
+  - Seluruh koleksi pengguna dan finansial kini 0 dokumen (bersih total).
+  - Database siap menerima registrasi akun baru untuk pengujian flow onboarding 3 langkah (Dompet Utama → Anggaran 50/30/20 → Dashboard).
+
 ### [2026-10-01 22:42:00 WIB] — New Dedicated 3-Step Onboarding Flow (Wallets → Budget → Dashboard)
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Merancang dan mengimplementasikan alur onboarding yang terstruktur, elegan, dan anti-bingung bagi pengguna baru yang baru berhasil mendaftar akun Tumara.
