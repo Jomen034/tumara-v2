@@ -1,10 +1,13 @@
 import io
 import csv
 from datetime import datetime, timezone
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 
 from db import db
+import ledger
 from models import (
     Wallet, WalletCreate, Transaction, TransactionCreate,
     Budget, BudgetCreate, Goal, GoalCreate, GoalDeposit,
@@ -18,17 +21,7 @@ def _month():
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
-async def _snapshot_networth(hid: str):
-    wallets = await db.wallets.find({"household_id": hid}, {"_id": 0}).to_list(500)
-    assets = sum(w["balance"] for w in wallets if w["type"] not in ("credit_card", "paylater"))
-    debt = sum(w["balance"] for w in wallets if w["type"] in ("credit_card", "paylater"))
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    await db.networth_snapshots.update_one(
-        {"household_id": hid, "date": today},
-        {"$set": {"household_id": hid, "date": today, "assets": assets,
-                  "debt": debt, "net_worth": assets - debt, "updated_at": datetime.now(timezone.utc)}},
-        upsert=True,
-    )
+_snapshot_networth = ledger.snapshot_networth
 
 
 # ---------------- Wallets ----------------
@@ -61,6 +54,8 @@ async def update_wallet(wallet_id: str, body: WalletCreate, ctx: Ctx = Depends(g
 
 @router.delete("/wallets/{wallet_id}")
 async def delete_wallet(wallet_id: str, ctx: Ctx = Depends(get_ctx)):
+    if ctx.user.role != "admin":
+        raise HTTPException(403, "Hanya admin rumah tangga yang bisa menghapus dompet")
     res = await db.wallets.delete_one({"id": wallet_id, "household_id": ctx.hid})
     if res.deleted_count == 0:
         raise HTTPException(404, "Wallet not found")
@@ -70,13 +65,20 @@ async def delete_wallet(wallet_id: str, ctx: Ctx = Depends(get_ctx)):
 
 # ---------------- Transactions ----------------
 async def _apply_txn(hid: str, t: Transaction, sign: int):
-    if t.type == "income":
-        await db.wallets.update_one({"id": t.wallet_id, "household_id": hid}, {"$inc": {"balance": sign * t.amount}})
-    elif t.type == "expense":
-        await db.wallets.update_one({"id": t.wallet_id, "household_id": hid}, {"$inc": {"balance": -sign * t.amount}})
-    elif t.type == "transfer" and t.to_wallet_id:
-        await db.wallets.update_one({"id": t.wallet_id, "household_id": hid}, {"$inc": {"balance": -sign * t.amount}})
-        await db.wallets.update_one({"id": t.to_wallet_id, "household_id": hid}, {"$inc": {"balance": sign * t.amount}})
+    await ledger.apply_transaction(hid, t, sign)
+
+
+async def _validate_wallets(hid: str, ttype: str, wallet_id: str, to_wallet_id: Optional[str] = None):
+    if not await ledger.get_wallet(hid, wallet_id):
+        raise HTTPException(404, "Dompet asal tidak ditemukan")
+    if ttype != "transfer":
+        return
+    if not to_wallet_id:
+        raise HTTPException(400, "Transfer harus memiliki dompet tujuan")
+    if to_wallet_id == wallet_id:
+        raise HTTPException(400, "Dompet tujuan harus berbeda dari dompet asal")
+    if not await ledger.get_wallet(hid, to_wallet_id):
+        raise HTTPException(404, "Dompet tujuan tidak ditemukan")
 
 
 @router.get("/transactions")
@@ -90,6 +92,7 @@ async def list_transactions(limit: int = 100, member_id: str = None, ctx: Ctx = 
 async def _new_txn(ctx: Ctx, data: dict) -> Transaction:
     if not data.get("date"):
         data["date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    await _validate_wallets(ctx.hid, data.get("type"), data.get("wallet_id"), data.get("to_wallet_id"))
     t = Transaction(user_id=ctx.user.user_id, **data)
     doc = t.model_dump()
     doc["household_id"] = ctx.hid

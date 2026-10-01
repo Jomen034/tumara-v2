@@ -20,6 +20,61 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-01 11:43:26 WIB] — Pindah ke MongoDB Lokal Permanen (Atlas Terblokir Jaringan) + dev-up.sh
+- **Agent / Model:** Kilo (kilo-auto/free)
+- **Goal:** Membuat data dev benar-benar persisten. Terkonfirmasi dari Terminal user bahwa Atlas **juga tidak bisa dijangkau** dari jaringan rumah (`nslookup cluster0.tb7jrjb.mongodb.net` → "No answer"; shard `SSL handshake failed: TLSV1_ALERT_INTERNAL_ERROR`). Sementara itu host lain (github, pypi, mongodb.com, example.org, TLS 1.3) normal → ini pemblokiran jaringan spesifik `*.mongodb.net`, bukan kode/sertifikat.
+- **Key Actions & Changes:**
+  - MongoDB Community 8.0.4 (macOS arm64) diunduh ke `~/.mongodb-local/mongodb-macos-aarch64-8.0.4/`, dbpath `~/.mongodb-local/data`, log `~/.mongodb-local/logs/mongod.log`, bind `127.0.0.1:27017`. Dijalankan sebagai proses persistent.
+  - `backend/.env`: `MONGO_URL` → `mongodb://127.0.0.1:27017`, URL Atlas asli disimpan sebagai `MONGO_URL_ATLAS` (dipakai produksi/Render) beserta komentar alasannya.
+  - `backend/dev-up.sh` (baru, executable): satu perintah untuk menyalakan `mongod` (jika belum jalan) + backend dengan `DB_STRICT=true`. Menghilangkan perlu mengingat banyak perintah manual.
+  - `AGENTS.md`: dokumentasi alur dev + catatan Atlas.
+- **Verifikasi:** `[DB] Connected to MongoDB for `fincfo_db`; `tests/test_scenario_lengkap.py` → **72 passed**; data hasil skenario benar-benar tersimpan (`users: 3, wallets: 8, transactions: 19`) dan tidak hilang saat proses restart.
+- **Notes & Important Context:**
+  - **Tidak harus dijalankan "forever di terminal"** — backend cukup hidup selama app dipakai, boleh di tab tersembunyi/background. `dev-up.sh` dipakai di satu terminal, `Ctrl+C` untuk stop.
+  - `mongod` dan backend sekarang dijalankan Kilo sebagai proses persistent; kalau user menjalankan `dev-up.sh` sementara keduanya hidup, akan kena `EADDRINUSE` di port 8001. Hentikan dulu proses yang sudah jalan sebelum memakai `dev-up.sh`.
+  - Data lama (akun/transaksi yang hilang) tetap tidak bisa dipulihkan — tidak pernah masuk MongoDB.
+
+### [2026-10-01 09:48:20 WIB] — Fix "Data Hilang Saat Restart": db.py Probe Gagal Selalu + Venv Python 3.12 + DB_STRICT
+- **Agent / Model:** Kilo (kilo-auto/free)
+- **Goal:** Menyelidiki laporan user: akun & transaksi yang sudah didaftarkan "hilang", harus daftar ulang. Ditemukan 3 akar masalah berlapis.
+- **Akar Masalah:**
+  1. **`backend/db.py` — bug kwargumen ganda.** Baris probe adalah `pymongo.MongoClient(mongo_url, serverSelectionTimeoutMS=2000, **client_kwargs)`, sementara `client_kwargs` **sudah memuat** `serverSelectionTimeoutMS: 30000`. Hasilnya `TypeError: got multiple values for keyword argument 'serverSelectionTimeoutMS'` pada **setiap** percobaan koneksi. Karena exception ditangkap tanpa dibedakan, backend **selalu** jatuh ke `AsyncMongoMockClient` (in-memory) sejak commit `1aec282`. Akibatnya seluruh data user (akun, dompet, transaksi) hanya hidup di RAM dan hilang setiap kali backend di-restart.
+  2. **Venv lama tidak bisa TLS ke Atlas.** `backend/venv` memakai Python 3.9 sistem macOS yang dibangun dengan **LibreSSL 2.8.3**; handshake TLS ke Atlas ditolak (`TLSV1_ALERT_INTERNAL_ERROR`).
+  3. **Fallback in-memory terlalu diam-diam.** Log hanya satu baris `[DB] MongoDB unavailable ...`, tanpa peringatan bahwa data akan hilang, dan tidak ada cara memilih gagal keras.
+- **Key Actions & Changes:**
+  - `backend/db.py`: probe kini `probe_kwargs = {**client_kwargs, "serverSelectionTimeoutMS": 5000}` sehingga tidak ada kwargumen ganda. Ditambah env `DB_STRICT=true` (atau `ENVIRONMENT=production`) → fallback diabaikan dan exception dilempar (gagal keras). Fallback yang tetap dipakai kini mencetak peringatan 3 baris bahwa data akan hilang setiap restart.
+  - `backend/.venv312/` (baru): CPython **3.12.14 + OpenSSL 3.5.9** dipasang via `uv`, seluruh `requirements.txt` terinstall. Venv `venv` lama tidak disentuh (reversibel). Ditambahkan ke `.gitignore`.
+  - `AGENTS.md`: perintah backend (run & test) diarahkan ke `.venv312`, ditambah penjelasan kenapa venv lama tidak boleh dipakai, plus dokumentasi `DB_STRICT`.
+  - Server dev port 8001 kini dijalankan dengan `./.venv312/bin/uvicorn ... --reload`.
+- **Notes & Important Context:**
+  - **Data lama tidak bisa dipulihkan** — tidak pernah tersimpan ke MongoDB; hanya ada di memori proses yang sudah mati.
+  - Dari shell/sandbox Kilo, `*.mongodb.net` tidak bisa dijangkau (DNS diblokir/NXDOMAIN + alamat NAT64 palsuan), sehingga verifikasi koneksi Atlas harus dilakukan dari Terminal milik user. Indikasi lain (github, pypi, mongodb.com, example.org, TLS 1.3) normal, jadi ini pemblokiran jaringan spesifik host Atlas, bukan masalah kode atau sertifikat.
+  - Verifikasi: `tests/test_scenario_lengkap.py` → **72 passed** pada Python 3.12 (sebelumnya juga 72 passed di 3.9).
+  - Suite lama (`backend_test.py`, `test_round3.py`, dll.) tetap tidak bisa dijalankan: memakai token dev hardcode `test_session_cfo_001` yang hanya ada di DB sungguhan dan butuh `mongosh`.
+
+### [2026-09-28 23:34:41 WIB] — Skenario Lengkap E2E Semua Jenis Transaksi + Fix Bug Saldo Kartu Kredit
+- **Agent / Model:** Kilo (kilo-auto/free)
+- **Goal:** Menjalankan pengujian skenario end-to-end yang lengkap untuk seluruh jenis transaksi (pemasukan, pengeluaran, transfer, bayar pakai kartu kredit, bayar tagihan kartu kredit, paylater, tambah dompet, tagihan rutin, budget, goal, CSV, isolasi household), lalu memperbaiki bug yang ditemukan.
+- **Test:**
+  - `backend/tests/test_scenario_lengkap.py`: 72 skenario E2E (15 kelas: Auth/Household, Tambah Dompet, Pemasukan, Pengeluaran, Transfer, Bayar Kartu Kredit, Bayar Tagihan Kartu Kredit, Paylater, Tagihan Rutin, Tagihan via Kartu Kredit, Hapus Transaksi, Validasi, Isolasi Household, Fitur Pendukung, Konsistensi Akhir). Hasil awal: **60 pass / 12 fail**. Hasil akhir: **72 passed**.
+- **Bug yang ditemukan & diperbaiki:**
+  - **Saldo kartu kredit/paylater terbalik (8 test gagal).** `_apply_txn` di `routes_finance.py` menerapkan `balance -= amount` untuk expense dan `balance += amount` untuk transfer masuk, tanpa mempertimbangkan tipe dompet. Padahal sesuai `frontend/src/pages/Wallets.js`, saldo `credit_card`/`paylater` = **total tagihan (utang)**. Akibatnya belanja dengan kartu kredit justru *mengurangi* utang, dan pembayaran tagihan kartu kredit justru *menambah* utang (net worth & dashboard `debt` jadi terbalik).
+  - **Bayar tagihan memakai kartu kredit (1 test gagal).** `routes_bills.py` melakukan `$inc: {balance: -amount}` secara hardcode, duplikasi logika saldo dan mengabaikan tipe dompet.
+  - **Jumlah transaksi negatif diterima (1 test gagal).** `TransactionCreate.amount` tidak punya validasi, sehingga `expense` bernilai negatif *menambah* saldo dompet.
+  - **Transfer ke dompet sendiri / tanpa tujuan diterima (2 test gagal).** Backend menarik saldo dari dompet asal tanpa memindahkan ke mana pun. Tidak ada validasi dompet.
+  - **Transaksi memakai dompet household lain diterima (1 test gagal).** Dompet luar tidak ikut berubah saldo (aman), tetapi record transaksi tetap tersimpan dengan `wallet_id` milik household lain → data sampah lintas tenant.
+  - **Partner bisa menghapus dompet milik admin (1 test gagal).** `DELETE /wallets/{id}` tidak memeriksa role, padahal model sudah punya `role: admin|partner` dan `routes_household` sudah membatasi partner.
+- **Key Actions & Changes:**
+  - `backend/ledger.py` (baru): engine saldo bersama. `DEBT_WALLET_TYPES = ("credit_card", "paylater")`, `is_debt_wallet()`, `apply_movement(hid, wallet_id, signed_amount)` (arah dibalik otomatis untuk dompet utang), `apply_transaction(hid, txn, sign)` (mendukung reversal `sign=-1`), `snapshot_networth()`, `get_wallet()`.
+  - `backend/routes_finance.py`: `_apply_txn` kini mendel Delegates ke `ledger.apply_transaction`; `_snapshot_networth` replaced by `ledger.snapshot_networth`; tambah `_validate_wallets()` untuk cek keberadaan dompet asal/tujuan, mewajibkan `to_wallet_id` pada transfer, dan menolak transfer ke dompet yang sama; `DELETE /wallets/{id}` kini `403` bila role bukan admin.
+  - `backend/routes_bills.py`: pembayaran tagihan memakai `ledger.apply_transaction` sehingga kartu kredit/paylater otomatis handled.
+  - `backend/models.py`: `TransactionCreate.amount` dan `GoalDeposit.amount` sekarang `Field(gt=0)`.
+- **Notes & Important Context:**
+  - Skenario dijalankan terhadap backend terisolasi `TESTING=1 uvicorn server:app --port 8099` (mongomock in-memory, karena MongoDB lokal tidak aktif di mesin ini) agar data dev pengguna tidak tersentuh. Perintah: `SCENARIO_API_BASE=http://127.0.0.1:8099 ./venv/bin/pytest tests/test_scenario_lengkap.py -q`.
+  - Suite lama (`backend_test.py`, `test_new_features.py`, `test_round3.py`, `test_auth_security.py`) **tidak bisa dijalankan** di lingkungan ini karena semua memakai token dev hardcode (`test_session_cfo_001`) yang hanya ada di MongoDB sungguhan; MongoDB tidak aktif & `mongosh` tidak terpasang. Kegagalan mereka adalah 401/session, bukan regresi logika.
+  - Konvensi yang dipakai skenario: `expense` = uang keluar, `income` = uang masuk, `transfer` = keluar dari `wallet_id` dan masuk ke `to_wallet_id`; untuk dompet utang, arahnya dibalik.
+  - Keputusan produk yang perlu dikonfirmasi: menghapus dompet sekarang dibatasi hanya untuk role admin. Jika partner seharusnya juga boleh mengelola dompet bersama, guard di `routes_finance.delete_wallet` perlu dilepas.
+
 ### [2026-09-28 23:05:00 WIB] — Fix Vercel Build: no-loop-func ESLint Error in Advisor.js
 - **Agent / Model:** Kilo (kilo-auto/free)
 - **Goal:** Fix Vercel build failure caused by ESLint `no-loop-func` error after the streaming chat fix.

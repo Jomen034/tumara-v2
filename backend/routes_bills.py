@@ -2,6 +2,7 @@ from datetime import datetime, timezone, date, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 
 from db import db
+import ledger
 from models import Bill, BillCreate, Transaction, now_utc
 from deps import get_ctx, Ctx
 
@@ -86,9 +87,7 @@ async def pay_bill(bill_id: str, ctx: Ctx = Depends(get_ctx)):
             date=datetime.now(timezone.utc).strftime("%Y-%m-%d"), source="bill",
         )
         await db.transactions.insert_one(t.model_dump())
-        await db.wallets.update_one(
-            {"id": bill["wallet_id"], "household_id": ctx.hid}, {"$inc": {"balance": -bill["amount"]}}
-        )
+        await ledger.apply_transaction(ctx.hid, t, +1)
     # advance to next cycle (or mark paid for one-time)
     if bill["recurrence"] == "once":
         await db.bills.update_one({"id": bill_id, "household_id": ctx.hid}, {"$set": {"is_paid_current_cycle": True}})

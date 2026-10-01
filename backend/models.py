@@ -113,7 +113,7 @@ CATEGORIES = [
 
 class TransactionCreate(BaseModel):
     type: Literal["expense", "income", "transfer"]
-    amount: float
+    amount: float = Field(gt=0)
     wallet_id: str
     to_wallet_id: Optional[str] = None
     category: str = "Lainnya"
@@ -167,7 +167,7 @@ class Goal(GoalCreate):
 
 
 class GoalDeposit(BaseModel):
-    amount: float
+    amount: float = Field(gt=0)
 
 
 # ---------- AI ----------
