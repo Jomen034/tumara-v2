@@ -13,6 +13,7 @@ import ScanReceiptModal from "./components/ScanReceiptModal";
 import { Spinner } from "./components/ui";
 
 import Landing from "./pages/Landing";
+import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Wallets from "./pages/Wallets";
 import Transactions from "./pages/Transactions";
@@ -56,8 +57,8 @@ function Shell() {
     if (pendingInvite && location.pathname !== "/household") {
       return <Navigate to="/household" replace />;
     }
-    if (!pendingInvite && location.pathname !== "/budget") {
-      return <Navigate to="/budget" replace state={{ onboarding: true }} />;
+    if (!pendingInvite && location.pathname !== "/onboarding") {
+      return <Navigate to="/onboarding" replace />;
     }
   }
 
@@ -75,6 +76,7 @@ function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/onboarding" element={<Protected><Onboarding /></Protected>} />
       <Route element={<Protected><Shell /></Protected>}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/wallets" element={<Wallets />} />

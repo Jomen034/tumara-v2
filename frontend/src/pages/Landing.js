@@ -65,7 +65,13 @@ export default function Landing() {
   }, []);
 
   useEffect(() => {
-    if (!loading && user) navigate("/dashboard", { replace: true });
+    if (!loading && user) {
+      if (!user.onboarded) {
+        navigate("/onboarding", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
+    }
   }, [user, loading, navigate]);
 
   const handleLogin = async (e) => {
@@ -86,7 +92,11 @@ export default function Landing() {
       if (res?.data?.user) {
         loginWithSession(res.data.user, res.data.session_token);
         toast.success("Berhasil masuk!");
-        navigate("/dashboard", { replace: true });
+        if (!res.data.user.onboarded) {
+          navigate("/onboarding", { replace: true });
+        } else {
+          navigate("/dashboard", { replace: true });
+        }
       }
     } catch (err) {
       const msg = err?.response?.data?.detail || err?.message || "Email atau password salah";
@@ -139,7 +149,7 @@ export default function Landing() {
       if (res?.data?.user) {
         loginWithSession(res.data.user, res.data.session_token);
         toast.success("Pendaftaran berhasil! Selamat datang di Tumara.");
-        navigate("/dashboard", { replace: true });
+        navigate("/onboarding", { replace: true });
       }
     } catch (err) {
       const msg = err?.response?.data?.detail || err?.message || "Gagal melakukan pendaftaran";

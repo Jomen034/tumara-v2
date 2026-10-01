@@ -174,12 +174,20 @@ export default function AddTransactionModal({ open, onClose, onSaved, initialMod
             ))}
           </div>
 
+          {wallets.length === 0 && (
+            <div className="bg-amber-500/15 border border-amber-500/30 text-amber-300 rounded-xl p-3 text-xs flex items-center justify-between gap-2">
+              <span>Kamu belum punya dompet. Buat dompet dulu yuk!</span>
+              <a href="/wallets" className="underline font-semibold shrink-0">Buka Dompet</a>
+            </div>
+          )}
+
           <Input data-testid="txn-amount-input" label="Jumlah" prefix="Rp" type="number" inputMode="numeric"
             placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
 
           <Select data-testid="txn-wallet-select" label={type === "transfer" ? "Dari Dompet" : "Dompet"}
             value={walletId} onChange={(e) => setWalletId(e.target.value)}
             className={mode === "ai" && draft && !draft.matched ? "border-amber" : ""}>
+            {wallets.length === 0 && <option value="">Belum ada dompet</option>}
             {wallets.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
           </Select>
 

@@ -20,6 +20,31 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-01 22:42:00 WIB] — New Dedicated 3-Step Onboarding Flow (Wallets → Budget → Dashboard)
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Merancang dan mengimplementasikan alur onboarding yang terstruktur, elegan, dan anti-bingung bagi pengguna baru yang baru berhasil mendaftar akun Tumara.
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, pengguna baru langsung diarahkan secara paksa ke halaman `/budget` tanpa memiliki dompet/wadah uang sama sekali.
+  - Setelah budget selesai, pengguna masuk ke Dashboard tanpa dompet. Saat ingin mencoba mencatat transaksi atau memindai struk, sistem gagal dengan error `"Pilih dompet dulu"`.
+  - Secara akuntansi dan psikologi finansial, uang harus memiliki wadah (dompet) terlebih dahulu sebelum dapat dibagi ke dalam rencana anggaran (budget) dan dicatat sebagai transaksi.
+- **Key Actions & Changes:**
+  - `frontend/src/pages/Onboarding.js` (Baru):
+    - Halaman onboarding full-screen yang terfokus (bebas distraksi navigasi/sidebar) dengan visual stepper 3 langkah.
+    - **Langkah 1 (Dompet Utama):** Pilihan cepat preset rekening Indonesia (BCA, Mandiri, BRI, BNI, GoPay, DANA, OVO, ShopeePay, Tunai) + input estimasi saldo awal. Saldo awal langsung membentuk *net worth* pertama pengguna.
+    - **Langkah 2 (Budget Bulanan):** Input estimasi penghasilan bulanan + kalkulasi visual real-time alokasi sehat 50/30/20 (50% Kebutuhan, 30% Keinginan, 20% Tabungan/Investasi).
+    - **Langkah 3 (Siap Tumbuh):** Ringkasan dompet dan anggaran yang sudah dibuat, ucapan selamat datang, serta tombol peluncur ke Dashboard (`/auth/complete-onboarding`).
+    - Opsi *"Lewati dulu, atur nanti"* selalu tersedia agar pengguna tidak merasa terjebak jika sedang terburu-buru.
+  - `frontend/src/App.js`:
+    - Menambahkan route `/onboarding` terlindungi.
+    - Memperbarui gate pengarah: pengguna dengan `onboarded: false` kini otomatis diarahkan ke `/onboarding` (bukan langsung ke `/budget`).
+  - `frontend/src/pages/Landing.js`:
+    - Mengarahkan pengguna baru yang sukses mendaftar langsung ke `/onboarding`.
+  - `frontend/src/components/AddTransactionModal.js`:
+    - Menambahkan banner peringatan dan opsi cepat jika pengguna belum memiliki dompet sama sekali saat membuka modal transaksi.
+- **Verifikasi Hasil:**
+  - Flow registrasi terhubung mulus: Register $\rightarrow$ `/onboarding` (Dompet $\rightarrow$ Budget $\rightarrow$ Selesai) $\rightarrow$ `/dashboard`.
+  - Transaksi pertama dapat langsung dicatat tanpa kendala karena dompet utama sudah tersedia.
+
 ### [2026-10-01 21:12:00 WIB] — Fix Data Loss & Session Eviction: MongoDB Atlas M0 Integration + Cold-Start Resilience + Password Eye Toggle
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menyelidiki dan menuntaskan masalah "akun/transaksi hilang setelah restart" dan "gagal login 'Email atau password salah' beberapa menit setelah registrasi" di environment produksi (Vercel frontend + Render backend).
