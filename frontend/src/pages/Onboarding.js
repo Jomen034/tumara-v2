@@ -3,8 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  Wallet, PieChart, Sparkles, ArrowRight, ArrowLeft, CheckCircle2,
-  Landmark, Smartphone, Banknote, ShieldCheck
+  Wallet, PieChart, Sparkles, ArrowRight, ArrowLeft, ShieldCheck
 } from "lucide-react";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
@@ -23,7 +22,7 @@ const DEFAULT_CATS = [
 ];
 
 export default function Onboarding() {
-  const { user, checkAuth } = useAuth();
+  const { checkAuth } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1); // 1 = Wallet, 2 = Budget, 3 = Finish
@@ -37,7 +36,6 @@ export default function Onboarding() {
 
   // Step 2: Budget state
   const [income, setIncome] = useState("");
-  const [createdBudget, setCreatedBudget] = useState(null);
 
   const parsedIncome = parseFloat(income) || 0;
   const needsAmount = Math.round(parsedIncome * 0.5);
@@ -92,12 +90,11 @@ export default function Onboarding() {
 
     setSubmitting(true);
     try {
-      const res = await api.post("/budget", {
+      await api.post("/budget", {
         monthly_income: parsedIncome,
         mode: "percentage",
         categories,
       });
-      setCreatedBudget(res.data);
       toast.success("Rencana budget 50/30/20 berhasil diatur! 🎯");
       setStep(3);
     } catch {

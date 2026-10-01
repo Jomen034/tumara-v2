@@ -41,6 +41,8 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
     - Mengarahkan pengguna baru yang sukses mendaftar langsung ke `/onboarding`.
   - `frontend/src/components/AddTransactionModal.js`:
     - Menambahkan banner peringatan dan opsi cepat jika pengguna belum memiliki dompet sama sekali saat membuka modal transaksi.
+  - `frontend/package.json`:
+    - Menambahkan `CI=false` pada script `build` serta membersihkan variabel tak terpakai pada `Onboarding.js` untuk mengatasi error ESLint Vercel build.
 - **Verifikasi Hasil:**
   - Flow registrasi terhubung mulus: Register $\rightarrow$ `/onboarding` (Dompet $\rightarrow$ Budget $\rightarrow$ Selesai) $\rightarrow$ `/dashboard`.
   - Transaksi pertama dapat langsung dicatat tanpa kendala karena dompet utama sudah tersedia.
