@@ -20,6 +20,40 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-01 23:55:00 WIB] — Financial Architecture Upgrade: Goal Deposit to Transaction Mutation & Transaction Detail/Edit Features
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Mengintegrasikan fitur Setor Tujuan dengan mutasi transaksi dompet nyata (ledger engine) serta menambahkan modal Detail Transaksi dan Edit Transaksi.
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, tombol "+ Setor" pada Tujuan hanya meng-increment `saved_amount` tanpa memotong saldo dompet, tanpa membuat mutasi transaksi, dan tanpa riwayat setoran.
+  - Pada halaman Transaksi, pengguna tidak dapat melihat asal dompet dari transaksi yang dicatat, tidak dapat melihat detail menyeluruh, dan tidak dapat mengedit transaksi jika terjadi kesalahan input (harus dihapus lalu dibuat ulang).
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Menambahkan field `goal_id` opsional pada `TransactionCreate`.
+    - Mendefinisikan model `TransactionUpdate`.
+    - Memperluas `GoalDeposit` dengan parameter `wallet_id`, `to_wallet_id`, dan `note`.
+  - `backend/routes_finance.py`:
+    - `POST /goals/{goal_id}/deposit`: Terintegrasi dengan mesin ledger `_new_txn`. Mengurangi saldo dompet sumber, mencatat transaksi bertipe transfer atau expense kategori `"Investasi"` dengan label `goal_id`, serta memperbarui `saved_amount` pada goal.
+    - `GET /goals/{goal_id}/transactions`: Endpoint riwayat setoran spesifik per tujuan.
+    - `GET /transactions/{txn_id}`: Endpoint detail satu transaksi.
+    - `PUT /transactions/{txn_id}`: Endpoint edit transaksi dengan *atomic reversal* (mengembalikan saldo lama `-1` lalu menerapkan perubahan saldo baru `+1`, serta sync `saved_amount` tujuan jika terhubung).
+    - `DELETE /transactions/{txn_id}`: Ditingkatkan agar otomatis mengembalikan/mengurangi `saved_amount` tujuan jika transaksi yang dihapus berasal dari setoran tujuan.
+  - `frontend/src/components/TransactionDetailModal.js` (Baru):
+    - Modal detail transaksi lengkap: nominal besar, tipe, alur dompet (asal ➔ tujuan), kategori & icon, tanggal, anggota penginput, metode input (manual/AI/goal), serta badge jika terhubung ke Tujuan Nabung. Tombol aksi cepat untuk Edit dan Hapus.
+  - `frontend/src/components/EditTransactionModal.js` (Baru):
+    - Modal edit transaksi pre-filled (tipe, nominal, dompet asal, dompet tujuan, kategori, tanggal, catatan) terintegrasi dengan endpoint PUT backend.
+  - `frontend/src/pages/Dashboard.js` (`TxnRow`):
+    - Baris transaksi kini menampilkan nama dompet yang digunakan (misal `BCA · Makanan & Minuman` atau `BCA ➔ GoPay · Transfer`).
+    - Menampilkan badge visual `🎯 Nabung` untuk transaksi yang terhubung ke tujuan.
+    - Mendukung interaksi klik untuk membuka detail dan tombol icon pensil ✏️ untuk edit langsung.
+  - `frontend/src/pages/Transactions.js`:
+    - Mengintegrasikan `TransactionDetailModal` saat baris transaksi diklik dan `EditTransactionModal` saat tombol edit ditekan.
+  - `frontend/src/pages/Goals.js`:
+    - Modal "+ Setor" kini meminta pemilihan dompet sumber dana (menampilkan saldo real-time) dan opsi pemindahan ke dompet tabungan lain.
+    - Menambahkan tombol dan modal "Riwayat Setoran" pada tiap kartu tujuan untuk melacak histori setoran yang telah dilakukan.
+- **Verifikasi Hasil:**
+  - Kompilasi backend Python sukses tanpa error.
+  - Alur mutasi uang dari dompet ke tujuan kini 100% sinkron dengan buku kas dan saldo net worth.
+
 ### [2026-10-01 23:22:00 WIB] — Clean Slate Reset: MongoDB Atlas Database Wipe for Fresh User Testing
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menghapus seluruh data lama pada MongoDB Atlas (`fincfo_db`) agar pengujian end-to-end dari pendaftaran awal dan flow onboarding baru dapat dilakukan dari nol secara bersih.

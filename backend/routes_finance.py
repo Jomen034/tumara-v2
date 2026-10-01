@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from db import db
 import ledger
 from models import (
-    Wallet, WalletCreate, Transaction, TransactionCreate,
+    Wallet, WalletCreate, Transaction, TransactionCreate, TransactionUpdate,
     Budget, BudgetCreate, Goal, GoalCreate, GoalDeposit,
 )
 from deps import get_ctx, Ctx, household_members
@@ -82,11 +82,21 @@ async def _validate_wallets(hid: str, ttype: str, wallet_id: str, to_wallet_id: 
 
 
 @router.get("/transactions")
-async def list_transactions(limit: int = 100, member_id: str = None, ctx: Ctx = Depends(get_ctx)):
+async def list_transactions(limit: int = 100, member_id: str = None, goal_id: str = None, ctx: Ctx = Depends(get_ctx)):
     q = {"household_id": ctx.hid}
     if member_id:
         q["member_id"] = member_id
+    if goal_id:
+        q["goal_id"] = goal_id
     return await db.transactions.find(q, {"_id": 0}).sort("created_at", -1).to_list(limit)
+
+
+@router.get("/transactions/{txn_id}")
+async def get_transaction(txn_id: str, ctx: Ctx = Depends(get_ctx)):
+    doc = await db.transactions.find_one({"id": txn_id, "household_id": ctx.hid}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Transaksi tidak ditemukan")
+    return doc
 
 
 async def _new_txn(ctx: Ctx, data: dict) -> Transaction:
@@ -112,12 +122,63 @@ async def create_transaction(body: TransactionCreate, ctx: Ctx = Depends(get_ctx
     return out
 
 
+@router.put("/transactions/{txn_id}")
+async def update_transaction(txn_id: str, body: TransactionUpdate, ctx: Ctx = Depends(get_ctx)):
+    old_doc = await db.transactions.find_one({"id": txn_id, "household_id": ctx.hid}, {"_id": 0})
+    if not old_doc:
+        raise HTTPException(404, "Transaksi tidak ditemukan")
+
+    data = {**old_doc}
+    for k, v in body.model_dump(exclude_unset=True).items():
+        if v is not None:
+            data[k] = v
+
+    if not data.get("date"):
+        data["date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    await _validate_wallets(ctx.hid, data.get("type"), data.get("wallet_id"), data.get("to_wallet_id"))
+
+    # 1. Reverse old ledger movement
+    old_txn = Transaction(**old_doc)
+    await _apply_txn(ctx.hid, old_txn, -1)
+
+    # If old txn was linked to a goal, reverse saved_amount
+    if old_doc.get("goal_id"):
+        await db.goals.update_one(
+            {"id": old_doc["goal_id"], "household_id": ctx.hid},
+            {"$inc": {"saved_amount": -float(old_doc["amount"])}}
+        )
+
+    # 2. Apply new ledger movement
+    new_txn = Transaction(**data)
+    await _apply_txn(ctx.hid, new_txn, +1)
+
+    # If new txn is linked to a goal, apply saved_amount
+    if data.get("goal_id"):
+        await db.goals.update_one(
+            {"id": data["goal_id"], "household_id": ctx.hid},
+            {"$inc": {"saved_amount": float(data["amount"])}}
+        )
+
+    doc = new_txn.model_dump()
+    doc["household_id"] = ctx.hid
+    doc["member_id"] = old_doc.get("member_id", ctx.user.user_id)
+    await db.transactions.update_one({"id": txn_id, "household_id": ctx.hid}, {"$set": doc})
+    await _snapshot_networth(ctx.hid)
+    return doc
+
+
 @router.delete("/transactions/{txn_id}")
 async def delete_transaction(txn_id: str, ctx: Ctx = Depends(get_ctx)):
     doc = await db.transactions.find_one({"id": txn_id, "household_id": ctx.hid}, {"_id": 0})
     if not doc:
         raise HTTPException(404, "Not found")
     await _apply_txn(ctx.hid, Transaction(**doc), -1)
+    if doc.get("goal_id"):
+        await db.goals.update_one(
+            {"id": doc["goal_id"], "household_id": ctx.hid},
+            {"$inc": {"saved_amount": -float(doc["amount"])}}
+        )
     await db.transactions.delete_one({"id": txn_id, "household_id": ctx.hid})
     await _snapshot_networth(ctx.hid)
     return {"ok": True}
@@ -260,12 +321,46 @@ async def create_goal(body: GoalCreate, ctx: Ctx = Depends(get_ctx)):
 
 @router.post("/goals/{goal_id}/deposit")
 async def deposit_goal(goal_id: str, body: GoalDeposit, ctx: Ctx = Depends(get_ctx)):
+    goal = await db.goals.find_one({"id": goal_id, "household_id": ctx.hid}, {"_id": 0})
+    if not goal:
+        raise HTTPException(404, "Goal not found")
+
+    if body.wallet_id:
+        w_from = await ledger.get_wallet(ctx.hid, body.wallet_id)
+        if not w_from:
+            raise HTTPException(404, "Dompet sumber tidak ditemukan")
+
+        is_transfer = bool(body.to_wallet_id and body.to_wallet_id != body.wallet_id)
+        if is_transfer:
+            w_to = await ledger.get_wallet(ctx.hid, body.to_wallet_id)
+            if not w_to:
+                raise HTTPException(404, "Dompet tujuan tidak ditemukan")
+
+        txn_data = {
+            "type": "transfer" if is_transfer else "expense",
+            "amount": body.amount,
+            "wallet_id": body.wallet_id,
+            "to_wallet_id": body.to_wallet_id if is_transfer else None,
+            "category": "Investasi",
+            "note": (body.note or f"Nabung: {goal.get('title', 'Tujuan')}").strip(),
+            "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            "source": "goal_deposit",
+            "goal_id": goal_id,
+        }
+        await _new_txn(ctx, txn_data)
+        await _snapshot_networth(ctx.hid)
+
     res = await db.goals.update_one(
         {"id": goal_id, "household_id": ctx.hid}, {"$inc": {"saved_amount": body.amount}}
     )
     if res.matched_count == 0:
         raise HTTPException(404, "Goal not found")
     return await db.goals.find_one({"id": goal_id, "household_id": ctx.hid}, {"_id": 0})
+
+
+@router.get("/goals/{goal_id}/transactions")
+async def list_goal_transactions(goal_id: str, ctx: Ctx = Depends(get_ctx)):
+    return await db.transactions.find({"household_id": ctx.hid, "goal_id": goal_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
 
 
 @router.delete("/goals/{goal_id}")

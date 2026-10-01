@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, Trash2, PiggyBank, PartyPopper } from "lucide-react";
+import { Plus, Trash2, PiggyBank, PartyPopper, History } from "lucide-react";
 import { toast } from "sonner";
 import api from "../lib/api";
+import { useRefresh } from "../context/RefreshContext";
 import { useTheme } from "../context/ThemeContext";
 import { formatRp, formatDate } from "../lib/format";
-import { Card, Button, Modal, Input, Progress, Spinner, EmptyState } from "../components/ui";
+import { Card, Button, Modal, Input, Select, Progress, Spinner, EmptyState } from "../components/ui";
 
 const PRESETS = [
   { title: "Dana Darurat 6 Bulan", emoji: "🛟", color: "#00E676" },
@@ -16,36 +17,128 @@ const PRESETS = [
 
 export default function Goals() {
   const { privacy } = useTheme();
+  const { bump } = useRefresh();
   const [goals, setGoals] = useState([]);
+  const [wallets, setWallets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: "", target_amount: "", deadline: "", emoji: "🎯", color: "#00F0FF" });
+  
+  // Deposit state
+  const [depositGoal, setDepositGoal] = useState(null);
   const [depositId, setDepositId] = useState(null);
   const [depositAmt, setDepositAmt] = useState("");
+  const [depositWalletId, setDepositWalletId] = useState("");
+  const [toWalletId, setToWalletId] = useState("");
+  const [depositNote, setDepositNote] = useState("");
 
-  const load = () => api.get("/goals").then((r) => setGoals(r.data)).finally(() => setLoading(false));
-  useEffect(() => { load(); }, []);
+  // History state
+  const [historyGoal, setHistoryGoal] = useState(null);
+  const [goalTxns, setGoalTxns] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const openNew = (preset) => { setForm({ title: preset?.title || "", target_amount: "", deadline: "", emoji: preset?.emoji || "🎯", color: preset?.color || "#00F0FF" }); setOpen(true); };
+  const load = () =>
+    Promise.all([api.get("/goals"), api.get("/wallets")])
+      .then(([g, w]) => {
+        setGoals(g.data);
+        setWallets(w.data || []);
+      })
+      .finally(() => setLoading(false));
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const openNew = (preset) => {
+    setForm({
+      title: preset?.title || "",
+      target_amount: "",
+      deadline: "",
+      emoji: preset?.emoji || "🎯",
+      color: preset?.color || "#00F0FF",
+    });
+    setOpen(true);
+  };
 
   const save = async () => {
     if (!form.title.trim()) return toast.error("Nama tujuan wajib diisi");
     const target = parseFloat(form.target_amount);
     if (!target || target <= 0) return toast.error("Target harus lebih dari 0");
     try {
-      await api.post("/goals", { title: form.title.trim(), target_amount: target, deadline: form.deadline || null, emoji: form.emoji, color: form.color });
-      toast.success("Tujuan dibuat!"); setOpen(false); load();
-    } catch { toast.error("Gagal menyimpan"); }
+      await api.post("/goals", {
+        title: form.title.trim(),
+        target_amount: target,
+        deadline: form.deadline || null,
+        emoji: form.emoji,
+        color: form.color,
+      });
+      toast.success("Tujuan dibuat!");
+      setOpen(false);
+      load();
+    } catch {
+      toast.error("Gagal menyimpan");
+    }
+  };
+
+  const openDeposit = (g) => {
+    setDepositGoal(g);
+    setDepositId(g.id);
+    setDepositAmt("");
+    setDepositWalletId(wallets[0]?.id || "");
+    setToWalletId("");
+    setDepositNote(`Nabung ke: ${g.title}`);
   };
 
   const deposit = async () => {
     const amt = parseFloat(depositAmt);
-    if (!amt || amt <= 0) return toast.error("Jumlah tidak valid");
-    await api.post(`/goals/${depositId}/deposit`, { amount: amt });
-    toast.success("Setoran ditambahkan! 🎉"); setDepositId(null); setDepositAmt(""); load();
+    if (!amt || amt <= 0) return toast.error("Jumlah setoran harus lebih dari 0");
+    if (!depositWalletId && wallets.length > 0) return toast.error("Pilih dompet sumber dana");
+
+    const selectedWallet = wallets.find((w) => w.id === depositWalletId);
+    if (selectedWallet && selectedWallet.balance < amt && !["credit_card", "paylater"].includes(selectedWallet.type)) {
+      toast.warning(
+        `Peringatan: Saldo ${selectedWallet.name} (Rp ${selectedWallet.balance?.toLocaleString("id-ID")}) kurang dari jumlah setoran.`
+      );
+    }
+
+    try {
+      await api.post(`/goals/${depositId}/deposit`, {
+        amount: amt,
+        wallet_id: depositWalletId || undefined,
+        to_wallet_id: toWalletId || undefined,
+        note: depositNote.trim() || `Nabung ke: ${depositGoal?.title || "Tujuan"}`,
+      });
+      toast.success("Setoran berhasil & transaksi mutasi tercatat! 🎉");
+      setDepositId(null);
+      setDepositGoal(null);
+      setDepositAmt("");
+      setDepositNote("");
+      load();
+      bump();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Gagal menyetor");
+    }
   };
 
-  const del = async (id) => { if (!window.confirm("Hapus tujuan ini?")) return; await api.delete(`/goals/${id}`); load(); };
+  const openHistory = async (g) => {
+    setHistoryGoal(g);
+    setLoadingHistory(true);
+    try {
+      const res = await api.get(`/goals/${g.id}/transactions`);
+      setGoalTxns(res.data);
+    } catch {
+      toast.error("Gagal memuat riwayat setoran");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const del = async (id) => {
+    if (!window.confirm("Hapus tujuan ini?")) return;
+    await api.delete(`/goals/${id}`);
+    load();
+    bump();
+  };
 
   return (
     <div className="space-y-6">
@@ -95,7 +188,18 @@ export default function Goals() {
                         <span className="text-xs font-semibold" style={{ color: done ? "var(--brand)" : g.color }}>
                           {done ? <span className="flex items-center gap-1"><PartyPopper size={13} /> Tercapai!</span> : `${Math.round(pct)}% tercapai`}
                         </span>
-                        <Button size="sm" variant="secondary" onClick={() => { setDepositId(g.id); setDepositAmt(""); }} data-testid={`deposit-goal-${g.id}`}>+ Setor</Button>
+                        <div className="flex items-center gap-1.5">
+                          <Button size="sm" variant="secondary" onClick={() => openDeposit(g)} data-testid={`deposit-goal-${g.id}`}>+ Setor</Button>
+                          <button
+                            type="button"
+                            onClick={() => openHistory(g)}
+                            className="p-1.5 rounded-lg hover:bg-elevated text-tmuted hover:text-brand transition-colors"
+                            title="Riwayat Setoran"
+                            data-testid={`history-goal-${g.id}`}
+                          >
+                            <History size={16} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </Card>
@@ -119,10 +223,104 @@ export default function Goals() {
         </div>
       </Modal>
 
-      <Modal open={!!depositId} onClose={() => setDepositId(null)} title="Setor ke Tujuan" testid="deposit-modal" size="sm">
+      {/* Enhanced Setor Modal */}
+      <Modal open={!!depositId} onClose={() => setDepositId(null)} title={`Setor: ${depositGoal?.title || "Tujuan"}`} testid="deposit-modal" size="md">
         <div className="space-y-4">
-          <Input label="Jumlah Setoran" prefix="Rp" type="number" placeholder="0" value={depositAmt} onChange={(e) => setDepositAmt(e.target.value)} data-testid="deposit-amount-input" autoFocus />
-          <Button onClick={deposit} className="w-full" size="lg" data-testid="deposit-save-button">Setor Sekarang</Button>
+          {wallets.length === 0 ? (
+            <div className="bg-amber-500/15 border border-amber-500/30 text-amber-300 rounded-xl p-3 text-xs flex items-center justify-between gap-2">
+              <span>Kamu belum memiliki dompet untuk dipotong saldonya.</span>
+              <a href="/wallets" className="underline font-semibold shrink-0">Buat Dompet</a>
+            </div>
+          ) : (
+            <>
+              <Input
+                label="Jumlah Setoran"
+                prefix="Rp"
+                type="number"
+                inputMode="numeric"
+                placeholder="0"
+                value={depositAmt}
+                onChange={(e) => setDepositAmt(e.target.value)}
+                data-testid="deposit-amount-input"
+                autoFocus
+              />
+
+              <Select
+                label="Sumber Dana (Dari Dompet)"
+                value={depositWalletId}
+                onChange={(e) => setDepositWalletId(e.target.value)}
+                data-testid="deposit-wallet-select"
+              >
+                {wallets.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name} (Saldo: Rp {w.balance?.toLocaleString("id-ID")})
+                  </option>
+                ))}
+              </Select>
+
+              {wallets.length > 1 && (
+                <Select
+                  label="Pindahkan ke Dompet Lain? (Opsional)"
+                  value={toWalletId}
+                  onChange={(e) => setToWalletId(e.target.value)}
+                  data-testid="deposit-to-wallet-select"
+                >
+                  <option value="">Tetap di dompet sumber (sebagai pos komitmen nabung)</option>
+                  {wallets.filter((w) => w.id !== depositWalletId).map((w) => (
+                    <option key={w.id} value={w.id}>
+                      Pindah ke: {w.name} (Saldo: Rp {w.balance?.toLocaleString("id-ID")})
+                    </option>
+                  ))}
+                </Select>
+              )}
+
+              <Input
+                label="Catatan Transaksi"
+                value={depositNote}
+                onChange={(e) => setDepositNote(e.target.value)}
+                placeholder="cth. Nabung gaji ke tujuan"
+                data-testid="deposit-note-input"
+              />
+
+              <div className="rounded-xl bg-brand/10 border border-brand/30 p-3 text-xs text-tsecondary">
+                💡 Setoran ini akan memotong saldo dompet dan dicatat sebagai transaksi di menu Transaksi.
+              </div>
+
+              <Button onClick={deposit} className="w-full" size="lg" data-testid="deposit-save-button">
+                Setor Sekarang
+              </Button>
+            </>
+          )}
+        </div>
+      </Modal>
+
+      {/* Goal Deposit History Modal */}
+      <Modal open={!!historyGoal} onClose={() => setHistoryGoal(null)} title={`Riwayat Setoran: ${historyGoal?.title || ""}`} testid="goal-history-modal" size="md">
+        <div className="space-y-4">
+          {loadingHistory ? (
+            <div className="flex justify-center py-8"><Spinner size={24} className="text-brand" /></div>
+          ) : goalTxns.length === 0 ? (
+            <div className="text-center py-8 text-tmuted text-sm">
+              <p>Belum ada riwayat transaksi setoran untuk tujuan ini.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-borderc/40 max-h-80 overflow-y-auto">
+              {goalTxns.map((tx) => (
+                <div key={tx.id} className="py-3 flex items-center justify-between text-sm">
+                  <div>
+                    <p className="font-semibold text-tprimary">{tx.note || "Setoran Nabung"}</p>
+                    <p className="text-xs text-tmuted">{formatDate(tx.date || tx.created_at)}</p>
+                  </div>
+                  <span className="font-mono font-bold text-brand">
+                    +{formatRp(tx.amount, privacy)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          <Button variant="secondary" onClick={() => setHistoryGoal(null)} className="w-full">
+            Tutup
+          </Button>
         </div>
       </Modal>
     </div>

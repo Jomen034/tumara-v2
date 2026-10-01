@@ -3,6 +3,7 @@ import { useOutletContext, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import * as Icons from "lucide-react";
 import { TrendingUp, TrendingDown, ScanLine, Plus, Sparkles, ArrowRight, AlertTriangle, Wand2, RefreshCw } from "lucide-react";
+import clsx from "clsx";
 import api from "../lib/api";
 import { useRefresh } from "../context/RefreshContext";
 import { useTheme } from "../context/ThemeContext";
@@ -237,7 +238,15 @@ export default function Dashboard() {
           <Card><EmptyState icon={Icons.Receipt} title="Belum ada transaksi" subtitle="Catat transaksi pertamamu." action={<Button onClick={openAdd} size="sm">Tambah</Button>} /></Card>
         ) : (
           <Card className="divide-y divide-[color:var(--border)] p-0 overflow-hidden">
-            {data.recent_transactions.map((t) => <TxnRow key={t.id} t={t} privacy={privacy} memberMap={Object.fromEntries((data.members || []).map((m) => [m.user_id, m]))} />)}
+            {data.recent_transactions.map((t) => (
+              <TxnRow
+                key={t.id}
+                t={t}
+                privacy={privacy}
+                memberMap={Object.fromEntries((data.members || []).map((m) => [m.user_id, m]))}
+                walletMap={Object.fromEntries((data.wallets || []).map((w) => [w.id, w]))}
+              />
+            ))}
           </Card>
         )}
       </div>
@@ -298,32 +307,73 @@ function SectionHead({ title, onClick }) {
   );
 }
 
-export function TxnRow({ t, privacy, onDelete, memberMap }) {
+export function TxnRow({ t, privacy, onDelete, onEdit, onSelect, memberMap, walletMap }) {
   const m = catMeta(t.category);
   const Ic = Icons[m.icon] || Icons.MoreHorizontal;
   const isIncome = t.type === "income";
   const isTransfer = t.type === "transfer";
   const mem = memberMap?.[t.member_id];
+
+  const fromWallet = walletMap?.[t.wallet_id];
+  const toWallet = walletMap?.[t.to_wallet_id];
+  const walletLabel = isTransfer
+    ? (fromWallet && toWallet ? `${fromWallet.name} ➔ ${toWallet.name}` : fromWallet?.name || "Transfer")
+    : fromWallet?.name || "";
+
   return (
-    <div className="flex items-center gap-3 px-5 py-3.5">
+    <div
+      onClick={() => onSelect?.(t)}
+      className={clsx(
+        "flex items-center gap-3 px-5 py-3.5 transition-colors group",
+        onSelect && "cursor-pointer hover:bg-elevated/60"
+      )}
+    >
       <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${m.color}22` }}>
         <Ic size={18} style={{ color: m.color }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{t.note || t.category}</p>
-        <p className="text-xs text-tmuted flex items-center gap-1.5">
-          {mem && <img src={mem.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${mem.name}`} alt="" title={mem.name} className="w-4 h-4 rounded-full object-cover inline-block" />}
-          {isTransfer ? "Transfer" : t.category} · {t.date}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <p className="text-sm font-medium truncate">{t.note || t.category}</p>
+          {t.goal_id && (
+            <span className="text-[10px] font-semibold bg-brand/15 text-brand px-1.5 py-0.5 rounded-full shrink-0">
+              🎯 Nabung
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-tmuted flex items-center gap-1.5 truncate mt-0.5">
+          {mem && <img src={mem.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${mem.name}`} alt="" title={mem.name} className="w-4 h-4 rounded-full object-cover inline-block shrink-0" />}
+          {walletLabel && <span className="font-semibold text-tsecondary">{walletLabel} ·</span>}
+          <span>{isTransfer ? "Transfer" : t.category}</span>
+          <span>· {t.date}</span>
         </p>
       </div>
-      <span className={`font-mono text-sm font-semibold ${privacy ? "privacy-blur" : ""} ${isIncome ? "text-brand" : isTransfer ? "text-cyan" : "text-tprimary"}`}>
+      <span className={`font-mono text-sm font-semibold shrink-0 ${privacy ? "privacy-blur" : ""} ${isIncome ? "text-brand" : isTransfer ? "text-cyan" : "text-tprimary"}`}>
         {isIncome ? "+" : isTransfer ? "" : "-"}{formatRp(t.amount, privacy)}
       </span>
-      {onDelete && (
-        <button onClick={() => onDelete(t.id)} data-testid={`delete-txn-${t.id}`} className="p-1.5 rounded-lg hover:bg-elevated text-tmuted hover:text-rose transition-colors">
-          <Icons.Trash2 size={15} />
-        </button>
-      )}
+      <div className="flex items-center gap-1 shrink-0">
+        {onEdit && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onEdit(t); }}
+            data-testid={`edit-txn-${t.id}`}
+            className="p-1.5 rounded-lg hover:bg-elevated text-tmuted hover:text-brand transition-colors"
+            title="Edit transaksi"
+          >
+            <Icons.Pencil size={15} />
+          </button>
+        )}
+        {onDelete && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
+            data-testid={`delete-txn-${t.id}`}
+            className="p-1.5 rounded-lg hover:bg-elevated text-tmuted hover:text-rose transition-colors"
+            title="Hapus transaksi"
+          >
+            <Icons.Trash2 size={15} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

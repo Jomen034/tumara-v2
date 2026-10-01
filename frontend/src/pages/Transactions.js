@@ -9,6 +9,8 @@ import { useRefresh } from "../context/RefreshContext";
 import { useTheme } from "../context/ThemeContext";
 import { Card, Button, Spinner, EmptyState, Modal } from "../components/ui";
 import { TxnRow } from "./Dashboard";
+import TransactionDetailModal from "../components/TransactionDetailModal";
+import EditTransactionModal from "../components/EditTransactionModal";
 
 const FILTERS = [
   { value: "all", label: "Semua" },
@@ -24,20 +26,35 @@ export default function Transactions() {
   const fileRef = useRef();
   const [txns, setTxns] = useState([]);
   const [members, setMembers] = useState([]);
+  const [wallets, setWallets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [memberFilter, setMemberFilter] = useState("all");
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [selectedTxn, setSelectedTxn] = useState(null);
+  const [editingTxn, setEditingTxn] = useState(null);
 
   const load = () => Promise.all([
     api.get("/transactions", { params: { limit: 500 } }),
     api.get("/household"),
-  ]).then(([t, h]) => { setTxns(t.data); setMembers(h.data.members || []); }).finally(() => setLoading(false));
+    api.get("/wallets"),
+  ]).then(([t, h, w]) => {
+    setTxns(t.data);
+    setMembers(h.data.members || []);
+    setWallets(w.data || []);
+  }).finally(() => setLoading(false));
   useEffect(() => { load(); }, [version]);
 
   const memberMap = Object.fromEntries(members.map((m) => [m.user_id, m]));
-  const del = async (id) => { await api.delete(`/transactions/${id}`); toast.success("Transaksi dihapus"); load(); bump(); };
+  const walletMap = Object.fromEntries(wallets.map((w) => [w.id, w]));
+  const del = async (id) => {
+    if (!window.confirm("Hapus transaksi ini?")) return;
+    await api.delete(`/transactions/${id}`);
+    toast.success("Transaksi dihapus");
+    load();
+    bump();
+  };
 
   const exportCsv = async () => {
     try {
@@ -122,7 +139,18 @@ export default function Transactions() {
               <div key={d}>
                 <p className="text-xs font-semibold text-tmuted uppercase tracking-wider mb-2 px-1">{d}</p>
                 <Card className="divide-y divide-[color:var(--border)] p-0 overflow-hidden">
-                  {groups[d].map((t) => <TxnRow key={t.id} t={t} privacy={privacy} onDelete={del} memberMap={memberMap} />)}
+                  {groups[d].map((t) => (
+                    <TxnRow
+                      key={t.id}
+                      t={t}
+                      privacy={privacy}
+                      onDelete={del}
+                      onEdit={(txn) => setEditingTxn(txn)}
+                      onSelect={(txn) => setSelectedTxn(txn)}
+                      memberMap={memberMap}
+                      walletMap={walletMap}
+                    />
+                  ))}
                 </Card>
               </div>
             ))}
@@ -146,6 +174,33 @@ export default function Transactions() {
           </div>
         )}
       </Modal>
+
+      {/* Transaction Detail Modal */}
+      <TransactionDetailModal
+        open={!!selectedTxn}
+        onClose={() => setSelectedTxn(null)}
+        transaction={selectedTxn}
+        wallets={wallets}
+        memberMap={memberMap}
+        privacy={privacy}
+        onEdit={(txn) => {
+          setSelectedTxn(null);
+          setEditingTxn(txn);
+        }}
+        onDelete={del}
+      />
+
+      {/* Transaction Edit Modal */}
+      <EditTransactionModal
+        open={!!editingTxn}
+        onClose={() => setEditingTxn(null)}
+        transaction={editingTxn}
+        wallets={wallets}
+        onSaved={() => {
+          load();
+          bump();
+        }}
+      />
     </div>
   );
 }

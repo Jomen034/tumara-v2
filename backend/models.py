@@ -119,7 +119,19 @@ class TransactionCreate(BaseModel):
     category: str = "Lainnya"
     note: str = ""
     date: Optional[str] = None
-    source: str = "manual"  # manual | ai_receipt
+    source: str = "manual"  # manual | ai_receipt | goal_deposit
+    goal_id: Optional[str] = None
+
+
+class TransactionUpdate(BaseModel):
+    type: Optional[Literal["expense", "income", "transfer"]] = None
+    amount: Optional[float] = Field(default=None, gt=0)
+    wallet_id: Optional[str] = None
+    to_wallet_id: Optional[str] = None
+    category: Optional[str] = None
+    note: Optional[str] = None
+    date: Optional[str] = None
+    goal_id: Optional[str] = None
 
 
 class Transaction(TransactionCreate):
@@ -168,6 +180,9 @@ class Goal(GoalCreate):
 
 class GoalDeposit(BaseModel):
     amount: float = Field(gt=0)
+    wallet_id: Optional[str] = None
+    to_wallet_id: Optional[str] = None
+    note: Optional[str] = None
 
 
 # ---------- AI ----------
