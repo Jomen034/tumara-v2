@@ -25,6 +25,8 @@ strict_db = os.environ.get("DB_STRICT", "").lower() in ("true", "1")
 if is_testing:
     from mongomock_motor import AsyncMongoMockClient
     client = AsyncMongoMockClient()
+    _in_memory = True
+    _last_db_error = "testing environment (mongomock)"
     print(f"[DB] Using AsyncMongoMockClient for test environment.")
 else:
     # Quick connectivity probe with a short timeout; fall back to in-memory mock
@@ -35,8 +37,12 @@ else:
         sync_client = pymongo.MongoClient(mongo_url, **probe_kwargs)
         sync_client.admin.command('ping')
         client = AsyncIOMotorClient(mongo_url, **client_kwargs)
+        _in_memory = False
+        _last_db_error = None
         print(f"[DB] Connected to MongoDB for {db_name}")
     except Exception as e:
+        _in_memory = True
+        _last_db_error = f"{type(e).__name__}: {str(e)[:300]}"
         if strict_db:
             raise
         print(

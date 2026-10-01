@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, APIRouter, Depends, HTTPException
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from auth import router as auth_router, get_current_user
@@ -17,6 +17,32 @@ api = APIRouter(prefix="/api")
 @api.get("/")
 async def root():
     return {"status": "ok", "app": "Tumara CFO API"}
+
+
+@api.get("/health")
+async def health(request: Request):
+    """Health check publik. Rincian error koneksi DB hanya untuk admin.
+
+    Penting untuk operasi: membedakan "MongoDB terhubung" dari "jatuh ke
+    in-memory mock" yang akan menghapus semua data saat restart.
+    """
+    from db import db, mongo_url, db_name
+    from db import _in_memory
+    import pymongo
+
+    info = {"status": "ok", "db_name": db_name, "storage": "in-memory-mock" if _in_memory else "mongodb"}
+    if _in_memory:
+        info["status"] = "degraded"
+        info["detail"] = "MongoDB tidak terhubung; memakai database in-memory (data hilang saat restart)"
+        tok = request.headers.get("Authorization", "")
+        if tok.startswith("Bearer "):
+            try:
+                user = await get_current_user(request)
+            except HTTPException:
+                user = None
+            if user and user.role == "admin":
+                info["error"] = _last_db_error
+    return info
 
 
 @api.get("/admin/db-stats")
