@@ -221,6 +221,11 @@ export default function Dashboard() {
                   <p className={`font-mono font-bold ${w.type === "credit_card" || w.type === "paylater" ? "text-rose" : ""} ${privacy ? "privacy-blur" : ""}`}>
                     {formatRp(w.balance, privacy)}
                   </p>
+                  {(w.type === "credit_card" || w.type === "paylater") && w.credit_limit > 0 && (
+                    <p className={`text-[11px] text-tmuted truncate mt-0.5 ${privacy ? "privacy-blur" : ""}`}>
+                      Sisa: <span className="text-cyan font-mono font-medium">{formatRp(Math.max(0, w.credit_limit - w.balance), privacy)}</span>
+                    </p>
+                  )}
                 </div>
               );
             })}

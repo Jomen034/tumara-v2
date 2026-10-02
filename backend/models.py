@@ -100,6 +100,7 @@ class WalletCreate(BaseModel):
     name: str
     type: Literal["bank", "ewallet", "credit_card", "paylater", "cash", "investment"]
     balance: float = 0
+    credit_limit: Optional[float] = None
     color: str = "#00E676"
     icon: str = "wallet"
 

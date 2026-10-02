@@ -32,5 +32,6 @@ export const WALLET_PRESETS = [
   { name: "BNI", type: "bank" }, { name: "BRI", type: "bank" },
   { name: "GoPay", type: "ewallet" }, { name: "OVO", type: "ewallet" },
   { name: "DANA", type: "ewallet" }, { name: "ShopeePay", type: "ewallet" },
+  { name: "Kartu Kredit BCA", type: "credit_card" }, { name: "SPayLater", type: "paylater" },
   { name: "Tunai", type: "cash" },
 ];

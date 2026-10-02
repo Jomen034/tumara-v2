@@ -20,6 +20,30 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-02 22:42:00 WIB] — Credit Card & Paylater Wallet Upgrade: Credit Limit, Available Limit & Utilization Engine
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menghadirkan kapabilitas pelacakan limit kredit, sisa plafon, dan rasio utilisasi untuk dompet berjenis Kartu Kredit (`credit_card`) dan PayLater (`paylater`), dengan konsistensi ledger ganda yang terverifikasi tanpa merusak kalkulasi net worth.
+- **Analisis & Keputusan Arsitektur:**
+  - *Ledger Saldo Utang (`backend/ledger.py`):* Sudah mengimplementasikan arah saldo terbalik untuk `credit_card` dan `paylater` (belanja menambah tagihan/utang `balance += amount`, pelunasan/transfer mengurangi utang `balance -= amount`).
+  - *Status Plafon Kredit:* `credit_limit` adalah plafon statis yang diberikan perbankan/fintech, sedangkan Sisa Limit ($A = \text{credit\_limit} - \text{balance}$) dan Utilisasi Kredit ($U / L \times 100\%$) dihitung secara dinamis (*derived*). Hal ini menjamin integritas net worth karena utang riil tetap berbasis `balance` tanpa ada mutasi palsu pada plafon.
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Menambahkan `credit_limit: Optional[float] = None` pada skema `WalletCreate` (otomatis diwarisi `Wallet`).
+    - Divalidasi dan diuji lolos `python3 -m py_compile backend/models.py`.
+  - `frontend/src/lib/constants.js`:
+    - Menambahkan preset cepat `Kartu Kredit BCA` dan `SPayLater` pada `WALLET_PRESETS`.
+  - `frontend/src/pages/Wallets.js`:
+    - State & Modal: Menambahkan input `Plafon / Limit Kredit (Rp)` dan `Tagihan Terpakai Saat Ini (Rp)` khusus untuk tipe Kartu Kredit & Paylater.
+    - Helper Interaktif: Menampilkan kalkulasi otomatis real-time di dalam modal (Sisa Limit, Rasio Terpakai, Progress Bar, status badge Sehat/Waspada/Tinggi, dan deteksi peringatan *overlimit*).
+    - Ringkasan Header: Menampilkan info "Sisa Plafon" total kredit pada kartu Total Utang.
+    - Kartu Dompet: Merancang ulang kartu dengan layout hierarkis responsif:
+      - Menampilkan Tagihan Terpakai (warna `text-rose`), Sisa Limit (warna `text-cyan`), Total Plafon Kredit, dan Progress Bar rasio utilisasi (<30% Hijau Sehat, 30–70% Kuning Waspada, >70% Merah Tinggi).
+      - Untuk kartu tanpa limit, menampilkan tautan cepat `+ Atur limit`.
+  - `frontend/src/pages/Dashboard.js`:
+    - Menambahkan informasi baris `Sisa: Rp ...` pada kartu mini dompet kartu kredit & paylater di dashboard utama.
+- **Verifikasi Hasil:**
+  - Alur belanja dan pelunasan kartu kredit 100% konsisten matematis: belanja otomatis mengurangi sisa limit dan menaikkan utilisasi, bayar tagihan otomatis mengembalikan sisa limit dan menurunkan utilisasi.
+
 ### [2026-10-02 22:26:00 WIB] — Bill Management Upgrade: Responsive Card Layout, Loan Installment Tenor Engine & Interactive Bill Detail Modal
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Memperbaiki layout kartu tagihan yang tumpang tindih pada layar HP, membedakan Tagihan Rutin vs Cicilan Ber-tenor (dengan dukungan cicilan yang sudah berjalan sebelumnya), serta menghadirkan modal Detail Tagihan interaktif dengan riwayat mutasi pembayaran riil.
