@@ -205,7 +205,13 @@ export default function Budget() {
               <span className={`text-tmuted font-mono mb-1 ${privacy ? "privacy-blur" : ""}`}>/ {formatShort(totalBudget, privacy)}</span>
             </div>
             <Progress className="mt-3 h-3" value={totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0} color={totalSpent > totalBudget ? "var(--rose)" : "var(--brand)"} />
-            <p className="text-xs text-tsecondary mt-2">Sisa: <span className="font-mono font-semibold text-brand">{formatRp(Math.max(0, totalBudget - totalSpent), privacy)}</span></p>
+            {totalSpent > totalBudget ? (
+              <p className="text-xs text-rose font-semibold mt-2 flex items-center gap-1">
+                <AlertTriangle size={13} /> Melebihi budget: <span className="font-mono">{formatRp(totalSpent - totalBudget, privacy)}</span>
+              </p>
+            ) : (
+              <p className="text-xs text-tsecondary mt-2">Sisa: <span className="font-mono font-semibold text-brand">{formatRp(totalBudget - totalSpent, privacy)}</span></p>
+            )}
           </Card>
 
           <div className="space-y-3">
@@ -216,7 +222,7 @@ export default function Budget() {
                   <Card className="py-4">
                     <div className="flex justify-between items-center mb-2">
                       <span className="font-medium flex items-center gap-2">{b.category}<Badge color={GROUP_COLOR[b.group]}>{GROUP_LABEL[b.group]}</Badge>{b.over && <Badge color="var(--rose)"><AlertTriangle size={11} /> Over</Badge>}</span>
-                      <span className={`font-mono text-sm ${privacy ? "privacy-blur" : ""}`}>{formatShort(b.spent, privacy)} / {formatShort(b.limit, privacy)}</span>
+                      <span className={`font-mono text-sm ${b.over ? "text-rose font-bold" : ""} ${privacy ? "privacy-blur" : ""}`}>{formatShort(b.spent, privacy)} / {formatShort(b.limit, privacy)}</span>
                     </div>
                     <Progress value={pct} color={b.over ? "var(--rose)" : pct > 80 ? "var(--amber)" : "var(--brand)"} />
                   </Card>

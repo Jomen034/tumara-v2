@@ -20,6 +20,23 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-02 10:35:00 WIB] — Financial UI Color Consistency Standardization (Red Expense/Debt, Green Income/Asset, Cyan Transfer)
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menstandarisasi seluruh representasi visual warna keuangan di Tumara agar konsisten: Uang Keluar/Beban/Utang selalu Merah (`text-rose`), Uang Masuk/Aset selalu Hijau (`text-brand`), dan Pemindahan Dana selalu Cyan (`text-cyan`).
+- **Key Actions & Changes:**
+  - `frontend/src/pages/Dashboard.js`:
+    - Menstandarisasi komponen baris transaksi `TxnRow` (dipakai di Dashboard dan `/transactions`): Jumlah pengeluaran kini tegas berwarna merah (`text-rose`) dengan tanda minus `-` (sebelumnya default `text-tprimary` / putih/abu). Pemasukan bertanda `+` hijau (`text-brand`), transfer cyan (`text-cyan`).
+    - Menambahkan ikon dan warna yang konsisten pada kartu ringkasan bulanan Net Worth: Pemasukan bulanan hijau (`text-brand` + `<TrendingUp />`), Pengeluaran bulanan merah (`text-rose` + `<TrendingDown />`).
+  - `frontend/src/pages/Budget.js`:
+    - Memperbarui kartu ringkasan anggaran bulanan: jika total pengeluaran melebihi total limit budget, ditampilkan peringatan merah tegas (`text-rose`) lengkap dengan ikon `<AlertTriangle />` dan nominal selisih *overbudget*.
+    - Pada daftar kategori anggaran, angka nominal pengeluaran kategori yang berstatus `over` ditebalkan dan diwarnai merah (`text-rose font-bold`).
+  - `frontend/src/pages/Bills.js`:
+    - Nominal tagihan yang telah lewat jatuh tempo (*overdue / telat*) kini otomatis diwarnai merah (`text-rose font-bold`) untuk memperjelas urgensi pembayaran.
+  - `frontend/src/components/ScanReceiptModal.js`:
+    - Menghilangkan header manual `Content-Type: multipart/form-data` pada `FormData` scan struk untuk kompatibilitas boundary multipart browser (khususnya Safari iOS & mobile).
+- **Verifikasi Hasil:**
+  - Seluruh komponen transaksi, budget, tagihan, dan dompet memiliki keselarasan visual yang intuitif sesuai standar aplikasi finansial modern.
+
 ### [2026-10-02 10:15:00 WIB] — Session Resilience & Cold-Start Optimization (Multi-Device Login + Warm Pinger + Smart Wait UI)
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menuntaskan masalah waiting time lama pada Render Free Tier saat pertama kali dibuka pagi hari dan mencegah pengguna ter-logout otomatis di perangkat HP/Laptop.

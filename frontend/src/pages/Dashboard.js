@@ -106,12 +106,12 @@ export default function Dashboard() {
               <p className={`font-mono font-semibold text-rose ${privacy ? "privacy-blur" : ""}`}>{formatRp(data.debt, privacy)}</p>
             </div>
             <div>
-              <p className="text-xs text-tmuted font-semibold">Pemasukan (bln)</p>
-              <p className={`font-mono font-semibold ${privacy ? "privacy-blur" : ""}`}>{formatRp(data.income, privacy)}</p>
+              <p className="text-xs text-tmuted font-semibold flex items-center gap-1"><TrendingUp size={13} className="text-brand" /> Pemasukan (bln)</p>
+              <p className={`font-mono font-semibold text-brand ${privacy ? "privacy-blur" : ""}`}>{formatRp(data.income, privacy)}</p>
             </div>
             <div>
-              <p className="text-xs text-tmuted font-semibold">Pengeluaran (bln)</p>
-              <p className={`font-mono font-semibold ${privacy ? "privacy-blur" : ""}`}>{formatRp(data.expense, privacy)}</p>
+              <p className="text-xs text-tmuted font-semibold flex items-center gap-1"><TrendingDown size={13} className="text-rose" /> Pengeluaran (bln)</p>
+              <p className={`font-mono font-semibold text-rose ${privacy ? "privacy-blur" : ""}`}>{formatRp(data.expense, privacy)}</p>
             </div>
           </div>
         </Card>
@@ -347,7 +347,7 @@ export function TxnRow({ t, privacy, onDelete, onEdit, onSelect, memberMap, wall
           <span>· {t.date}</span>
         </p>
       </div>
-      <span className={`font-mono text-sm font-semibold shrink-0 ${privacy ? "privacy-blur" : ""} ${isIncome ? "text-brand" : isTransfer ? "text-cyan" : "text-tprimary"}`}>
+      <span className={`font-mono text-sm font-semibold shrink-0 ${privacy ? "privacy-blur" : ""} ${isIncome ? "text-brand" : isTransfer ? "text-cyan" : "text-rose"}`}>
         {isIncome ? "+" : isTransfer ? "" : "-"}{formatRp(t.amount, privacy)}
       </span>
       <div className="flex items-center gap-1 shrink-0">

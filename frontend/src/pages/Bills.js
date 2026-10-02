@@ -82,7 +82,7 @@ export default function Bills() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`font-mono font-bold ${privacy ? "privacy-blur" : ""}`}>{formatRp(b.amount, privacy)}</p>
+                    <p className={`font-mono font-bold ${b.days_until < 0 ? "text-rose" : ""} ${privacy ? "privacy-blur" : ""}`}>{formatRp(b.amount, privacy)}</p>
                     <div className="flex items-center gap-1 justify-end mt-1">
                       <Button size="sm" onClick={() => pay(b)} disabled={payingId === b.id} data-testid={`pay-bill-${b.id}`}><CheckCircle2 size={15} /> {payingId === b.id ? "..." : "Bayar"}</Button>
                       <button onClick={() => openEdit(b)} className="p-2 rounded-lg hover:bg-elevated text-tsecondary"><Pencil size={14} /></button>
