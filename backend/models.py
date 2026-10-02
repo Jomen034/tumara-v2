@@ -76,6 +76,11 @@ class BillCreate(BaseModel):
     recurrence: Literal["monthly", "weekly", "yearly", "once"] = "monthly"
     next_due_date: str  # YYYY-MM-DD
     wallet_id: Optional[str] = None
+    bill_type: Literal["recurring", "installment"] = "recurring"
+    total_tenor: Optional[int] = None
+    paid_tenor: int = 0
+    total_amount: Optional[float] = None
+    note: Optional[str] = None
 
 
 class Bill(BillCreate):
@@ -83,6 +88,7 @@ class Bill(BillCreate):
     household_id: str
     member_id: str
     is_paid_current_cycle: bool = False
+    is_completed: bool = False
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -119,8 +125,9 @@ class TransactionCreate(BaseModel):
     category: str = "Lainnya"
     note: str = ""
     date: Optional[str] = None
-    source: str = "manual"  # manual | ai_receipt | goal_deposit
+    source: str = "manual"  # manual | ai_receipt | goal_deposit | bill
     goal_id: Optional[str] = None
+    bill_id: Optional[str] = None
 
 
 class TransactionUpdate(BaseModel):
@@ -132,6 +139,7 @@ class TransactionUpdate(BaseModel):
     note: Optional[str] = None
     date: Optional[str] = None
     goal_id: Optional[str] = None
+    bill_id: Optional[str] = None
 
 
 class Transaction(TransactionCreate):

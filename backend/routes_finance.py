@@ -604,7 +604,7 @@ async def dashboard(ctx: Ctx = Depends(get_ctx)):
 
     today = datetime.now(timezone.utc).date()
     upcoming = await db.bills.find(
-        {"household_id": hid, "is_paid_current_cycle": False}, {"_id": 0}
+        {"household_id": hid, "is_paid_current_cycle": False, "is_completed": {"$ne": True}}, {"_id": 0}
     ).sort("next_due_date", 1).to_list(50)
     upcoming = [b for b in upcoming
                 if (datetime.strptime(b["next_due_date"], "%Y-%m-%d").date() - today).days <= 7]

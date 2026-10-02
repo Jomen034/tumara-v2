@@ -20,6 +20,35 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-02 22:26:00 WIB] — Bill Management Upgrade: Responsive Card Layout, Loan Installment Tenor Engine & Interactive Bill Detail Modal
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Memperbaiki layout kartu tagihan yang tumpang tindih pada layar HP, membedakan Tagihan Rutin vs Cicilan Ber-tenor (dengan dukungan cicilan yang sudah berjalan sebelumnya), serta menghadirkan modal Detail Tagihan interaktif dengan riwayat mutasi pembayaran riil.
+- **Latar Belakang & Masalah:**
+  - Kartu tagihan sebelumnya memaksakan 1 baris flexbox horizontal, sehingga tombol "Bayar" menutupi teks "Bulanan" dan badge tempo terpotong di perangkat seluler.
+  - Tagihan sebelumnya tidak membedakan antara tagihan tanpa akhir (*forever / ongoing* seperti WiFi, listrik, langganan) dengan cicilan berjangka (*installment / loan* seperti kredit mobil, KPR).
+  - Pengguna tidak memiliki tempat untuk melihat histori berapa kali tagihan telah dibayar di aplikasi dan berapa sisa angsuran yang tersisa.
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Memperluas `BillCreate` & `Bill`: menambahkan `bill_type` ("recurring" vs "installment"), `total_tenor` (total durasi/kali), `paid_tenor` (angsuran yang sudah terbayar), `total_amount`, `note`, dan `is_completed`.
+    - Menambahkan `bill_id` pada `TransactionCreate` dan `TransactionUpdate` agar setiap transaksi pembayaran tagihan terhubung secara relasional.
+  - `backend/routes_bills.py`:
+    - `list_bills`: Menghitung metrik cicilan dinamis (`remaining_tenor`, `progress_pct`, `remaining_amount`, `is_completed`).
+    - `upcoming_bills`: Otomatis mengecualikan tagihan cicilan yang sudah berstatus lunas penuh (`is_completed = True`).
+    - `POST /bills/{id}/pay`:
+      - Mengaitkan `bill_id` pada transaksi mutasi pengeluaran.
+      - Jika tagihan bertipe cicilan: menambah `paid_tenor += 1`. Jika `paid_tenor >= total_tenor`, tagihan otomatis ditandai `is_completed = True`.
+    - Endpoint baru `GET /bills/{id}/history`: Mengambil seluruh riwayat transaksi riil di Tumara yang terkait dengan tagihan tersebut beserta ringkasan total uang terbayar.
+  - `frontend/src/components/BillDetailModal.js`:
+    - Membuat modal detail komprehensif: menampilkan status jatuh tempo, widget progress cicilan (progress bar, sudah terbayar, sisa kewajiban uang, status angsuran), konfigurasi tagihan, riwayat transaksi pembayaran riil via Tumara, dan tombol aksi langsung.
+  - `frontend/src/pages/Bills.js`:
+    - Merombak total tata letak kartu tagihan menjadi 2 baris hierarkis yang responsif dan lega di layar HP (tidak ada lagi elemen yang bertabrakan atau terpotong).
+    - Menambahkan progress bar mini pada kartu tagihan cicilan di halaman utama.
+    - Menambahkan pemilih jenis tagihan (*Tagihan Rutin* vs *Cicilan / Pinjaman*) pada form Tambah/Edit Tagihan, lengkap dengan input *Total Tenor* dan *Sudah Terbayar Berapa Kali* (mendukung cicilan yang sudah berjalan sebelum memakai Tumara).
+    - Seluruh kartu tagihan kini interaktif (dapat diklik untuk membuka `BillDetailModal`).
+- **Verifikasi Hasil:**
+  - Tampilan kartu di layar HP kini rapi, proporsional, dan terbebas dari tumpang tindih tombol "Bayar".
+  - Logika penambahan tenor cicilan dan transisi ke status "Lunas Sepenuhnya" bekerja secara otomatis dan akurat.
+
 ### [2026-10-02 10:52:00 WIB] — Financial Health Interactive Diagnostic & Actionable Recommendation Engine
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Mengubah kartu Financial Health di Beranda dari sekadar skor statis ("berhenti di informasi") menjadi modul diagnostik interaktif yang bisa diklik untuk melihat penjelasan rinci 4 pilar kesehatan finansial dan rekomendasi aksi nyata (one-tap actions).
