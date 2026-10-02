@@ -460,7 +460,7 @@ export default function Bills() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3 min-w-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
             <Input
               label="Jatuh Tempo"
               type="date"

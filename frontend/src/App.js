@@ -112,8 +112,8 @@ function Shell() {
   }
 
   return (
-    <Layout onAdd={() => openAdd("manual")} onScan={() => setScanOpen(true)}>
-      <Outlet context={{ openAdd, openScan: () => setScanOpen(true) }} />
+    <Layout onAdd={() => openAdd("manual")} onScan={() => openAdd("scan")}>
+      <Outlet context={{ openAdd, openScan: () => openAdd("scan") }} />
       <AddTransactionModal open={addOpen} onClose={() => setAddOpen(false)} onSaved={bump} initialMode={addMode} />
       <ScanReceiptModal open={scanOpen} onClose={() => setScanOpen(false)} onSaved={bump} />
       <InstallPrompt />

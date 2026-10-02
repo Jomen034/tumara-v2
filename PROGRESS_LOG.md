@@ -20,6 +20,28 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-02 22:52:00 WIB] — Form Ergonomics & One-Stop Entry Point: Stacked Date/Note Rows & Integrated Receipt Scanner Tab
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Memisahkan field Tanggal dan Catatan ke baris mandiri (full-width) pada modal transaksi untuk kenyamanan penulisan/keterbacaan, menyelaraskan form tagihan, serta mengintegrasikan pemindai struk (Foto Struk / AI OCR) ke dalam modal Tambah Transaksi sebagai satu pintu masuk (*one-stop entry point*).
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, field Tanggal dan Catatan dipaksakan bersebelahan dalam 2 kolom (`grid grid-cols-2`). Di layar HP (~375px), kolom catatan hanya berlebar ~150px sehingga teks deskripsi cepat terpotong ke kanan dan sulit dibaca/diedit.
+  - Tombol "Scan Struk" di navigasi header utama disembunyikan pada perangkat seluler (`hidden sm:inline-flex`), sehingga pengguna HP tidak memiliki akses langsung ke fitur scanner dari navigasi utama.
+- **Key Actions & Changes:**
+  - `frontend/src/components/AddTransactionModal.js`:
+    - Memisahkan field `Tanggal` dan `Catatan` dari 2 kolom menjadi baris penuh berurutan (*single-column form rhythm*).
+    - Memperbarui placeholder Catatan menjadi lebih deskriptif (`cth. Makan siang kantor, bensin, langganan Netflix (opsional)`).
+    - Menambahkan tab ke-3 pada segmented control atas: `[ ✏️ Manual ]  [ ✨ Teks AI ]  [ 📷 Foto Struk ]`.
+    - Mengintegrasikan alur pemindaian struk lengkap di tab `Foto Struk`: dropzone ambil foto/upload struk, pratinjau foto, proses pemindaian OCR AI, kartu ringkasan hasil struk, toggle "Catat tiap item terpisah" (*itemize*), pemilihan dompet pembayaran, simpan langsung, atau tombol "Edit di Form Manual" untuk penyesuaian lanjutan.
+  - `frontend/src/components/EditTransactionModal.js`:
+    - Memisahkan `Tanggal` dan `Catatan` ke baris mandiri penuh (full-width) dengan placeholder yang selaras.
+  - `frontend/src/pages/Bills.js`:
+    - Mengubah wrapper `Jatuh Tempo` & `Perulangan` menjadi responsif `grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0` agar di layar HP tampil lapang dan tidak berdesakan.
+  - `frontend/src/App.js`:
+    - Menghubungkan pemicu `onScan` dan `openScan` ke `openAdd("scan")` agar aksi pemindaian dari mana pun langsung membuka tab Foto Struk di modal utama.
+- **Verifikasi Hasil:**
+  - Form transaksi di HP kini sangat nyaman diketik tanpa ada teks catatan yang terpotong.
+  - Pengguna HP kini memiliki akses 1-tap ke fitur scanner struk langsung dari tombol `+` Tambah Transaksi.
+
 ### [2026-10-02 22:42:00 WIB] — Credit Card & Paylater Wallet Upgrade: Credit Limit, Available Limit & Utilization Engine
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menghadirkan kapabilitas pelacakan limit kredit, sisa plafon, dan rasio utilisasi untuk dompet berjenis Kartu Kredit (`credit_card`) dan PayLater (`paylater`), dengan konsistensi ledger ganda yang terverifikasi tanpa merusak kalkulasi net worth.

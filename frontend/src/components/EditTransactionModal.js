@@ -159,11 +159,23 @@ export default function EditTransactionModal({ open, onClose, transaction: t, wa
           </Select>
         )}
 
-        {/* Date and Note */}
-        <div className="grid grid-cols-2 gap-3 min-w-0">
-          <Input label="Tanggal" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <Input label="Catatan" placeholder="opsional" value={note} onChange={(e) => setNote(e.target.value)} />
-        </div>
+        {/* Date: Dedicated full-width row */}
+        <Input
+          label="Tanggal"
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          data-testid="edit-txn-date-input"
+        />
+
+        {/* Note: Dedicated full-width row */}
+        <Input
+          label="Catatan"
+          placeholder="cth. Makan siang kantor, bensin, langganan Netflix (opsional)"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          data-testid="edit-txn-note-input"
+        />
 
         {/* Buttons */}
         <div className="flex gap-2 pt-2">
