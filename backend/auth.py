@@ -13,7 +13,7 @@ from models import User, AccessCode, ForgotPasswordRequest, ResetPasswordRequest
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 COOKIE_NAME = "session_token"
-SESSION_DAYS = 7
+SESSION_DAYS = 30
 DEFAULT_ACCESS_CODE = "TUMARA2026"
 
 
@@ -100,16 +100,13 @@ async def _create_user_session(user: User, response: Response, request: Optional
     session_token = f"sess_{secrets.token_hex(24)}"
     expires_at = now_utc() + timedelta(days=SESSION_DAYS)
     
-    await db.user_sessions.update_one(
-        {"user_id": user.user_id},
-        {"$set": {
-            "user_id": user.user_id,
-            "session_token": session_token,
-            "expires_at": expires_at,
-            "created_at": now_utc(),
-        }},
-        upsert=True,
-    )
+    # Multi-device session support: insert independent session per device token
+    await db.user_sessions.insert_one({
+        "user_id": user.user_id,
+        "session_token": session_token,
+        "expires_at": expires_at,
+        "created_at": now_utc(),
+    })
 
     _set_session_cookie(response, session_token, request)
     from deps import ensure_household

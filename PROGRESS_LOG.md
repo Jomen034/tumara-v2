@@ -20,6 +20,30 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-02 10:15:00 WIB] — Session Resilience & Cold-Start Optimization (Multi-Device Login + Warm Pinger + Smart Wait UI)
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menuntaskan masalah waiting time lama pada Render Free Tier saat pertama kali dibuka pagi hari dan mencegah pengguna ter-logout otomatis di perangkat HP/Laptop.
+- **Latar Belakang & Masalah:**
+  - Render free tier mengalami *spin down* (tidur lelap) setelah 15 menit tanpa request. Waktu *cold start* membutuhkan ~60–70 detik.
+  - Sesi login di backend sebelumnya menimpa token lama berdasarkan `user_id`, sehingga login di Laptop otomatis membatalkan token di HP (*single session conflict*).
+  - Mekanisme retry di frontend sebelumnya terlalu cepat menyerah (3 kali retry dengan jeda 2 detik = ~20 detik), sehingga saat cold start belum selesai, user langsung dialihkan secara paksa ke halaman login.
+- **Key Actions & Changes:**
+  - `backend/auth.py`:
+    - Mengubah masa aktif sesi menjadi 30 hari (`SESSION_DAYS = 30`) untuk kenyamanan penggunaan mobile web/PWA.
+    - Mengaktifkan dukungan **Multi-Device / Multi-Session**: Penyimpanan sesi menggunakan `insert_one` per `session_token`, sehingga user dapat login bersamaan di HP, Laptop, dan Tablet tanpa saling menendang keluar.
+  - `frontend/src/context/AuthContext.js`:
+    - Memperluas siklus retry cold-start hingga 15 percobaan dengan jeda 2,5 detik (~75–90 detik total coverage).
+    - Menambahkan state `serverWaking`, `wakingAttempt`, dan `connectionError`.
+    - Token `localStorage` tidak lagi dihapus secara agresif; user hanya dianggap logout jika server secara eksplisit mengembalikan kode 401 atau 403.
+  - `frontend/src/App.js` (`FullLoader`):
+    - Tampilan loading adaptif baru dengan pesan transparan: *"Server Tumara sedang bangun dari mode hemat daya gratis... (Percobaan X/15)"*.
+    - Menghadirkan tombol aksi *"Coba Sambungkan Lagi"* dan *"Masuk dengan Akun Lain"* jika terjadi gangguan jaringan, menjaga user tidak terlempar ke form login.
+  - `.github/workflows/keep_alive.yml`:
+    - Membuat GitHub Actions workflow terjadwal setiap 10 menit (`*/10 * * * *`) untuk mem-ping endpoint `/api/health` Render agar server tetap aktif (*warm*) dan tidak tidur.
+- **Verifikasi Hasil:**
+  - Sintaksis Python dan bundling React bersih tanpa error.
+  - Multi-device login terverifikasi aktif.
+
 ### [2026-10-01 23:55:00 WIB] — Financial Architecture Upgrade: Goal Deposit to Transaction Mutation & Transaction Detail/Edit Features
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Mengintegrasikan fitur Setor Tujuan dengan mutasi transaksi dompet nyata (ledger engine) serta menambahkan modal Detail Transaksi dan Edit Transaksi.

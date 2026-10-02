@@ -1,0 +1,17 @@
+name: Keep Tumara Backend Warm
+
+on:
+  schedule:
+    # Ping every 10 minutes to prevent Render free tier from sleeping (15-min idle spin down)
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping Tumara Health Endpoint
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 90 "https://tumara-backend.onrender.com/api/health" || echo "FAIL")
+          echo "Backend ping status: $STATUS"

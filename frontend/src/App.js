@@ -11,6 +11,7 @@ import InstallPrompt from "./components/InstallPrompt";
 import AddTransactionModal from "./components/AddTransactionModal";
 import ScanReceiptModal from "./components/ScanReceiptModal";
 import { Spinner } from "./components/ui";
+import { Sparkles, RefreshCw, AlertCircle } from "lucide-react";
 
 import Landing from "./pages/Landing";
 import Onboarding from "./pages/Onboarding";
@@ -25,9 +26,57 @@ import Bills from "./pages/Bills";
 import Household from "./pages/Household";
 
 function FullLoader() {
+  const { serverWaking, wakingAttempt, connectionError, retryAuth, logout } = useAuth();
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg">
-      <Spinner size={32} className="text-brand" />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-bg p-6 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-6">
+        <Sparkles size={28} className="text-brand animate-pulse" />
+      </div>
+
+      {connectionError ? (
+        <div className="max-w-sm space-y-4">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose/10 text-rose border border-rose/20">
+            <AlertCircle size={14} />
+            Server Sedang Bangun / Terputus
+          </div>
+          <h2 className="text-xl font-bold font-head text-tprimary">Menyambungkan Tertunda</h2>
+          <p className="text-sm text-tsecondary leading-relaxed">
+            Server Tumara membutuhkan waktu lebih lama untuk bangun dari mode hemat daya. Sesi login di perangkat ini tetap aman.
+          </p>
+          <div className="flex flex-col gap-2 pt-2">
+            <button
+              onClick={retryAuth}
+              className="w-full py-3 rounded-xl bg-brand text-black font-semibold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+            >
+              <RefreshCw size={16} /> Coba Sambungkan Lagi
+            </button>
+            <button
+              onClick={logout}
+              className="w-full py-2.5 rounded-xl bg-elevated text-tsecondary font-medium text-xs hover:text-rose transition-colors"
+            >
+              Masuk dengan Akun Lain
+            </button>
+          </div>
+        </div>
+      ) : serverWaking ? (
+        <div className="max-w-xs space-y-3">
+          <Spinner size={32} className="text-brand mx-auto mb-2" />
+          <h2 className="text-lg font-bold font-head text-tprimary">Menyambungkan ke Akun...</h2>
+          <p className="text-xs text-tsecondary leading-relaxed">
+            Server Tumara sedang bangun dari mode hemat daya gratis. Mohon tunggu sebentar...
+          </p>
+          {wakingAttempt > 1 && (
+            <span className="inline-block text-[11px] font-mono font-semibold px-3 py-1 rounded-full bg-elevated text-tmuted border border-borderc">
+              Percobaan {wakingAttempt} / 15
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <Spinner size={32} className="text-brand mx-auto" />
+          <p className="text-xs text-tmuted font-medium">Memuat data Tumara...</p>
+        </div>
+      )}
     </div>
   );
 }
