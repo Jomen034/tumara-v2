@@ -117,3 +117,47 @@ h1, h2, h3, h4, .font-head {
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 .pulse-ring { animation: pulse-ring 2.5s infinite; }
+
+/* ==========================================================================
+   Form Controls & Date Input Normalization (Mobile Safari & iOS WebKit Fix)
+   ========================================================================== */
+
+/* Ensure all form controls strictly respect container boundaries */
+input,
+select,
+textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Force date, time, and datetime inputs on iOS WebKit to obey container width */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-clip: padding-box;
+}
+
+/* Fix iOS Safari internal date value rendering and text alignment */
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.25em;
+  padding: 0;
+  margin: 0;
+}
+
+/* Clean WebKit calendar picker indicator */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.6;
+  cursor: pointer;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}

@@ -59,9 +59,9 @@ export default function Wallets() {
         <Button data-testid="add-wallet-button" onClick={() => openNew()}><Plus size={16} /> Dompet</Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Card><p className="text-xs text-tmuted font-semibold uppercase">Total Aset</p><p className={`text-2xl font-head font-bold font-mono text-brand mt-1 ${privacy ? "privacy-blur" : ""}`}>{formatRp(totalAssets, privacy)}</p></Card>
-        <Card><p className="text-xs text-tmuted font-semibold uppercase">Total Utang</p><p className={`text-2xl font-head font-bold font-mono text-rose mt-1 ${privacy ? "privacy-blur" : ""}`}>{formatRp(totalDebt, privacy)}</p></Card>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 min-w-0">
+        <Card className="p-4 sm:p-5"><p className="text-xs text-tmuted font-semibold uppercase truncate">Total Aset</p><p className={`text-lg sm:text-2xl font-head font-bold font-mono text-brand mt-1 truncate ${privacy ? "privacy-blur" : ""}`}>{formatRp(totalAssets, privacy)}</p></Card>
+        <Card className="p-4 sm:p-5"><p className="text-xs text-tmuted font-semibold uppercase truncate">Total Utang</p><p className={`text-lg sm:text-2xl font-head font-bold font-mono text-rose mt-1 truncate ${privacy ? "privacy-blur" : ""}`}>{formatRp(totalDebt, privacy)}</p></Card>
       </div>
 
       {loading ? <div className="flex justify-center py-16"><Spinner className="text-brand" size={28} /></div> : wallets.length === 0 ? (

@@ -99,7 +99,7 @@ export default function Bills() {
         <div className="space-y-4">
           <Input label="Nama Tagihan" placeholder="cth. Listrik PLN, Netflix" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="bill-name-input" />
           <Input label="Jumlah" prefix="Rp" type="number" placeholder="0" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} data-testid="bill-amount-input" />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 min-w-0">
             <Input label="Jatuh Tempo" type="date" value={form.next_due_date} onChange={(e) => setForm({ ...form, next_due_date: e.target.value })} data-testid="bill-date-input" />
             <Select label="Perulangan" value={form.recurrence} onChange={(e) => setForm({ ...form, recurrence: e.target.value })}>
               {Object.entries(RECUR).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

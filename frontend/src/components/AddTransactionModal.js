@@ -208,7 +208,7 @@ export default function AddTransactionModal({ open, onClose, onSaved, initialMod
             </Select>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 min-w-0">
             <Input label="Tanggal" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             <Input label="Catatan" placeholder="opsional" value={note} onChange={(e) => setNote(e.target.value)} />
           </div>

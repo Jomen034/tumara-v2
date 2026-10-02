@@ -20,6 +20,29 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-02 10:42:00 WIB] — Mobile Form UI Bugfix: Date Picker Overflow & Compact Responsive Fields Normalization
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Memperbaiki bug tampilan pada perangkat mobile (iOS Safari / WebKit) di mana field input tanggal (`type="date"`) melebar melewati batas kolom grid dan menimpa field di sebelahnya (Catatan / Perulangan), serta merapikan proporsi dan kekompakan seluruh komponen form modal.
+- **Latar Belakang & Masalah:**
+  - Pada iOS Safari, `<input type="date">` memiliki styling internal bawaan WebKit dengan *minimum intrinsic width* yang cukup lebar (~200px).
+  - Ketika diletakkan di dalam grid 2-kolom (`grid-cols-2`), tanpa aturan `min-width: 0`, `max-width: 100%`, dan `-webkit-appearance: none;`, elemen tanggal meluap keluar dari batas kolomnya dan menutupi elemen input di sampingnya ("Catatan" di Tambah/Edit Transaksi dan "Perulangan" di Edit Tagihan).
+- **Key Actions & Changes:**
+  - `frontend/src/index.css`:
+    - Menambahkan normalisasi global untuk seluruh form controls (`input, select, textarea { min-width: 0; max-width: 100%; }`).
+    - Mereset `input[type="date"]`, `type="time"`, `type="datetime-local"` dengan `min-width: 0 !important; max-width: 100% !important; -webkit-appearance: none;` dan styling internal `::-webkit-date-and-time-value` agar teks tanggal rata kiri, tidak meluap, dan tetap responsif.
+  - `frontend/src/components/ui.js`:
+    - Memperbarui komponen `Input`: menambahkan `w-full min-w-0 max-w-full`, padding lebih proporsional (`px-3.5 sm:px-4 py-2.5 sm:py-3`), dan ukuran font `text-sm sm:text-base` yang pas dan rapi.
+    - Memperbarui komponen `Select`: menambahkan indikator panah dropdown `<ChevronDown />` yang modern serta padding yang selaras dengan `Input`.
+    - Memperbarui komponen `Modal`: menambahkan `overflow-x-hidden` dan padding mobile `p-5 sm:p-6` agar layout form lebih lega di layar smartphone.
+  - `frontend/src/components/AddTransactionModal.js` & `EditTransactionModal.js`:
+    - Menambahkan constraint `min-w-0` pada kontainer grid "Tanggal" dan "Catatan" agar kedua field terbagi 50:50 secara proporsional dan tidak saling menimpa.
+  - `frontend/src/pages/Bills.js`:
+    - Menambahkan `min-w-0` pada grid "Jatuh Tempo" dan "Perulangan".
+  - `frontend/src/pages/Wallets.js`:
+    - Menyesuaikan kartu "Total Aset" dan "Total Utang" agar teks angka saldo tidak terpotong pada layar mobile berukuran kecil.
+- **Verifikasi Hasil:**
+  - Input tanggal kini terkunci rapat di dalam grid 50% tanpa overflow, tinggi input sejajar sempurna dengan field di sebelahnya, dan dropdown memiliki ikon chevron yang rapi.
+
 ### [2026-10-02 10:35:00 WIB] — Financial UI Color Consistency Standardization (Red Expense/Debt, Green Income/Asset, Cyan Transfer)
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menstandarisasi seluruh representasi visual warna keuangan di Tumara agar konsisten: Uang Keluar/Beban/Utang selalu Merah (`text-rose`), Uang Masuk/Aset selalu Hijau (`text-brand`), dan Pemindahan Dana selalu Cyan (`text-cyan`).

@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, ChevronDown } from "lucide-react";
 import clsx from "clsx";
 
 export function Button({ children, variant = "primary", size = "md", className, ...props }) {
@@ -52,22 +52,37 @@ export function Badge({ children, color, className }) {
   );
 }
 
-export function Input({ label, className, prefix, suffix, ...props }) {
+export function Input({ label, className, prefix, suffix, type, ...props }) {
+  const isDate = type === "date" || type === "time" || type === "datetime-local";
   return (
-    <label className="block">
-      {label && <span className="block text-xs font-semibold text-tsecondary uppercase tracking-wider mb-2">{label}</span>}
-      <div className="relative">
-        {prefix && <span className="absolute left-4 top-1/2 -translate-y-1/2 text-tmuted font-mono text-sm">{prefix}</span>}
+    <label className="block w-full min-w-0">
+      {label && (
+        <span className="block text-xs font-semibold text-tsecondary uppercase tracking-wider mb-1.5 sm:mb-2 truncate">
+          {label}
+        </span>
+      )}
+      <div className="relative w-full min-w-0">
+        {prefix && (
+          <span className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-tmuted font-mono text-sm pointer-events-none select-none">
+            {prefix}
+          </span>
+        )}
         <input
+          type={type}
           className={clsx(
-            "w-full bg-elevated border border-borderc rounded-xl px-4 py-3 text-tprimary placeholder:text-tmuted focus:border-brand focus:outline-none transition-colors",
-            prefix && "pl-11",
-            suffix && "pr-11",
+            "w-full min-w-0 max-w-full bg-elevated border border-borderc rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base text-tprimary placeholder:text-tmuted focus:border-brand focus:outline-none transition-colors",
+            isDate && "text-sm",
+            prefix && "pl-10 sm:pl-11",
+            suffix && "pr-10 sm:pr-11",
             className
           )}
           {...props}
         />
-        {suffix && <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-tmuted flex items-center">{suffix}</div>}
+        {suffix && (
+          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-tmuted flex items-center">
+            {suffix}
+          </div>
+        )}
       </div>
     </label>
   );
@@ -75,17 +90,26 @@ export function Input({ label, className, prefix, suffix, ...props }) {
 
 export function Select({ label, children, className, ...props }) {
   return (
-    <label className="block">
-      {label && <span className="block text-xs font-semibold text-tsecondary uppercase tracking-wider mb-2">{label}</span>}
-      <select
-        className={clsx(
-          "w-full bg-elevated border border-borderc rounded-xl px-4 py-3 text-tprimary focus:border-brand focus:outline-none transition-colors appearance-none",
-          className
-        )}
-        {...props}
-      >
-        {children}
-      </select>
+    <label className="block w-full min-w-0">
+      {label && (
+        <span className="block text-xs font-semibold text-tsecondary uppercase tracking-wider mb-1.5 sm:mb-2 truncate">
+          {label}
+        </span>
+      )}
+      <div className="relative w-full min-w-0">
+        <select
+          className={clsx(
+            "w-full min-w-0 max-w-full bg-elevated border border-borderc rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 pr-9 text-sm sm:text-base text-tprimary focus:border-brand focus:outline-none transition-colors appearance-none cursor-pointer",
+            className
+          )}
+          {...props}
+        >
+          {children}
+        </select>
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-tmuted flex items-center">
+          <ChevronDown size={15} />
+        </div>
+      </div>
     </label>
   );
 }
@@ -116,7 +140,7 @@ export function Modal({ open, onClose, title, children, testid, size = "md" }) {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
           <motion.div
             data-testid={testid}
-            className={clsx("relative bg-surface border border-borderc rounded-t-3xl sm:rounded-3xl w-full p-6 max-h-[92vh] overflow-y-auto", widths[size])}
+            className={clsx("relative bg-surface border border-borderc rounded-t-3xl sm:rounded-3xl w-full p-5 sm:p-6 max-h-[92vh] overflow-y-auto overflow-x-hidden", widths[size])}
             initial={{ y: 60, opacity: 0.5, scale: 0.98 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 60, opacity: 0 }}
