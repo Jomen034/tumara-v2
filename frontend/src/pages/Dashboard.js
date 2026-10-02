@@ -2,7 +2,24 @@ import React, { useEffect, useState } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import * as Icons from "lucide-react";
-import { TrendingUp, TrendingDown, ScanLine, Plus, Sparkles, ArrowRight, AlertTriangle, Wand2, RefreshCw } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  ScanLine,
+  Plus,
+  Sparkles,
+  ArrowRight,
+  AlertTriangle,
+  Wand2,
+  RefreshCw,
+  CheckCircle2,
+  Flame,
+  Compass,
+  Scale,
+  Target,
+  CalendarClock,
+} from "lucide-react";
+import { toast } from "sonner";
 import clsx from "clsx";
 import api from "../lib/api";
 import { useRefresh } from "../context/RefreshContext";
@@ -11,6 +28,8 @@ import { formatRp, formatShort } from "../lib/format";
 import { catMeta, walletMeta } from "../lib/constants";
 import { Card, Progress, Badge, Spinner, EmptyState, Button } from "../components/ui";
 import FinancialHealthModal from "../components/FinancialHealthModal";
+import TransactionDetailModal from "../components/TransactionDetailModal";
+import EditTransactionModal from "../components/EditTransactionModal";
 
 function HealthGauge({ score }) {
   const r = 52, c = 2 * Math.PI * r;
@@ -35,10 +54,13 @@ function HealthGauge({ score }) {
 export default function Dashboard() {
   const { openAdd, openScan } = useOutletContext();
   const { privacy } = useTheme();
-  const { version } = useRefresh();
+  const { version, bump } = useRefresh();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [healthModalOpen, setHealthModalOpen] = useState(false);
+  const [selectedTxn, setSelectedTxn] = useState(null);
+  const [editingTxn, setEditingTxn] = useState(null);
+  const [payingBillId, setPayingBillId] = useState(null);
   const navigate = useNavigate();
 
   const handleHealthAction = (rec) => {
@@ -47,6 +69,38 @@ export default function Dashboard() {
       openAdd("manual");
     } else if (rec.target) {
       navigate(rec.target);
+    }
+  };
+
+  const handlePayBill = async (b) => {
+    if (payingBillId) return;
+    setPayingBillId(b.id);
+    try {
+      const res = await api.post(`/bills/${b.id}/pay`);
+      if (res.data.is_completed) {
+        toast.success(`🎉 Selamat! "${b.name}" telah lunas sepenuhnya!`);
+      } else {
+        toast.success(`Tagihan "${b.name}" berhasil dibayar!`);
+      }
+      fetchDashboard();
+      bump();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Gagal mencatat pembayaran");
+    } finally {
+      setPayingBillId(null);
+    }
+  };
+
+  const handleDeleteTxn = async (id) => {
+    if (!window.confirm("Hapus transaksi ini?")) return;
+    try {
+      await api.delete(`/transactions/${id}`);
+      toast.success("Transaksi dihapus");
+      if (selectedTxn?.id === id) setSelectedTxn(null);
+      fetchDashboard();
+      bump();
+    } catch {
+      toast.error("Gagal menghapus transaksi");
     }
   };
 
@@ -124,6 +178,19 @@ export default function Dashboard() {
               <p className="text-xs text-tmuted font-semibold flex items-center gap-1"><TrendingDown size={13} className="text-rose" /> Pengeluaran (bln)</p>
               <p className={`font-mono font-semibold text-rose ${privacy ? "privacy-blur" : ""}`}>{formatRp(data.expense, privacy)}</p>
             </div>
+            <div>
+              <p className="text-xs text-tmuted font-semibold flex items-center gap-1">
+                <Scale size={13} className={(data.net_cash_flow ?? (data.income - data.expense)) >= 0 ? "text-brand" : "text-rose"} /> Arus Bersih (Net)
+              </p>
+              <div className="flex items-center gap-1.5">
+                <p className={`font-mono font-semibold ${(data.net_cash_flow ?? (data.income - data.expense)) >= 0 ? "text-brand" : "text-rose"} ${privacy ? "privacy-blur" : ""}`}>
+                  {(data.net_cash_flow ?? (data.income - data.expense)) >= 0 ? "+" : ""}{formatRp(data.net_cash_flow ?? (data.income - data.expense), privacy)}
+                </p>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded leading-none ${(data.net_cash_flow ?? (data.income - data.expense)) >= 0 ? "bg-brand/15 text-brand" : "bg-rose/15 text-rose"}`}>
+                  {(data.net_cash_flow ?? (data.income - data.expense)) >= 0 ? "Surplus" : "Defisit"}
+                </span>
+              </div>
+            </div>
           </div>
         </Card>
 
@@ -144,6 +211,122 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Smart Daily Spend Pulse Widget */}
+      {data.budget_summary ? (
+        <Card className="p-4 sm:p-5 border-borderc relative overflow-hidden bg-gradient-to-r from-surface to-elevated/40">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div
+                className={clsx(
+                  "w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm",
+                  data.budget_summary.is_overbudget
+                    ? "bg-rose/15 text-rose border border-rose/30"
+                    : data.budget_summary.total_limit === 0
+                    ? "bg-elevated text-tsecondary border border-borderc"
+                    : "bg-brand/15 text-brand border border-brand/30"
+                )}
+              >
+                {data.budget_summary.is_overbudget ? (
+                  <AlertTriangle size={22} />
+                ) : data.budget_summary.total_limit === 0 ? (
+                  <Compass size={22} />
+                ) : (
+                  <Flame size={22} />
+                )}
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold text-tmuted uppercase tracking-wider">
+                    {data.budget_summary.total_limit === 0
+                      ? "Anggaran Bulanan"
+                      : "Batas Belanja Aman Hari Ini"}
+                  </span>
+                  {data.budget_summary.total_limit > 0 && (
+                    <span
+                      className={clsx(
+                        "text-[10px] font-bold px-2 py-0.5 rounded-full font-mono",
+                        data.budget_summary.is_overbudget
+                          ? "bg-rose/20 text-rose"
+                          : data.budget_summary.spent_pct > 80
+                          ? "bg-amber/20 text-amber"
+                          : "bg-brand/20 text-brand"
+                      )}
+                    >
+                      {data.budget_summary.is_overbudget
+                        ? "Overbudget"
+                        : `Sisa ${data.budget_summary.days_left} hari`}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-baseline gap-2 mt-1">
+                  <p
+                    className={clsx(
+                      "text-2xl sm:text-3xl font-head font-extrabold font-mono",
+                      data.budget_summary.is_overbudget
+                        ? "text-rose"
+                        : "text-tprimary",
+                      privacy && "privacy-blur"
+                    )}
+                  >
+                    {data.budget_summary.total_limit === 0
+                      ? "Belum Ada Budget"
+                      : data.budget_summary.is_overbudget
+                      ? `Defisit ${formatRp(data.budget_summary.over_amount, privacy)}`
+                      : `${formatRp(data.budget_summary.safe_daily_spend, privacy)}`}
+                  </p>
+                  {data.budget_summary.total_limit > 0 && !data.budget_summary.is_overbudget && (
+                    <span className="text-xs text-tmuted font-medium">/ hari</span>
+                  )}
+                </div>
+
+                <p className="text-xs text-tsecondary mt-1 leading-relaxed">
+                  {data.budget_summary.total_limit === 0 ? (
+                    "Buat limit anggaran bulanan untuk mengendalikan pengeluaran harianmu dan mencegah bocor halus."
+                  ) : data.budget_summary.is_overbudget ? (
+                    <>
+                      Pengeluaran telah melampaui limit anggaran. Disarankan menahan belanja untuk{" "}
+                      <strong>{data.budget_summary.days_left} hari ke depan</strong> agar kas tetap seimbang.
+                    </>
+                  ) : (
+                    <>
+                      Tersisa <strong className="text-tprimary font-mono">{formatRp(data.budget_summary.remaining, privacy)}</strong> dari total limit{" "}
+                      <span className="font-mono">{formatRp(data.budget_summary.total_limit, privacy)}</span> ({data.budget_summary.spent_pct}% terpakai).
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <Button
+              variant={data.budget_summary.total_limit === 0 ? "primary" : "secondary"}
+              size="sm"
+              onClick={() => navigate("/budget")}
+              className="shrink-0 self-end sm:self-center"
+            >
+              {data.budget_summary.total_limit === 0 ? "Atur Budget Sekarang" : "Detail Budget"} <ArrowRight size={14} />
+            </Button>
+          </div>
+
+          {data.budget_summary.total_limit > 0 && (
+            <div className="mt-3.5 pt-2.5 border-t border-borderc/40">
+              <Progress
+                value={Math.min(100, data.budget_summary.spent_pct || 0)}
+                color={
+                  data.budget_summary.is_overbudget
+                    ? "var(--rose)"
+                    : data.budget_summary.spent_pct > 80
+                    ? "var(--amber)"
+                    : "var(--brand)"
+                }
+                className="h-1.5"
+              />
+            </div>
+          )}
+        </Card>
+      ) : null}
+
       {/* Quick actions */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <QuickAction icon={Wand2} label="Teks AI" onClick={() => openAdd("ai")} testid="quick-add-ai-text" />
@@ -155,21 +338,53 @@ export default function Dashboard() {
       <WeeklyRecap />
 
       {data.upcoming_bills?.length > 0 && (
-        <Card data-testid="upcoming-bills-card" className="border-amber/40">
+        <Card data-testid="upcoming-bills-card" className="border-amber/40 p-4 sm:p-5">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-head font-bold flex items-center gap-2"><Icons.CalendarClock size={18} className="text-amber" /> Tagihan Jatuh Tempo</h2>
-            <button onClick={() => navigate("/bills")} className="text-xs font-semibold text-brand">Lihat semua</button>
+            <h2 className="font-head font-bold text-base sm:text-lg flex items-center gap-2">
+              <CalendarClock size={19} className="text-amber" /> Tagihan Jatuh Tempo ({data.upcoming_bills.length})
+            </h2>
+            <button onClick={() => navigate("/bills")} className="text-xs font-semibold text-brand flex items-center gap-1 hover:underline">
+              Buka Kalender <ArrowRight size={12} />
+            </button>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {data.upcoming_bills.slice(0, 4).map((b) => (
-              <div key={b.id} className="flex items-center justify-between bg-elevated rounded-xl px-4 py-2.5">
-                <div>
-                  <p className="text-sm font-medium">{b.name}</p>
-                  <p className="text-xs" style={{ color: b.days_until < 0 ? "var(--rose)" : "var(--amber)" }}>
-                    {b.days_until < 0 ? `Telat ${Math.abs(b.days_until)} hari` : b.days_until === 0 ? "Hari ini" : `${b.days_until} hari lagi`}
-                  </p>
+              <div
+                key={b.id}
+                className="flex items-center justify-between gap-3 bg-elevated/70 border border-borderc/50 rounded-xl p-3 sm:px-4 sm:py-3 transition-colors hover:border-brand/40"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-tprimary truncate">{b.name}</p>
+                  <div className="flex items-center gap-2 mt-0.5 text-xs">
+                    <span
+                      style={{ color: b.days_until < 0 ? "var(--rose)" : b.days_until <= 3 ? "var(--amber)" : "var(--brand)" }}
+                      className="font-medium"
+                    >
+                      {b.days_until < 0
+                        ? `⚠️ Telat ${Math.abs(b.days_until)} hari`
+                        : b.days_until === 0
+                        ? "⚡ Hari ini"
+                        : `⏳ ${b.days_until} hari lagi`}
+                    </span>
+                    <span className="text-tmuted">· Tempo {b.next_due_date}</span>
+                  </div>
                 </div>
-                <span className={`font-mono text-sm font-semibold ${privacy ? "privacy-blur" : ""}`}>{formatRp(b.amount, privacy)}</span>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className={`font-mono text-sm sm:text-base font-bold text-tprimary ${privacy ? "privacy-blur" : ""}`}>
+                    {formatRp(b.amount, privacy)}
+                  </span>
+                  <Button
+                    size="sm"
+                    onClick={() => handlePayBill(b)}
+                    disabled={payingBillId === b.id}
+                    className="text-xs px-3 py-1.5"
+                    data-testid={`quick-pay-bill-${b.id}`}
+                  >
+                    <CheckCircle2 size={13} />
+                    {payingBillId === b.id ? "..." : "Bayar"}
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -233,6 +448,48 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* Financial Goals Spotlight */}
+      {data.goals?.length > 0 && (
+        <div>
+          <SectionHead title={`Tujuan Finansial (${data.goals.length})`} onClick={() => navigate("/goals")} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {data.goals.slice(0, 2).map((g) => {
+              const pct = g.target_amount > 0 ? Math.min(100, Math.round((g.saved_amount / g.target_amount) * 100)) : 0;
+              return (
+                <Card
+                  key={g.id}
+                  hover
+                  onClick={() => navigate("/goals")}
+                  className="p-4 cursor-pointer space-y-2.5 transition-all group border-borderc hover:border-brand/50"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm text-tprimary truncate group-hover:text-brand transition-colors flex items-center gap-1.5">
+                        <Target size={15} className="text-brand shrink-0" />
+                        {g.name}
+                      </p>
+                      <p className="text-xs text-tmuted mt-0.5">
+                        Target: <span className={`font-mono ${privacy ? "privacy-blur" : ""}`}>{formatRp(g.target_amount, privacy)}</span>
+                      </p>
+                    </div>
+                    <span className="text-xs font-bold font-mono text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full shrink-0">
+                      {pct}%
+                    </span>
+                  </div>
+                  <div className="space-y-1 pt-1">
+                    <div className="flex justify-between text-[11px] font-mono text-tmuted">
+                      <span>Terkumpul: <strong className={`text-tprimary ${privacy ? "privacy-blur" : ""}`}>{formatRp(g.saved_amount, privacy)}</strong></span>
+                      <span>Sisa: <strong className={privacy ? "privacy-blur" : ""}>{formatRp(Math.max(0, g.target_amount - g.saved_amount), privacy)}</strong></span>
+                    </div>
+                    <Progress value={pct} color="var(--brand)" className="h-1.5" />
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Budget status */}
       {data.budget_status.length > 0 && (
         <div>
@@ -261,7 +518,7 @@ export default function Dashboard() {
       <div>
         <SectionHead title="Transaksi Terbaru" onClick={() => navigate("/transactions")} />
         {data.recent_transactions.length === 0 ? (
-          <Card><EmptyState icon={Icons.Receipt} title="Belum ada transaksi" subtitle="Catat transaksi pertamamu." action={<Button onClick={openAdd} size="sm">Tambah</Button>} /></Card>
+          <Card><EmptyState icon={Icons.Receipt} title="Belum ada transaksi" subtitle="Catat transaksi pertamamu." action={<Button onClick={() => openAdd("manual")} size="sm">Tambah</Button>} /></Card>
         ) : (
           <Card className="divide-y divide-[color:var(--border)] p-0 overflow-hidden">
             {data.recent_transactions.map((t) => (
@@ -271,6 +528,9 @@ export default function Dashboard() {
                 privacy={privacy}
                 memberMap={Object.fromEntries((data.members || []).map((m) => [m.user_id, m]))}
                 walletMap={Object.fromEntries((data.wallets || []).map((w) => [w.id, w]))}
+                onSelect={(txn) => setSelectedTxn(txn)}
+                onEdit={(txn) => setEditingTxn(txn)}
+                onDelete={(id) => handleDeleteTxn(id)}
               />
             ))}
           </Card>
@@ -283,6 +543,33 @@ export default function Dashboard() {
         onClose={() => setHealthModalOpen(false)}
         data={data.health_detail}
         onAction={handleHealthAction}
+      />
+
+      {/* Transaction Detail Modal */}
+      <TransactionDetailModal
+        open={!!selectedTxn}
+        onClose={() => setSelectedTxn(null)}
+        transaction={selectedTxn}
+        wallets={data.wallets || []}
+        memberMap={Object.fromEntries((data.members || []).map((m) => [m.user_id, m]))}
+        privacy={privacy}
+        onEdit={(txn) => {
+          setSelectedTxn(null);
+          setEditingTxn(txn);
+        }}
+        onDelete={(id) => handleDeleteTxn(id)}
+      />
+
+      {/* Edit Transaction Modal */}
+      <EditTransactionModal
+        open={!!editingTxn}
+        onClose={() => setEditingTxn(null)}
+        transaction={editingTxn}
+        wallets={data.wallets || []}
+        onSaved={() => {
+          fetchDashboard();
+          bump();
+        }}
       />
     </div>
   );

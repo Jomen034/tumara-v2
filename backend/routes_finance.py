@@ -845,12 +845,32 @@ async def dashboard(ctx: Ctx = Depends(get_ctx)):
     for b in upcoming:
         b["days_until"] = (datetime.strptime(b["next_due_date"], "%Y-%m-%d").date() - today).days
 
+    now_d = datetime.now(timezone.utc).date()
+    days_in_month = 31 if now_d.month in (1,3,5,7,8,10,12) else (29 if now_d.year % 4 == 0 and now_d.month == 2 else 28 if now_d.month == 2 else 30)
+    days_left = max(1, days_in_month - now_d.day + 1)
+    remaining_budget = max(0, total_budget - expense) if total_budget > 0 else 0
+    safe_daily_spend = round(remaining_budget / days_left) if total_budget > 0 else 0
+    is_overbudget = total_budget > 0 and expense > total_budget
+    over_amount = max(0, expense - total_budget) if total_budget > 0 else 0
+
+    budget_summary = {
+        "total_limit": total_budget,
+        "total_spent": expense,
+        "remaining": remaining_budget,
+        "safe_daily_spend": safe_daily_spend,
+        "days_left": days_left,
+        "days_in_month": days_in_month,
+        "is_overbudget": is_overbudget,
+        "over_amount": over_amount,
+        "spent_pct": round((expense / total_budget) * 100, 1) if total_budget > 0 else 0,
+    }
+
     return {
         "net_worth": net_worth, "assets": assets, "debt": debt,
-        "income": income, "expense": expense, "savings_rate": savings_rate,
+        "income": income, "expense": expense, "net_cash_flow": income - expense, "savings_rate": savings_rate,
         "health_score": score, "health_detail": health_detail, "wallet_count": len(wallets),
         "category_breakdown": [{"category": k, "amount": v} for k, v in sorted(cat.items(), key=lambda x: -x[1])],
-        "budget_status": budget_status,
+        "budget_status": budget_status, "budget_summary": budget_summary,
         "recent_transactions": [annotate(t) for t in txns[:8]],
         "wallets": wallets, "goals": goals, "has_budget": bool(budget),
         "members": members, "member_breakdown": sorted(member_breakdown, key=lambda x: -x["amount"]),

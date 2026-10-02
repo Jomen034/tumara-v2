@@ -20,6 +20,28 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-03 00:15:00 WIB] — Dashboard Mission Control: Daily Spend Pulse, 1-Tap Bill Pay, Interactive Recent Txns, Goals Spotlight & Net Cash Flow Badge
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Mengubah Beranda dari sekadar ringkasan angka pasif menjadi "pusat kendali harian" (*daily mission control*) yang sangat berdampak dan membantu pengguna: menghadirkan kartu panduan batas belanja aman hari ini (*Daily Spend Pulse*), tombol bayar 1-tap untuk tagihan darurat/jatuh tempo, interaktivitas penuh pada riwayat transaksi terbaru (buka detail & edit modal seketika), kartu spotlight target tujuan finansial aktif (*Goals Tracker*), serta badge arus kas bersih (*Net Cash Flow*) dengan status surplus/defisit.
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, pengguna tidak mengetahui berapa batas belanja aman hari ini tanpa merusak anggaran bulanan (harus buka halaman budget untuk cek manual).
+  - Kartu tagihan jatuh tempo hanya menampilkan teks pasif tanpa tombol bayar cepat, memaksa pengguna beralih ke halaman Tagihan.
+  - Baris transaksi terbaru di Beranda tidak bisa diklik (tidak ada modal detail maupun modal edit), memberi kesan elemen "mati".
+  - Data tujuan menabung (*goals*) tidak ditampilkan sama sekali di Beranda.
+  - Kartu Net Worth tidak menampilkan arus kas bersih bulanan (Net Income vs Expense).
+- **Key Actions & Changes:**
+  - `backend/routes_finance.py`:
+    - Endpoint `GET /dashboard`: Menambahkan kalkulasi `budget_summary` (total limit, total spent, remaining, safe daily spend pace, days left, overbudget status, over amount, spent %) dan `net_cash_flow` (income - expense).
+  - `frontend/src/pages/Dashboard.js`:
+    - **Smart Daily Spend Pulse Card:** Menampilkan batas belanja aman harian (`Rp X / hari`) untuk sisa hari bulan ini, progress bar keterpakaian limit, peringatan overbudget jika defisit, serta tombol aksi cepat *"Atur Budget / Detail Budget"*.
+    - **Net Cash Flow Badge:** Menambahkan metrik Arus Bersih (Net) pada kartu Net Worth lengkap dengan badge dinamis `Surplus` (hijau) atau `Defisit` (merah).
+    - **1-Tap Quick Pay Tagihan:** Menambahkan tombol hijau `[ Bayar ]` langsung di setiap baris tagihan jatuh tempo pada kartu Beranda, terhubung ke endpoint `/bills/{id}/pay` dengan notifikasi toast dan auto-refresh.
+    - **Financial Goals Spotlight:** Menampilkan 1–2 target tujuan menabung aktif lengkap dengan progress bar persentase pencapaian, nominal terkumpul, sisa target, dan tautan langsung ke modul Tujuan.
+    - **Interaktivitas Transaksi Terbaru:** Menghubungkan `TransactionDetailModal` dan `EditTransactionModal` ke baris transaksi terbaru di Beranda, memungkinkan pengguna memeriksa aliran dompet, catatan, atau mengedit transaksi secara instan.
+- **Verifikasi Hasil:**
+  - Kompilasi backend Python sukses tanpa error (`py_compile`).
+  - Integritas kurung kurawal dan sintaks JSX tervalidasi 100%.
+
 ### [2026-10-03 00:09:00 WIB] — Modal Bottom Actions Sizing & Symmetry Normalization (Wallet & Goal Detail Modals)
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menormalkan ukuran tombol aksi bawah pada modal detail dompet (`WalletDetailModal`) dan modal detail tujuan (`GoalDetailModal`) agar simetris, proporsional, berketinggian sama, dan tidak mengalami pemenggalan baris canggung (*line-wrap* 2 baris) pada layar smartphone.
