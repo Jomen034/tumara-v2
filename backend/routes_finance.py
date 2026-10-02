@@ -1,5 +1,6 @@
 import io
 import csv
+import calendar
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -10,7 +11,7 @@ from db import db
 import ledger
 from models import (
     Wallet, WalletCreate, Transaction, TransactionCreate, TransactionUpdate,
-    Budget, BudgetCreate, Goal, GoalCreate, GoalDeposit,
+    Budget, BudgetCreate, CategoryLimitUpdate, Goal, GoalCreate, GoalDeposit, new_id,
 )
 from deps import get_ctx, Ctx, household_members
 
@@ -356,6 +357,99 @@ async def set_budget(body: BudgetCreate, ctx: Ctx = Depends(get_ctx)):
     )
     await db.users.update_one({"user_id": ctx.user.user_id}, {"$set": {"onboarded": True}})
     return doc
+
+
+@router.get("/budget/category/{category:path}")
+async def get_category_budget_detail(category: str, ctx: Ctx = Depends(get_ctx)):
+    month = _month()
+    budget = await db.budgets.find_one({"household_id": ctx.hid, "month": month}, {"_id": 0})
+
+    cat_item = None
+    if budget:
+        for c in budget.get("categories", []):
+            if c.get("category") == category:
+                cat_item = c
+                break
+
+    txns = await db.transactions.find({
+        "household_id": ctx.hid,
+        "category": category,
+        "type": "expense",
+        "date": {"$regex": f"^{month}"}
+    }, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(200)
+
+    spent = sum(t.get("amount", 0) for t in txns)
+    limit = float(cat_item.get("limit", 0)) if cat_item else 0.0
+    group = cat_item.get("group", "needs") if cat_item else "needs"
+    remaining = max(0.0, limit - spent)
+    over = spent > limit and limit > 0
+    over_amount = max(0.0, spent - limit) if over else 0.0
+    pct = round((spent / limit * 100), 1) if limit > 0 else (100.0 if spent > 0 else 0.0)
+
+    today = datetime.now(timezone.utc).date()
+    y, m = today.year, today.month
+    _, total_days = calendar.monthrange(y, m)
+    current_day = today.day
+    days_left = max(1, total_days - current_day + 1)
+    safe_daily_spend = round(remaining / days_left) if remaining > 0 else 0
+    daily_spent_avg = round(spent / max(1, current_day))
+
+    return {
+        "category": category,
+        "group": group,
+        "limit": limit,
+        "spent": spent,
+        "remaining": remaining,
+        "over": over,
+        "over_amount": over_amount,
+        "pct": pct,
+        "month": month,
+        "total_days": total_days,
+        "current_day": current_day,
+        "days_left": days_left,
+        "safe_daily_spend": safe_daily_spend,
+        "daily_spent_avg": daily_spent_avg,
+        "transactions": txns,
+        "tx_count": len(txns),
+    }
+
+
+@router.put("/budget/category/{category:path}")
+async def update_category_budget(category: str, body: CategoryLimitUpdate, ctx: Ctx = Depends(get_ctx)):
+    month = _month()
+    budget = await db.budgets.find_one({"household_id": ctx.hid, "month": month})
+    if not budget:
+        budget_doc = {
+            "id": new_id("bud"),
+            "user_id": ctx.user.user_id,
+            "household_id": ctx.hid,
+            "month": month,
+            "monthly_income": body.limit,
+            "mode": "fixed",
+            "categories": [{"category": category, "limit": body.limit, "group": body.group or "needs"}],
+            "updated_at": datetime.now(timezone.utc),
+        }
+        await db.budgets.insert_one(budget_doc)
+        return await db.budgets.find_one({"household_id": ctx.hid, "month": month}, {"_id": 0})
+
+    categories = budget.get("categories", [])
+    found = False
+    for c in categories:
+        if c.get("category") == category:
+            c["limit"] = body.limit
+            if body.group:
+                c["group"] = body.group
+            found = True
+            break
+    if not found:
+        categories.append({"category": category, "limit": body.limit, "group": body.group or "needs"})
+
+    await db.budgets.update_one(
+        {"household_id": ctx.hid, "month": month},
+        {"$set": {"categories": categories, "updated_at": datetime.now(timezone.utc)}}
+    )
+    return await db.budgets.find_one({"household_id": ctx.hid, "month": month}, {"_id": 0})
+
 
 
 # ---------------- Goals ----------------

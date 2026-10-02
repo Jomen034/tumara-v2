@@ -20,6 +20,38 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-02 23:26:00 WIB] — Budget Page Overhaul: 50/30/20 Visual Breakdown, Daily Burn Rate Calculator & Category Budget Detail Modal
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Merombak halaman Anggaran (Budget) menjadi command center disiplin finansial proaktif: menghadirkan Hero Summary dengan kalkulator batas belanja harian aman (*safe daily spend pace*) & sisa hari bulan berjalan, visualisasi aturan alokasi 50/30/20 (Kebutuhan, Keinginan, Tabungan), kartu kategori interaktif dengan pratinjau sisa kuota/defisit, serta modal detail anggaran kategori (`BudgetDetailModal`) dengan breakdown kuota, panduan burn rate belanja harian, penyesuaian limit langsung (`PUT /budget/category/{category}`), dan daftar mutasi pengeluaran per pos bulan ini.
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, halaman Budget hanya menampilkan satu progress bar total dan daftar kartu pos pengeluaran yang pasif (tidak bisa diklik).
+  - Pengguna tidak bisa melihat riwayat transaksi apa saja yang menyebabkan pos kategori tertentu membengkak atau overbudget tanpa bolak-balik ke menu Transaksi.
+  - Tidak ada petunjuk kecepatan belanja harian (*burn rate/pacing*), sehingga pengguna kesulitan mengetahui berapa batas belanja per hari yang aman agar kuota cukup hingga akhir bulan.
+  - Jika pengguna ingin menyesuaikan limit satu kategori saja, mereka terpaksa harus menjalankan ulang wizard 3-langkah dari awal.
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Menambahkan model `CategoryLimitUpdate` dengan validasi `limit: float = Field(ge=0)` dan `group: Optional[Literal["needs", "wants", "savings"]]`.
+  - `backend/routes_finance.py`:
+    - Menambahkan endpoint `GET /budget/category/{category:path}`: menghitung pengeluaran kategori bulan berjalan, limit, sisa kuota, defisit overbudget, persentase penyerapan, sisa hari kalender bulan ini (`days_left`), batas pengeluaran harian aman (`safe_daily_spend`), rata-rata belanja harian berjalan (`daily_spent_avg`), dan daftar seluruh transaksi pengeluaran di pos tersebut bulan ini.
+    - Menambahkan endpoint `PUT /budget/category/{category:path}`: memungkinkan penyesuaian limit satu kategori anggaran secara langsung (*in-place*) tanpa me-reset wizard.
+  - `frontend/src/components/BudgetDetailModal.js` (Baru):
+    - Menghadirkan modal interaktif detail pos anggaran:
+      - Header dengan ikon kategori & palet warna khas, badge kelompok 50/30/20, dan badge status kesehatan kuota (Aman/Waspada/Over).
+      - Metrik kuota 3-kolom: Terpakai, Limit Anggaran, dan Sisa Kuota / Defisit.
+      - Smart Burn Rate & Pace Advisor: panduan verbal dan nominal rekomendasi belanja harian aman berbasis hari tersisa hingga akhir bulan.
+      - Inline Limit Editor: pengguna dapat mengubah limit pos langsung dari modal ini.
+      - Tombol aksi `+ Catat Pengeluaran di Kategori Ini`.
+      - Daftar riwayat transaksi pengeluaran bulan ini khusus untuk pos tersebut.
+  - `frontend/src/components/AddTransactionModal.js`:
+    - Menambahkan prop `initialCategory` agar ketika dipanggil dari kartu pos anggaran, kategori yang relevan otomatis terpilih.
+  - `frontend/src/pages/Budget.js`:
+    - Merombak Hero Summary Card: menambahkan indikator hari tersisa dalam bulan kalender, total sisa kuota, dan estimasi batas belanja harian aman gabungan (`safeDailyTotal`).
+    - Menambahkan strip agregasi visual aturan alokasi 50/30/20 (Kebutuhan 50%, Keinginan 30%, Tabungan 20%) lengkap dengan progress bar dan persentase penyerapan.
+    - Menjadikan setiap kartu kategori anggaran interaktif (`cursor-pointer hover:border-brand/60`), dilengkapi ikon kategori, indikator sisa kuota/defisit, dan pemicu pembukaan `BudgetDetailModal`.
+- **Verifikasi Hasil:**
+    - Sintaks Python tervalidasi via `py_compile`.
+    - Alur navigasi klik kartu -> modal detail -> ubah limit / catat transaksi -> refresh data berjalan mulus.
+
 ### [2026-10-02 23:13:00 WIB] — Goals (Tujuan Finansial) Redesign: Hero Accumulation Banner, Smart Monthly Pace Calculator, Goal Editing & Interactive Goal Detail Modal
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Mengoptimalkan halaman Tujuan Finansial dari sekadar to-do statis menjadi asisten motivasi nabung cerdas: menghadirkan banner akumulasi tabungan impian, kalkulator rekomendasi setoran bulanan otomatis, dukungan saldo awal tabungan yang sudah berjalan, kemampuan edit tujuan, serta modal detail tujuan interaktif.

@@ -37,6 +37,7 @@ export default function AddTransactionModal({
   onClose,
   onSaved,
   initialMode = "manual",
+  initialCategory,
 }) {
   const [wallets, setWallets] = useState([]);
   const [mode, setMode] = useState(initialMode);
@@ -79,7 +80,7 @@ export default function AddTransactionModal({
   const resetForm = () => {
     setType("expense");
     setAmount("");
-    setCategory("Makanan & Minuman");
+    setCategory(initialCategory || "Makanan & Minuman");
     setNote("");
     setDate(new Date().toISOString().slice(0, 10));
   };

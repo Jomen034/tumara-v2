@@ -2,14 +2,35 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { AlertTriangle, Check, Percent, SlidersHorizontal, ArrowRight, ArrowLeft, Pencil } from "lucide-react";
+import * as Icons from "lucide-react";
+import {
+  AlertTriangle,
+  AlertCircle,
+  CheckCircle2,
+  Check,
+  Percent,
+  SlidersHorizontal,
+  ArrowRight,
+  ArrowLeft,
+  Pencil,
+  Flame,
+  Calendar,
+  ChevronRight,
+  Plus,
+  Sparkles,
+  TrendingUp,
+  ShieldCheck,
+} from "lucide-react";
 import clsx from "clsx";
 import api from "../lib/api";
 import { useRefresh } from "../context/RefreshContext";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { formatRp, formatShort } from "../lib/format";
+import { catMeta } from "../lib/constants";
 import { Card, Button, Input, Progress, Badge, Spinner } from "../components/ui";
+import BudgetDetailModal from "../components/BudgetDetailModal";
+import AddTransactionModal from "../components/AddTransactionModal";
 
 const DEFAULT_CATS = [
   { category: "Makanan & Minuman", group: "needs", pct: 0.25 },
@@ -39,6 +60,12 @@ export default function Budget() {
   const [income, setIncome] = useState("");
   const [mode, setMode] = useState("percentage");
   const [cats, setCats] = useState([]);
+
+  // Detail Modal & Quick Add states
+  const [selectedCat, setSelectedCat] = useState(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [addExpenseOpen, setAddExpenseOpen] = useState(false);
+  const [addExpenseCat, setAddExpenseCat] = useState("Makanan & Minuman");
 
   const load = () => Promise.all([api.get("/budget"), api.get("/dashboard")])
     .then(([b, d]) => { setBudget(b.data); setDash(d.data); }).finally(() => setLoading(false));
@@ -178,60 +205,324 @@ export default function Budget() {
   const status = dash?.budget_status || [];
   const totalSpent = status.reduce((a, b) => a + b.spent, 0);
   const totalBudget = status.reduce((a, b) => a + b.limit, 0);
+  const totalRemaining = Math.max(0, totalBudget - totalSpent);
+  const isTotalOver = totalSpent > totalBudget && totalBudget > 0;
+  const totalOverAmount = Math.max(0, totalSpent - totalBudget);
+  const totalPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
+
+  // Calendar & pacing
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const currentDay = now.getDate();
+  const daysLeft = Math.max(1, totalDaysInMonth - currentDay + 1);
+  const monthNames = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+  ];
+  const currentMonthName = monthNames[currentMonth];
+  const safeDailyTotal = daysLeft > 0 ? Math.round(totalRemaining / daysLeft) : 0;
+
+  // 50/30/20 Group Aggregates
+  const groupStats = {
+    needs: { label: "Kebutuhan", targetPct: "50%", color: "var(--brand)", spent: 0, limit: 0, icon: ShieldCheck },
+    wants: { label: "Keinginan", targetPct: "30%", color: "var(--amber)", spent: 0, limit: 0, icon: Sparkles },
+    savings: { label: "Tabungan", targetPct: "20%", color: "var(--cyan)", spent: 0, limit: 0, icon: TrendingUp },
+  };
+  status.forEach((b) => {
+    const g = b.group || "needs";
+    if (groupStats[g]) {
+      groupStats[g].spent += b.spent || 0;
+      groupStats[g].limit += b.limit || 0;
+    }
+  });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-head font-extrabold">Budget</h1>
-          <p className="text-tsecondary text-sm mt-1">Bulan ini · {budget ? (budget.mode === "percentage" ? "50/30/20" : "Custom") : "Belum diatur"}</p>
+          <p className="text-tsecondary text-sm mt-1">
+            {currentMonthName} {currentYear} · {budget ? (budget.mode === "percentage" ? "Aturan 50/30/20" : "Limit Custom") : "Belum diatur"}
+          </p>
         </div>
-        {budget && <Button variant="secondary" size="sm" onClick={startWizard} data-testid="edit-budget-button"><Pencil size={15} /> Ubah</Button>}
+        {budget && (
+          <Button variant="secondary" size="sm" onClick={startWizard} data-testid="edit-budget-button">
+            <Pencil size={15} /> Atur Ulang Wizard
+          </Button>
+        )}
       </div>
 
       {!budget ? (
         <Card className="text-center py-12">
-          <div className="w-16 h-16 rounded-2xl bg-elevated flex items-center justify-center mx-auto mb-4"><Percent size={28} className="text-brand" /></div>
+          <div className="w-16 h-16 rounded-2xl bg-elevated flex items-center justify-center mx-auto mb-4">
+            <Percent size={28} className="text-brand" />
+          </div>
           <h3 className="font-head font-bold text-lg">Belum ada budget</h3>
-          <p className="text-sm text-tsecondary mt-1 max-w-xs mx-auto">Buat budget dalam 3 langkah cepat & mulai disiplin finansial.</p>
-          <Button onClick={startWizard} className="mt-5" data-testid="budget-wizard-start-button" size="lg">Mulai Setup Budget</Button>
+          <p className="text-sm text-tsecondary mt-1 max-w-xs mx-auto">
+            Buat budget dalam 3 langkah cepat & mulai disiplin finansial keluarga.
+          </p>
+          <Button onClick={startWizard} className="mt-5" data-testid="budget-wizard-start-button" size="lg">
+            Mulai Setup Budget
+          </Button>
         </Card>
       ) : (
         <>
-          <Card className="relative overflow-hidden">
-            <p className="text-xs text-tmuted font-semibold uppercase">Terpakai bulan ini</p>
-            <div className="flex items-end gap-2 mt-1">
-              <span className={`text-3xl font-head font-extrabold font-mono ${privacy ? "privacy-blur" : ""}`}>{formatRp(totalSpent, privacy)}</span>
-              <span className={`text-tmuted font-mono mb-1 ${privacy ? "privacy-blur" : ""}`}>/ {formatShort(totalBudget, privacy)}</span>
+          {/* Enhanced Hero Summary Card */}
+          <Card className="relative overflow-hidden space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs text-tmuted font-semibold uppercase tracking-wider">
+                Total Anggaran Bulan Ini
+              </span>
+              <span className="text-xs text-tsecondary flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-elevated/70 border border-borderc">
+                <Calendar size={13} className="text-brand" />
+                <span>{daysLeft} hari tersisa di {currentMonthName}</span>
+              </span>
             </div>
-            <Progress className="mt-3 h-3" value={totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0} color={totalSpent > totalBudget ? "var(--rose)" : "var(--brand)"} />
-            {totalSpent > totalBudget ? (
-              <p className="text-xs text-rose font-semibold mt-2 flex items-center gap-1">
-                <AlertTriangle size={13} /> Melebihi budget: <span className="font-mono">{formatRp(totalSpent - totalBudget, privacy)}</span>
-              </p>
-            ) : (
-              <p className="text-xs text-tsecondary mt-2">Sisa: <span className="font-mono font-semibold text-brand">{formatRp(totalBudget - totalSpent, privacy)}</span></p>
-            )}
+
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className={`text-3xl sm:text-4xl font-head font-extrabold font-mono ${privacy ? "privacy-blur" : ""}`}>
+                  {formatRp(totalSpent, privacy)}
+                </span>
+                <span className={`text-tmuted font-mono text-base sm:text-lg ${privacy ? "privacy-blur" : ""}`}>
+                  / {formatShort(totalBudget, privacy)}
+                </span>
+                <span className={clsx("text-xs font-mono font-bold ml-auto px-2 py-0.5 rounded-full", isTotalOver ? "bg-rose/10 text-rose" : totalPct >= 80 ? "bg-amber/10 text-amber" : "bg-brand/10 text-brand")}>
+                  {totalPct}%
+                </span>
+              </div>
+              <Progress
+                className="mt-3 h-3"
+                value={totalPct}
+                color={isTotalOver ? "var(--rose)" : totalPct >= 80 ? "var(--amber)" : "var(--brand)"}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-borderc text-xs">
+              <div className="flex items-center gap-2">
+                {isTotalOver ? (
+                  <span className="text-rose font-semibold flex items-center gap-1.5">
+                    <AlertTriangle size={15} /> Defisit: <span className="font-mono">{formatRp(totalOverAmount, privacy)}</span>
+                  </span>
+                ) : (
+                  <span className="text-tsecondary flex items-center gap-1.5">
+                    <CheckCircle2 size={15} className="text-brand" /> Sisa Kuota:{" "}
+                    <span className="font-mono font-semibold text-brand">{formatRp(totalRemaining, privacy)}</span>
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center sm:justify-end gap-2">
+                {!isTotalOver && totalRemaining > 0 ? (
+                  <span className="text-tsecondary flex items-center gap-1.5">
+                    <Flame size={15} className="text-amber" /> Batas belanja harian:{" "}
+                    <strong className="text-tprimary font-mono">{formatRp(safeDailyTotal, privacy)}/hari</strong>
+                  </span>
+                ) : (
+                  <span className="text-rose text-xs flex items-center gap-1">
+                    <AlertTriangle size={13} /> Tahan belanja non-primer sisa bulan ini
+                  </span>
+                )}
+              </div>
+            </div>
           </Card>
 
-          <div className="space-y-3">
-            {status.map((b, i) => {
-              const pct = b.limit > 0 ? (b.spent / b.limit) * 100 : 0;
-              return (
-                <motion.div key={b.category} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}>
-                  <Card className="py-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-medium flex items-center gap-2">{b.category}<Badge color={GROUP_COLOR[b.group]}>{GROUP_LABEL[b.group]}</Badge>{b.over && <Badge color="var(--rose)"><AlertTriangle size={11} /> Over</Badge>}</span>
-                      <span className={`font-mono text-sm ${b.over ? "text-rose font-bold" : ""} ${privacy ? "privacy-blur" : ""}`}>{formatShort(b.spent, privacy)} / {formatShort(b.limit, privacy)}</span>
+          {/* 50/30/20 Visual Allocation Breakdown */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-semibold text-tsecondary uppercase tracking-wider">
+              Alokasi Aturan Finansial (50 / 30 / 20)
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {Object.entries(groupStats).map(([key, g]) => {
+                const IconG = g.icon;
+                const gPct = g.limit > 0 ? Math.round((g.spent / g.limit) * 100) : 0;
+                const gOver = g.spent > g.limit && g.limit > 0;
+                return (
+                  <div
+                    key={key}
+                    className="p-4 rounded-2xl bg-surface border border-borderc space-y-2.5 transition-all hover:border-brand/40"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-7 h-7 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: `${g.color}20`, color: g.color }}
+                        >
+                          <IconG size={15} />
+                        </div>
+                        <span className="font-semibold text-sm text-tprimary">{g.label}</span>
+                      </div>
+                      <Badge color={g.color}>{g.targetPct}</Badge>
                     </div>
-                    <Progress value={pct} color={b.over ? "var(--rose)" : pct > 80 ? "var(--amber)" : "var(--brand)"} />
-                  </Card>
-                </motion.div>
-              );
-            })}
+
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className={`font-mono font-bold ${gOver ? "text-rose" : "text-tprimary"} ${privacy ? "privacy-blur" : ""}`}>
+                        {formatShort(g.spent, privacy)}
+                      </span>
+                      <span className={`text-tmuted font-mono ${privacy ? "privacy-blur" : ""}`}>
+                        / {formatShort(g.limit, privacy)}
+                      </span>
+                    </div>
+
+                    <Progress
+                      value={gPct}
+                      color={gOver ? "var(--rose)" : gPct >= 80 ? "var(--amber)" : g.color}
+                      className="h-2"
+                    />
+
+                    <div className="flex justify-between items-center text-[11px] text-tmuted pt-0.5">
+                      <span>{gPct}% terpakai</span>
+                      <span className={gOver ? "text-rose font-medium" : "text-tsecondary"}>
+                        {gOver ? "Overbudget" : `Sisa ${formatShort(Math.max(0, g.limit - g.spent), privacy)}`}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Category Budget Cards */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xs font-semibold text-tsecondary uppercase tracking-wider">
+                  Rincian Anggaran per Kategori
+                </h3>
+                <p className="text-xs text-tmuted mt-0.5">
+                  Klik kartu kategori untuk melihat rincian transaksi, analisa burn rate, atau ubah limit pos.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {status.map((b, i) => {
+                const pct = b.limit > 0 ? Math.round((b.spent / b.limit) * 100) : 0;
+                const meta = catMeta(b.category);
+                const IconCat = (meta?.icon && Icons[meta.icon]) || Icons.Tag;
+                const remaining = Math.max(0, b.limit - b.spent);
+                const isOver = b.over || (b.spent > b.limit && b.limit > 0);
+
+                return (
+                  <motion.div
+                    key={b.category}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.03 }}
+                  >
+                    <Card
+                      onClick={() => {
+                        setSelectedCat(b);
+                        setDetailOpen(true);
+                      }}
+                      className="py-4 cursor-pointer hover:border-brand/60 hover:shadow-md transition-all active:scale-[0.995] group"
+                    >
+                      <div className="flex items-center justify-between gap-3 mb-2.5">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-borderc group-hover:scale-105 transition-transform"
+                            style={{
+                              backgroundColor: `${meta.color || "var(--brand)"}18`,
+                              color: meta.color || "var(--brand)",
+                            }}
+                          >
+                            <IconCat size={19} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-tprimary text-sm sm:text-base group-hover:text-brand transition-colors truncate">
+                                {b.category}
+                              </span>
+                              <Badge color={GROUP_COLOR[b.group] || "var(--brand)"}>
+                                {GROUP_LABEL[b.group] || "Kategori"}
+                              </Badge>
+                              {isOver ? (
+                                <Badge color="var(--rose)">
+                                  <AlertTriangle size={11} /> Over
+                                </Badge>
+                              ) : pct >= 80 ? (
+                                <Badge color="var(--amber)">
+                                  <AlertCircle size={11} /> Waspada
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <p className="text-[11px] text-tmuted mt-0.5">
+                              {isOver ? (
+                                <span className="text-rose font-medium">
+                                  Defisit {formatRp(b.spent - b.limit, privacy)}
+                                </span>
+                              ) : (
+                                <span>
+                                  Sisa Kuota: <strong className="text-tsecondary font-mono">{formatRp(remaining, privacy)}</strong>
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="text-right">
+                            <div className={`font-mono text-sm sm:text-base font-bold ${isOver ? "text-rose" : "text-tprimary"} ${privacy ? "privacy-blur" : ""}`}>
+                              {formatShort(b.spent, privacy)}{" "}
+                              <span className="text-tmuted font-normal text-xs">/ {formatShort(b.limit, privacy)}</span>
+                            </div>
+                            <span className="text-[11px] text-tmuted font-mono">
+                              {pct}%
+                            </span>
+                          </div>
+                          <ChevronRight
+                            size={18}
+                            className="text-tmuted group-hover:text-brand group-hover:translate-x-0.5 transition-all shrink-0"
+                          />
+                        </div>
+                      </div>
+
+                      <Progress
+                        value={pct}
+                        color={isOver ? "var(--rose)" : pct >= 80 ? "var(--amber)" : "var(--brand)"}
+                        className="h-2"
+                      />
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
           </div>
         </>
       )}
+
+      {/* Category Budget Detail Modal */}
+      <BudgetDetailModal
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        category={selectedCat?.category}
+        initialGroup={selectedCat?.group}
+        initialLimit={selectedCat?.limit}
+        onUpdated={() => {
+          load();
+          bump();
+        }}
+        onAddExpense={(catName) => {
+          setDetailOpen(false);
+          setAddExpenseCat(catName);
+          setAddExpenseOpen(true);
+        }}
+      />
+
+      {/* Add Transaction Modal triggered from category detail */}
+      <AddTransactionModal
+        open={addExpenseOpen}
+        onClose={() => setAddExpenseOpen(false)}
+        onSaved={() => {
+          load();
+          bump();
+        }}
+        initialCategory={addExpenseCat}
+        initialMode="manual"
+      />
     </div>
   );
 }
+

@@ -158,6 +158,11 @@ class BudgetCategory(BaseModel):
     group: Literal["needs", "wants", "savings"] = "needs"
 
 
+class CategoryLimitUpdate(BaseModel):
+    limit: float = Field(ge=0)
+    group: Optional[Literal["needs", "wants", "savings"]] = None
+
+
 class BudgetCreate(BaseModel):
     monthly_income: float
     mode: Literal["percentage", "fixed"] = "percentage"
