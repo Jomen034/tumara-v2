@@ -389,7 +389,7 @@ export default function BudgetDetailModal({
                       <Calendar size={11} />
                       <span>{formatDate(t.date)}</span>
                       {t.source && t.source !== "manual" && (
-                        <span className="px-1.5 py-0.2 rounded bg-elevated text-[10px]">
+                        <span className="px-1.5 py-0.5 rounded bg-elevated text-[10px]">
                           {t.source}
                         </span>
                       )}

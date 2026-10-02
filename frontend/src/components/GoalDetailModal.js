@@ -259,16 +259,16 @@ export default function GoalDetailModal({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-2.5 pt-2">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 pt-2">
           <Button
             variant="secondary"
             onClick={() => {
               onClose();
               onEdit?.(currentGoal);
             }}
-            className="flex-1"
+            className="w-full text-xs sm:text-sm py-2.5 sm:py-3 px-3 sm:px-4 whitespace-nowrap justify-center"
           >
-            <Pencil size={15} /> Edit Tujuan
+            <Pencil size={14} className="shrink-0" /> Edit Tujuan
           </Button>
 
           <Button
@@ -276,10 +276,9 @@ export default function GoalDetailModal({
               onClose();
               onDeposit?.(currentGoal);
             }}
-            className="flex-1"
-            size="lg"
+            className="w-full text-xs sm:text-sm py-2.5 sm:py-3 px-3 sm:px-4 whitespace-nowrap justify-center"
           >
-            <Plus size={16} /> Setor Dana
+            <Plus size={15} className="shrink-0" /> Setor Dana
           </Button>
         </div>
       </div>

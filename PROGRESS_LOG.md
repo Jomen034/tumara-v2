@@ -20,6 +20,24 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-03 00:09:00 WIB] — Modal Bottom Actions Sizing & Symmetry Normalization (Wallet & Goal Detail Modals)
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menormalkan ukuran tombol aksi bawah pada modal detail dompet (`WalletDetailModal`) dan modal detail tujuan (`GoalDetailModal`) agar simetris, proporsional, berketinggian sama, dan tidak mengalami pemenggalan baris canggung (*line-wrap* 2 baris) pada layar smartphone.
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, tombol "Catat Transaksi" (dan "Setor Dana") secara keliru diberi properti `size="lg"`, sedangkan tombol "Edit Dompet" berukuran default `md`.
+  - Pada layar mobile sempit (~375px), tombol kanan yang berukuran besar kehabisan ruang horizontal sehingga teksnya terlipat menjadi 2 baris ("Catat \n Transaksi"), membuat tombol kanan tampak menggembung dan asimetris dibanding tombol kiri.
+- **Key Actions & Changes:**
+  - `frontend/src/components/WalletDetailModal.js`:
+    - Mengubah kontainer tombol menjadi `grid grid-cols-2 gap-2.5 sm:gap-3 pt-2` untuk pembagian lebar 50:50 yang presisi.
+    - Menghapus `size="lg"` dan menyeragamkan kedua tombol ke tinggi yang sama dengan padding `py-2.5 sm:py-3 px-3 sm:px-4`, font `text-xs sm:text-sm`, dan `whitespace-nowrap` agar teks selalu 1 baris rapi.
+  - `frontend/src/components/GoalDetailModal.js`:
+    - Menerapkan standarisasi grid 50:50 yang sama pada tombol "Edit Tujuan" dan "Setor Dana".
+  - `frontend/src/components/BudgetDetailModal.js`:
+    - Memperbaiki class padding non-standar `py-0.2` menjadi `py-0.5`.
+- **Verifikasi Hasil:**
+  - Validasi sintaksis JSX sukses.
+  - Kedua tombol bawah kini simetris sempurna, seimbang, dan tampil elegan di seluruh ukuran layar.
+
 ### [2026-10-03 00:05:00 WIB] — Bill Schedule Calendar: Interactive Monthly Heatmap, Multi-Bill Badges, Due Barometer & Date Filter
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menghadirkan kalender jadwal tagihan interaktif pada halaman Tagihan untuk memetakan jatuh tempo bulanan secara visual, mendeteksi konsentrasi kewajiban (cash flow crunch), menangani tanggal dengan >1 tagihan secara cerdas via badge akumulasi & dot indicator, serta menyediakan filter instan saat tanggal kalender diklik.

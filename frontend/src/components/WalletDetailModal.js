@@ -284,16 +284,16 @@ export default function WalletDetailModal({
         </div>
 
         {/* Bottom Actions */}
-        <div className="flex gap-2.5 pt-2">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 pt-2">
           <Button
             variant="secondary"
             onClick={() => {
               onClose();
               onEdit?.(wallet);
             }}
-            className="flex-1"
+            className="w-full text-xs sm:text-sm py-2.5 sm:py-3 px-3 sm:px-4 whitespace-nowrap justify-center"
           >
-            <Pencil size={15} /> Edit Dompet
+            <Pencil size={14} className="shrink-0" /> Edit Dompet
           </Button>
 
           <Button
@@ -301,10 +301,9 @@ export default function WalletDetailModal({
               onClose();
               onAddTransaction?.(wallet);
             }}
-            className="flex-1"
-            size="lg"
+            className="w-full text-xs sm:text-sm py-2.5 sm:py-3 px-3 sm:px-4 whitespace-nowrap justify-center"
           >
-            <Plus size={16} /> Catat Transaksi
+            <Plus size={15} className="shrink-0" /> Catat Transaksi
           </Button>
         </div>
       </div>
