@@ -32,6 +32,7 @@ import {
   Progress,
 } from "../components/ui";
 import BillDetailModal from "../components/BillDetailModal";
+import BillCalendar from "../components/BillCalendar";
 
 const RECUR = {
   monthly: "Bulanan",
@@ -49,6 +50,7 @@ export default function Bills() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [selectedBill, setSelectedBill] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -66,6 +68,19 @@ export default function Bills() {
   const walletMap = useMemo(() => {
     return Object.fromEntries(wallets.map((w) => [w.id, w]));
   }, [wallets]);
+
+  const displayedBills = useMemo(() => {
+    if (!selectedDate) return bills;
+    return bills.filter((b) => {
+      if (b.next_due_date === selectedDate) return true;
+      if (b.recurrence === "monthly" && b.next_due_date) {
+        const selDay = parseInt(selectedDate.slice(8, 10), 10);
+        const billDay = parseInt(b.next_due_date.slice(8, 10), 10);
+        return selDay === billDay;
+      }
+      return false;
+    });
+  }, [bills, selectedDate]);
 
   const load = () =>
     Promise.all([api.get("/bills"), api.get("/wallets")])
@@ -214,140 +229,186 @@ export default function Bills() {
           />
         </Card>
       ) : (
-        <div className="space-y-3" data-testid="bills-list">
-          {bills.map((b, i) => {
-            const isInstallment = b.bill_type === "installment";
-            const isComp = b.is_completed;
-            const cardColor = dueColor(b.days_until, isComp);
+        <div className="space-y-6">
+          {/* Interactive Bill Calendar */}
+          <BillCalendar
+            bills={bills}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            privacy={privacy}
+            walletMap={walletMap}
+          />
 
-            return (
-              <motion.div
-                key={b.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
+          {/* Section Header */}
+          <div className="flex items-center justify-between pt-1">
+            <h3 className="font-head font-bold text-base sm:text-lg text-tprimary flex items-center gap-2">
+              <ReceiptText size={18} className="text-brand" />
+              {selectedDate ? (
+                <>Tagihan Terfilter ({displayedBills.length})</>
+              ) : (
+                <>Daftar Tagihan ({bills.length})</>
+              )}
+            </h3>
+            {selectedDate && (
+              <button
+                onClick={() => setSelectedDate(null)}
+                className="text-xs text-brand font-semibold hover:underline bg-brand/10 hover:bg-brand/20 px-2.5 py-1 rounded-lg transition-colors"
               >
-                <Card
-                  hover
-                  onClick={() => setSelectedBill(b)}
-                  className="p-4 sm:p-5 cursor-pointer transition-all hover:border-brand/50 group space-y-3"
-                >
-                  {/* Top Row: Icon, Title, Badges, & Amount */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div
-                        className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                        style={{ backgroundColor: `${cardColor}22` }}
-                      >
-                        <ReceiptText size={20} style={{ color: cardColor }} />
-                      </div>
+                Reset Filter
+              </button>
+            )}
+          </div>
 
-                      <div className="min-w-0">
-                        <p className="font-semibold text-sm sm:text-base text-tprimary truncate group-hover:text-brand transition-colors">
-                          {b.name}
-                        </p>
-                        <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                          <Badge color={cardColor}>
-                            {!isComp && b.days_until <= 3 && <AlertTriangle size={11} />}
-                            {dueLabel(b.days_until, isComp)}
-                          </Badge>
+          {displayedBills.length === 0 ? (
+            <Card className="p-8 text-center space-y-3">
+              <EmptyState
+                icon={CalendarClock}
+                title="Tidak ada tagihan di tanggal ini"
+                subtitle={`Tidak ada jadwal pembayaran tagihan yang jatuh tempo pada tanggal ${selectedDate}.`}
+                action={
+                  <Button onClick={() => setSelectedDate(null)} size="sm" variant="secondary">
+                    Tampilkan Semua Tagihan
+                  </Button>
+                }
+              />
+            </Card>
+          ) : (
+            <div className="space-y-3" data-testid="bills-list">
+              {displayedBills.map((b, i) => {
+                const isInstallment = b.bill_type === "installment";
+                const isComp = b.is_completed;
+                const cardColor = dueColor(b.days_until, isComp);
 
-                          {isInstallment ? (
-                            <Badge color="var(--cyan)">
-                              {b.total_tenor
-                                ? `Cicilan ${(b.paid_tenor || 0) + 1}/${b.total_tenor}`
-                                : "Cicilan Ber-tenor"}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-tmuted font-medium">
-                              {RECUR[b.recurrence]}
-                            </span>
-                          )}
+                return (
+                  <motion.div
+                    key={b.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                  >
+                    <Card
+                      hover
+                      onClick={() => setSelectedBill(b)}
+                      className="p-4 sm:p-5 cursor-pointer transition-all hover:border-brand/50 group space-y-3"
+                    >
+                      {/* Top Row: Icon, Title, Badges, & Amount */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div
+                            className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                            style={{ backgroundColor: `${cardColor}22` }}
+                          >
+                            <ReceiptText size={20} style={{ color: cardColor }} />
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm sm:text-base text-tprimary truncate group-hover:text-brand transition-colors">
+                              {b.name}
+                            </p>
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                              <Badge color={cardColor}>
+                                {!isComp && b.days_until <= 3 && <AlertTriangle size={11} />}
+                                {dueLabel(b.days_until, isComp)}
+                              </Badge>
+
+                              {isInstallment ? (
+                                <Badge color="var(--cyan)">
+                                  {b.total_tenor
+                                    ? `Cicilan ${(b.paid_tenor || 0) + 1}/${b.total_tenor}`
+                                    : "Cicilan Ber-tenor"}
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-tmuted font-medium">
+                                  {RECUR[b.recurrence]}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Amount on the right */}
+                        <div className="text-right shrink-0">
+                          <p
+                            className={`font-mono font-bold text-base sm:text-lg ${
+                              b.days_until < 0 && !isComp ? "text-rose" : "text-tprimary"
+                            } ${privacy ? "privacy-blur" : ""}`}
+                          >
+                            {formatRp(b.amount, privacy)}
+                          </p>
+                          <span className="text-[11px] text-tmuted block">
+                            /{RECUR[b.recurrence]?.toLowerCase() || "bln"}
+                          </span>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Amount on the right */}
-                    <div className="text-right shrink-0">
-                      <p
-                        className={`font-mono font-bold text-base sm:text-lg ${
-                          b.days_until < 0 && !isComp ? "text-rose" : "text-tprimary"
-                        } ${privacy ? "privacy-blur" : ""}`}
-                      >
-                        {formatRp(b.amount, privacy)}
-                      </p>
-                      <span className="text-[11px] text-tmuted block">
-                        /{RECUR[b.recurrence]?.toLowerCase() || "bln"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Installment Progress Bar (If loan/installment) */}
-                  {isInstallment && b.total_tenor > 0 && (
-                    <div className="space-y-1.5 pt-1 border-t border-borderc/40">
-                      <div className="flex justify-between text-[11px] text-tmuted font-mono">
-                        <span>
-                          Progress: {b.paid_tenor || 0}/{b.total_tenor} angsuran
-                        </span>
-                        <span className="text-cyan font-bold">{b.progress_pct || 0}%</span>
-                      </div>
-                      <Progress
-                        value={b.progress_pct || 0}
-                        color={isComp ? "var(--brand)" : "var(--cyan)"}
-                        className="h-1.5"
-                      />
-                    </div>
-                  )}
-
-                  {/* Bottom Row: Metadata info & Actions */}
-                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-borderc/40 text-xs">
-                    <div className="text-tmuted truncate flex items-center gap-1.5">
-                      {b.wallet_id ? (
-                        <span className="text-tsecondary font-medium truncate flex items-center gap-1">
-                          <Wallet size={12} className="text-brand" />
-                          {walletMap[b.wallet_id]?.name || "Dompet"}
-                        </span>
-                      ) : (
-                        <span className="text-tmuted">Manual</span>
+                      {/* Installment Progress Bar (If loan/installment) */}
+                      {isInstallment && b.total_tenor > 0 && (
+                        <div className="space-y-1.5 pt-1 border-t border-borderc/40">
+                          <div className="flex justify-between text-[11px] text-tmuted font-mono">
+                            <span>
+                              Progress: {b.paid_tenor || 0}/{b.total_tenor} angsuran
+                            </span>
+                            <span className="text-cyan font-bold">{b.progress_pct || 0}%</span>
+                          </div>
+                          <Progress
+                            value={b.progress_pct || 0}
+                            color={isComp ? "var(--brand)" : "var(--cyan)"}
+                            className="h-1.5"
+                          />
+                        </div>
                       )}
-                      <span>· Tempo {b.next_due_date}</span>
-                    </div>
 
-                    <div
-                      className="flex items-center gap-1 shrink-0"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {!isComp && (
-                        <Button
-                          size="sm"
-                          onClick={() => pay(b)}
-                          disabled={payingId === b.id}
-                          data-testid={`pay-bill-${b.id}`}
+                      {/* Bottom Row: Metadata info & Actions */}
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-borderc/40 text-xs">
+                        <div className="text-tmuted truncate flex items-center gap-1.5">
+                          {b.wallet_id ? (
+                            <span className="text-tsecondary font-medium truncate flex items-center gap-1">
+                              <Wallet size={12} className="text-brand" />
+                              {walletMap[b.wallet_id]?.name || "Dompet"}
+                            </span>
+                          ) : (
+                            <span className="text-tmuted">Manual</span>
+                          )}
+                          <span>· Tempo {b.next_due_date}</span>
+                        </div>
+
+                        <div
+                          className="flex items-center gap-1 shrink-0"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <CheckCircle2 size={14} /> {payingId === b.id ? "..." : "Bayar"}
-                        </Button>
-                      )}
-                      <button
-                        onClick={() => openEdit(b)}
-                        className="p-1.5 sm:p-2 rounded-lg hover:bg-elevated text-tsecondary transition-colors"
-                        title="Edit tagihan"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        onClick={() => del(b.id)}
-                        data-testid={`delete-bill-${b.id}`}
-                        className="p-1.5 sm:p-2 rounded-lg hover:bg-elevated text-tmuted hover:text-rose transition-colors"
-                        title="Hapus tagihan"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            );
-          })}
+                          {!isComp && (
+                            <Button
+                              size="sm"
+                              onClick={() => pay(b)}
+                              disabled={payingId === b.id}
+                              data-testid={`pay-bill-${b.id}`}
+                            >
+                              <CheckCircle2 size={14} /> {payingId === b.id ? "..." : "Bayar"}
+                            </Button>
+                          )}
+                          <button
+                            onClick={() => openEdit(b)}
+                            className="p-1.5 sm:p-2 rounded-lg hover:bg-elevated text-tsecondary transition-colors"
+                            title="Edit tagihan"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => del(b.id)}
+                            data-testid={`delete-bill-${b.id}`}
+                            className="p-1.5 sm:p-2 rounded-lg hover:bg-elevated text-tmuted hover:text-rose transition-colors"
+                            title="Hapus tagihan"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

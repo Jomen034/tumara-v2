@@ -20,6 +20,27 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-03 00:05:00 WIB] — Bill Schedule Calendar: Interactive Monthly Heatmap, Multi-Bill Badges, Due Barometer & Date Filter
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menghadirkan kalender jadwal tagihan interaktif pada halaman Tagihan untuk memetakan jatuh tempo bulanan secara visual, mendeteksi konsentrasi kewajiban (cash flow crunch), menangani tanggal dengan >1 tagihan secara cerdas via badge akumulasi & dot indicator, serta menyediakan filter instan saat tanggal kalender diklik.
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, halaman Tagihan hanya menyajikan daftar kartu vertikal tanpa perspektif siklus waktu. Pengguna tidak bisa langsung melihat tanggal-tanggal rawan di mana tagihan menumpuk dalam minggu yang sama.
+  - Pada layar laptop/desktop, daftar kartu menyisakan ruang kosong besar yang belum termanfaatkan secara optimal.
+- **Key Actions & Changes:**
+  - `frontend/src/components/BillCalendar.js` (Baru):
+    - Komponen kalender bulanan interaktif dengan navigasi bulan (`<` / `>`) dan tombol lompat cepat `"Bulan Ini"`.
+    - **Monthly Obligation Barometer:** 4 kartu metrik mini di atas kalender: Total Kewajiban Bulan Ini, Sisa Belum Bayar, Sudah Lunas, dan Hari Terpadat (tanggal dengan tagihan terbanyak & total biayanya).
+    - **Multi-Bill & Density Engine:** Jika terdapat >1 tagihan pada tanggal yang sama, sistem menampilkan badge jumlah tagihan (`2`, `3`) di pojok tanggal, dot indikator individual hingga 3 tagihan, serta akumulasi total nominal di layar desktop.
+    - **Severity Color Hierarchy:** Warna sel kalender otomatis mengikuti status paling mendesak di hari tersebut (🔴 Merah = lewat tempo/hari ini, 🟡 Kuning = ≤3 hari, 🟢 Hijau = >3 hari, ⚪ Cyan = lunas).
+    - **Date Selection & Filtering:** Mengklik kotak tanggal memfilter daftar tagihan di bawahnya secara real-time, memunculkan banner informatif dengan total nominal hari terpilih dan tombol `"Tampilkan Semua"`.
+    - **Collapsible Support:** Kalender dapat diciutkan/dibuka dengan satu klik ikon chevron untuk kenyamanan di layar HP.
+  - `frontend/src/pages/Bills.js`:
+    - Mengintegrasikan `BillCalendar` di atas daftar tagihan dengan sinkronisasi `selectedDate` dan filter `displayedBills`.
+    - Menghadirkan header sub-seksi daftar tagihan terfilter dan empty state informatif jika tanggal yang dipilih tidak memiliki jadwal pembayaran.
+- **Verifikasi Hasil:**
+  - Validasi sintaks dan integritas kurung kurawal JSX sukses 100%.
+  - Layout responsif di desktop maupun mobile.
+
 ### [2026-10-03 00:01:00 WIB] — Database Maintenance: Complete Purge of Chat Messages Collection from MongoDB Atlas & Local Instances
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menghapus seluruh dokumen dan koleksi riwayat obrolan AI (`chat_messages`) dari database MongoDB Atlas produksi dan instance lokal, membebaskan 100% ruang penyimpanan obrolan, serta menjamin tidak ada residu pesan lama yang tertinggal di cloud database.
