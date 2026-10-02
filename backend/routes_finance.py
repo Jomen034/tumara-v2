@@ -1,7 +1,8 @@
 import io
 import csv
 import calendar
-from datetime import datetime, timezone
+from collections import defaultdict
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
@@ -858,30 +859,197 @@ async def dashboard(ctx: Ctx = Depends(get_ctx)):
 
 
 @router.get("/analytics")
-async def analytics(ctx: Ctx = Depends(get_ctx)):
-    txns = await db.transactions.find({"household_id": ctx.hid}, {"_id": 0}).to_list(5000)
-    from collections import defaultdict
-    trend = defaultdict(lambda: {"income": 0, "expense": 0})
+async def analytics(
+    period: Optional[str] = "this_month",
+    month: Optional[str] = None,
+    ctx: Ctx = Depends(get_ctx)
+):
+    today = datetime.now(timezone.utc).date()
+    cur_ym = today.strftime("%Y-%m")
+
+    # Determine date boundaries
+    start_date = None
+    end_date = None
+
+    if month:
+        start_date = f"{month}-01"
+        try:
+            y, m = map(int, month.split("-"))
+            _, last_day = calendar.monthrange(y, m)
+            end_date = f"{month}-{last_day:02d}"
+        except Exception:
+            end_date = f"{month}-31"
+    elif period == "last_month":
+        prev_m = today.month - 1 if today.month > 1 else 12
+        prev_y = today.year if today.month > 1 else today.year - 1
+        _, last_day = calendar.monthrange(prev_y, prev_m)
+        start_date = f"{prev_y:04d}-{prev_m:02d}-01"
+        end_date = f"{prev_y:04d}-{prev_m:02d}-{last_day:02d}"
+    elif period == "3m":
+        start_date = (today - timedelta(days=90)).strftime("%Y-%m-%d")
+        end_date = today.strftime("%Y-%m-%d")
+    elif period == "6m":
+        start_date = (today - timedelta(days=180)).strftime("%Y-%m-%d")
+        end_date = today.strftime("%Y-%m-%d")
+    elif period == "ytd":
+        start_date = f"{today.year:04d}-01-01"
+        end_date = today.strftime("%Y-%m-%d")
+    elif period == "all":
+        start_date = None
+        end_date = None
+    else:  # "this_month"
+        start_date = f"{cur_ym}-01"
+        _, last_day = calendar.monthrange(today.year, today.month)
+        end_date = f"{cur_ym}-{last_day:02d}"
+
+    txns = await db.transactions.find({"household_id": ctx.hid}, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(5000)
+    wallets = await db.wallets.find({"household_id": ctx.hid}, {"_id": 0}).to_list(500)
+    wmap = {w["id"]: w for w in wallets}
+
+    assets = sum(w["balance"] for w in wallets if not ledger.is_debt_wallet(w))
+    debt = sum(w["balance"] for w in wallets if ledger.is_debt_wallet(w))
+    current_net_worth = assets - debt
+
+    period_txns = []
+    for t in txns:
+        t_date = t.get("date") or ""
+        if start_date and t_date < start_date:
+            continue
+        if end_date and t_date > end_date:
+            continue
+        period_txns.append(t)
+
+    period_income = sum(t["amount"] for t in period_txns if t["type"] == "income")
+    period_expense = sum(t["amount"] for t in period_txns if t["type"] == "expense")
+    period_net = period_income - period_expense
+    savings_rate = round(((period_income - period_expense) / period_income * 100), 1) if period_income > 0 else 0.0
+
+    if start_date and end_date:
+        try:
+            d1 = datetime.strptime(start_date, "%Y-%m-%d").date()
+            d2 = min(today, datetime.strptime(end_date, "%Y-%m-%d").date())
+            days_count = max(1, (d2 - d1).days + 1)
+        except Exception:
+            days_count = max(1, today.day)
+    else:
+        days_count = max(1, today.day)
+    daily_expense_avg = round(period_expense / days_count)
+
+    cat = defaultdict(float)
+    for t in period_txns:
+        if t["type"] == "expense":
+            cat[t.get("category", "Lainnya")] += t["amount"]
+
+    total_cat_amt = sum(cat.values())
+    category_breakdown = [
+        {
+            "category": k,
+            "amount": v,
+            "pct": round((v / total_cat_amt * 100), 1) if total_cat_amt > 0 else 0.0
+        }
+        for k, v in sorted(cat.items(), key=lambda x: -x[1])
+    ]
+
+    expense_txns = [t for t in period_txns if t["type"] == "expense"]
+    expense_txns.sort(key=lambda x: -x.get("amount", 0))
+    top_expenses = []
+    for t in expense_txns[:5]:
+        top_expenses.append({
+            "id": t.get("id"),
+            "amount": t.get("amount", 0),
+            "note": t.get("note") or t.get("category", "Pengeluaran"),
+            "category": t.get("category", "Lainnya"),
+            "date": t.get("date"),
+            "wallet_name": wmap.get(t.get("wallet_id"), {}).get("name", "Dompet"),
+        })
+
+    snapshots = await db.networth_snapshots.find({"household_id": ctx.hid}, {"_id": 0}).sort("date", 1).to_list(400)
+    prev_net_worth = current_net_worth
+    if len(snapshots) >= 2:
+        prev_net_worth = snapshots[-2].get("net_worth", current_net_worth)
+    elif len(snapshots) == 1:
+        prev_net_worth = snapshots[0].get("net_worth", current_net_worth)
+
+    net_worth_delta = current_net_worth - prev_net_worth
+    net_worth_delta_pct = (
+        round((net_worth_delta / abs(prev_net_worth)) * 100, 1)
+        if prev_net_worth != 0
+        else 0.0
+    )
+
+    trend_map = defaultdict(lambda: {"income": 0.0, "expense": 0.0})
     for t in txns:
         m = (t.get("date") or "")[:7]
         if not m:
             continue
         if t["type"] == "income":
-            trend[m]["income"] += t["amount"]
+            trend_map[m]["income"] += t["amount"]
         elif t["type"] == "expense":
-            trend[m]["expense"] += t["amount"]
-    months = sorted(trend.keys())[-6:]
-    trend_list = [{"month": m, "income": trend[m]["income"], "expense": trend[m]["expense"],
-                   "savings": trend[m]["income"] - trend[m]["expense"]} for m in months]
-    cur = _month()
-    cat = {}
-    for t in txns:
-        if t["type"] == "expense" and (t.get("date") or "").startswith(cur):
-            cat[t["category"]] = cat.get(t["category"], 0) + t["amount"]
-    return {"trend": trend_list,
-            "category_breakdown": [{"category": k, "amount": v} for k, v in sorted(cat.items(), key=lambda x: -x[1])]}
+            trend_map[m]["expense"] += t["amount"]
+
+    all_months = sorted(trend_map.keys())
+    recent_months = all_months[-12:] if len(all_months) > 12 else all_months
+
+    trend_list = []
+    monthly_table = []
+    for m in recent_months:
+        inc = trend_map[m]["income"]
+        exp = trend_map[m]["expense"]
+        sav = inc - exp
+        sr = round((sav / inc * 100), 1) if inc > 0 else 0.0
+        status = "surplus" if sav > 0 else "deficit" if sav < 0 else "even"
+        entry = {
+            "month": m,
+            "income": inc,
+            "expense": exp,
+            "savings": sav,
+            "savings_rate": sr,
+            "status": status,
+        }
+        trend_list.append(entry)
+        monthly_table.append(entry)
+
+    monthly_table_reversed = list(reversed(monthly_table))
+
+    return {
+        "kpi": {
+            "current_net_worth": current_net_worth,
+            "assets": assets,
+            "debt": debt,
+            "prev_net_worth": prev_net_worth,
+            "net_worth_delta": net_worth_delta,
+            "net_worth_delta_pct": net_worth_delta_pct,
+            "period_income": period_income,
+            "period_expense": period_expense,
+            "period_net": period_net,
+            "savings_rate": savings_rate,
+            "daily_expense_avg": daily_expense_avg,
+            "tx_count": len(period_txns),
+            "start_date": start_date,
+            "end_date": end_date,
+        },
+        "trend": trend_list,
+        "category_breakdown": category_breakdown,
+        "top_expenses": top_expenses,
+        "monthly_table": monthly_table_reversed,
+    }
 
 
 @router.get("/networth/history")
-async def networth_history(ctx: Ctx = Depends(get_ctx)):
-    return await db.networth_snapshots.find({"household_id": ctx.hid}, {"_id": 0}).sort("date", 1).to_list(400)
+async def networth_history(range: Optional[str] = "all", ctx: Ctx = Depends(get_ctx)):
+    q = {"household_id": ctx.hid}
+    today = datetime.now(timezone.utc).date()
+    if range == "1m":
+        cutoff = (today - timedelta(days=30)).strftime("%Y-%m-%d")
+        q["date"] = {"$gte": cutoff}
+    elif range == "3m":
+        cutoff = (today - timedelta(days=90)).strftime("%Y-%m-%d")
+        q["date"] = {"$gte": cutoff}
+    elif range == "6m":
+        cutoff = (today - timedelta(days=180)).strftime("%Y-%m-%d")
+        q["date"] = {"$gte": cutoff}
+    elif range == "1y":
+        cutoff = (today - timedelta(days=365)).strftime("%Y-%m-%d")
+        q["date"] = {"$gte": cutoff}
+    return await db.networth_snapshots.find(q, {"_id": 0}).sort("date", 1).to_list(400)
+

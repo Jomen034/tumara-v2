@@ -20,6 +20,34 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-02 23:44:00 WIB] — Financial Reports Overhaul: Executive KPI Strip, Multi-Horizon Period Filter, Assets vs Debt Net Worth Chart, Top Expense Drivers & Monthly Performance Table
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Merombak total halaman Laporan (Reports) dari grafik statis datar menjadi pusat wawasan kekayaan eksekutif: menghadirkan selector rentang periode laporan dinamis, 4 Hero Executive KPI cards (Net Worth & delta, Net Cash Flow, Savings Rate %, dan Rata-rata Belanja Harian), grafik Net Worth multi-horizon dengan breakdown Aset vs Utang, Donut kategori dengan progress bar persentase, kartu Top 5 Pengeluaran Terbesar (*Largest Expenses*), serta tabel kinerja arus kas bulanan terperinci (*Monthly Performance Table*).
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, grafik Net Worth hanya memplot snapshot tanpa menyajikan angka nominal kekayaan bersih, tanpa delta pertumbuhan, dan tanpa filter horizon waktu (hanya garis datar kosong jika baru sedikit snapshot).
+  - Kategori pengeluaran di-hardcode ke bulan berjalan, sehingga pengguna tidak bisa menganalisa komposisi pengeluaran bulan lalu atau kuartal lalu.
+  - Tidak ada metrik eksekutif terpadu seperti rasio menabung (*Savings Rate* %) dan rata-rata pengeluaran harian.
+  - Tidak ada transparansi transaksi pengeluaran terbesar yang membebani dompet pada periode tersebut, serta tidak ada tabel riwayat bulanan yang pasti.
+- **Key Actions & Changes:**
+  - `backend/routes_finance.py`:
+    - Meningkatkan endpoint `GET /analytics`: mendukung parameter `period` (`this_month`, `last_month`, `3m`, `6m`, `ytd`, `all`) dan `month` (`YYYY-MM`). Mengembalikan objek `kpi` (current net worth, delta & delta %, period income/expense/net, savings rate %, daily expense avg, tx count), `top_expenses` (5 transaksi pengeluaran terbesar dengan merchant, dompet, dan nominal), `category_breakdown` dengan persentase penuh, dan `monthly_table` dalam urutan kronologis terbalik.
+    - Meningkatkan endpoint `GET /networth/history`: mendukung parameter `range` (`1m`, `3m`, `6m`, `1y`, `all`) untuk memfilter snapshot rentang waktu tertentu.
+  - `frontend/src/pages/Reports.js`:
+    - Menghadirkan **Selector Periode Laporan**: `Bulan Ini`, `Bulan Lalu`, `3 Bulan Terakhir`, `6 Bulan Terakhir`, `Tahun Berjalan (YTD)`, dan `Semua Waktu`.
+    - Menambahkan **4 Hero Financial Executive KPI Cards**:
+      1. *Net Worth Terkini* + delta nominal & persentase vs snapshot sebelumnya.
+      2. *Arus Kas Bersih (Net)* + sub-info pemasukan vs pengeluaran.
+      3. *Tingkat Tabungan (Savings Rate %)* + status badge (*Sangat Baik*, *Cukup*, *Defisit*).
+      4. *Rata-rata Pengeluaran Harian* + total transaksi pengeluaran.
+    - Meningkatkan **Grafik Perkembangan Net Worth**: selector tombol rentang waktu (`1B`, `3B`, `6B`, `1T`, `Semua`), kurva Total Aset (hijau), kurva Total Utang (merah putus-putus), dan kurva Net Worth (cyan gradient).
+    - Memperkaya **Pengeluaran per Kategori**: donut chart + list seluruh kategori dengan mini progress bar persentase dan nominal terformat.
+    - Menambahkan **Top 5 Pengeluaran Terbesar**: daftar 5 transaksi pengeluaran dengan nominal tertinggi pada periode tersebut lengkap dengan ranking (#1 s/d #5), catatan merchant, tanggal, dompet, dan kategori.
+    - Menambahkan **Rangkuman Kinerja Bulanan (Monthly Performance Table)**: tabel tabular bersih menampilkan Bulan, Pemasukan, Pengeluaran, Arus Bersih, Savings Rate, dan Status (Surplus/Defisit).
+    - Mendukung penuh mode privasi (*privacy blur*).
+- **Verifikasi Hasil:**
+  - Sintaks Python tervalidasi via `py_compile`.
+  - Tampilan Laporan kini dinamis, penuh insight, responsif di mobile & desktop, serta memberikan nilai analisa finansial yang nyata bagi pengguna.
+
 ### [2026-10-02 23:37:00 WIB] — Transactions Page Redesign: Multi-Dimensional Filters, Real-Time Search, Dynamic Aggregate Strip & Toolbar De-Cluttering
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Mengoptimalkan halaman Transaksi menjadi buku besar finansial yang cepat dan intuitif: menghadirkan search bar instan, filter rentang tanggal (Bulan Ini, Bulan Lalu, 30 Hari Terakhir, Kustom Tanggal), filter dompet/metode pembayaran, filter kategori, strip ringkasan agregasi real-time dari hasil filter, serta membersihkan toolbar dengan menghapus tombol Scan yang redundan.
