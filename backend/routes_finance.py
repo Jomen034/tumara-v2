@@ -413,6 +413,60 @@ async def deposit_goal(goal_id: str, body: GoalDeposit, ctx: Ctx = Depends(get_c
     return await db.goals.find_one({"id": goal_id, "household_id": ctx.hid}, {"_id": 0})
 
 
+@router.put("/goals/{goal_id}")
+async def update_goal(goal_id: str, body: GoalCreate, ctx: Ctx = Depends(get_ctx)):
+    doc = body.model_dump()
+    res = await db.goals.update_one(
+        {"id": goal_id, "household_id": ctx.hid}, {"$set": doc}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Goal not found")
+    return await db.goals.find_one({"id": goal_id, "household_id": ctx.hid}, {"_id": 0})
+
+
+@router.get("/goals/{goal_id}/detail")
+async def get_goal_detail(goal_id: str, ctx: Ctx = Depends(get_ctx)):
+    goal = await db.goals.find_one({"id": goal_id, "household_id": ctx.hid}, {"_id": 0})
+    if not goal:
+        raise HTTPException(404, "Goal not found")
+    txns = await db.transactions.find({"household_id": ctx.hid, "goal_id": goal_id}, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(100)
+
+    saved = float(goal.get("saved_amount", 0))
+    target = float(goal.get("target_amount", 0))
+    remaining = max(0.0, target - saved)
+    pct = round((saved / target * 100), 1) if target > 0 else 0
+
+    months_left = None
+    monthly_recommendation = None
+    if goal.get("deadline"):
+        try:
+            today = datetime.now(timezone.utc).date()
+            d_date = datetime.strptime(goal["deadline"], "%Y-%m-%d").date()
+            days = (d_date - today).days
+            if days > 0:
+                months_left = max(1, round(days / 30.4))
+                if remaining > 0 and months_left > 0:
+                    monthly_recommendation = round(remaining / months_left)
+            else:
+                months_left = 0
+        except Exception:
+            pass
+
+    return {
+        "goal": goal,
+        "transactions": txns,
+        "metrics": {
+            "saved_amount": saved,
+            "target_amount": target,
+            "remaining_amount": remaining,
+            "progress_pct": pct,
+            "months_left": months_left,
+            "monthly_recommendation": monthly_recommendation,
+            "deposit_count": len(txns),
+        },
+    }
+
+
 @router.get("/goals/{goal_id}/transactions")
 async def list_goal_transactions(goal_id: str, ctx: Ctx = Depends(get_ctx)):
     return await db.transactions.find({"household_id": ctx.hid, "goal_id": goal_id}, {"_id": 0}).sort("created_at", -1).to_list(100)

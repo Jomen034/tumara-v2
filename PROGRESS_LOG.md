@@ -20,6 +20,29 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-02 23:13:00 WIB] — Goals (Tujuan Finansial) Redesign: Hero Accumulation Banner, Smart Monthly Pace Calculator, Goal Editing & Interactive Goal Detail Modal
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Mengoptimalkan halaman Tujuan Finansial dari sekadar to-do statis menjadi asisten motivasi nabung cerdas: menghadirkan banner akumulasi tabungan impian, kalkulator rekomendasi setoran bulanan otomatis, dukungan saldo awal tabungan yang sudah berjalan, kemampuan edit tujuan, serta modal detail tujuan interaktif.
+- **Latar Belakang & Masalah:**
+  - Di layar laptop desktop, daftar tujuan hanya memakan kolom kiri (`grid sm:grid-cols-2`) sehingga menyisakan ruang kosong besar di sebelah kanan.
+  - Form pembuatan tujuan sebelumnya memaksa pengguna mulai dari Rp 0 (tidak ada field tabungan awal), deadline tidak memberikan insight rekomendasi nabung, dan tujuan yang sudah dibuat tidak bisa diedit sama sekali.
+  - Kartu tujuan sebelumnya tidak bisa diklik untuk melihat rincian kalkulasi dan kekurangan dana secara mendalam.
+- **Key Actions & Changes:**
+  - `backend/routes_finance.py`:
+    - Menambahkan endpoint `PUT /goals/{goal_id}` untuk memperbarui tujuan yang ada (judul, target, saldo awal, deadline, emoji, warna).
+    - Menambahkan endpoint `GET /goals/{goal_id}/detail` yang secara otomatis menghitung sisa kekurangan dana (`remaining_amount`), persentase progress, estimasi bulan tersisa (`months_left`), rekomendasi setoran per bulan (`monthly_recommendation`), serta mengembalikan daftar transaksi setoran historis.
+  - `frontend/src/components/GoalDetailModal.js` (Baru):
+    - Komponen modal detail tujuan komprehensif: menampilkan visual milestone (emoji besar, status badge), progress bar tebal, trio metrik (Terkumpul, Target, Sisa Kurang), kotak rekomendasi nabung cerdas bulanan berbasis deadline, log riwayat setoran terperinci, serta tombol aksi `+ Setor Dana` dan `Edit Tujuan`.
+  - `frontend/src/pages/Goals.js`:
+    - Menambahkan **Savings Goals Hero Summary Banner** (*Akumulasi Tabungan Impian*): menampilkan Total Terkumpul, Total Target, Sisa Dana Dibutuhkan, dan progress bar akumulasi keseluruhan agar tampilan di desktop seimbang dan penuh motivasi.
+    - Menambahkan input *"Sudah Terkumpul Saat Ini (Rp) — Opsional"* pada form pembuatan & edit tujuan untuk mendukung tabungan yang sudah berjalan sebelum memakai Tumara.
+    - Menambahkan *Live Insight Box*: kalkulasi estimasi setoran per bulan langsung aktif saat pengguna mengetik target dan memilih tanggal deadline di dalam form.
+    - Menambahkan fungsionalitas edit tujuan (`openEdit`) dan memperkaya pilihan emoji menjadi 12 pilihan ikon impian.
+    - Menjadikan setiap kartu tujuan interaktif (`cursor-pointer group`) yang membuka `GoalDetailModal` saat diklik, dengan tombol setor dan edit terisolasi via `e.stopPropagation()`.
+- **Verifikasi Hasil:**
+  - Halaman Tujuan di laptop kini seimbang, elegan, dan informatif tanpa ruang kosong canggung.
+  - Pengguna mendapatkan asistensi nyata berapa nominal yang harus disisihkan per bulan untuk mencapai target impiannya tepat waktu.
+
 ### [2026-10-02 23:03:00 WIB] — Wallet Experience Overhaul: Liquidity Summary Hero Strip & Interactive Wallet Detail Modal with 10 Recent Transactions
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Memperbaiki hierarki visual halaman Dompet (membedakan agregasi total vs kartu dompet), menghadirkan hero banner ringkasan likuiditas finansial (Total Aset, Total Utang, Kas Bersih Likuid), serta menjadikan kartu dompet interaktif dengan modal detail akun yang menampilkan mini arus kas bulanan dan 10 mutasi transaksi terakhir.
