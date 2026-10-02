@@ -74,7 +74,7 @@ export default function Transactions() {
     try {
       const fd = new FormData();
       fd.append("file", f);
-      const { data } = await api.post("/transactions/import", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      const { data } = await api.post("/transactions/import", fd);
       setImportResult(data);
       toast.success(`${data.imported} transaksi diimpor!`);
       load(); bump();

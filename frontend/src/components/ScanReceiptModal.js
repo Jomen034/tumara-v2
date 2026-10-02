@@ -35,7 +35,7 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
       const fd = new FormData();
       fd.append("file", file);
       const [res, w] = await Promise.all([
-        api.post("/ai/scan-receipt", fd, { headers: { "Content-Type": "multipart/form-data" } }),
+        api.post("/ai/scan-receipt", fd),
         api.get("/wallets"),
       ]);
       setResult(res.data);
