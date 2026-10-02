@@ -60,6 +60,24 @@ class Household(BaseModel):
     created_at: datetime = Field(default_factory=now_utc)
 
 
+class HouseholdUpdate(BaseModel):
+    name: Optional[str] = None
+    emoji_icon: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    display_name: Optional[str] = None
+    picture: Optional[str] = None
+
+
+class ResetDataRequest(BaseModel):
+    confirm_text: str
+
+
+class DeleteAccountRequest(BaseModel):
+    confirm_text: str
+
+
 class InviteCreate(BaseModel):
     email: Optional[str] = None
 

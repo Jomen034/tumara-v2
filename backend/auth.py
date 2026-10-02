@@ -8,7 +8,11 @@ from pydantic import BaseModel, EmailStr
 import httpx
 
 from db import db
-from models import User, AccessCode, ForgotPasswordRequest, ResetPasswordRequest, now_utc, new_id
+from models import (
+    User, AccessCode, ForgotPasswordRequest, ResetPasswordRequest,
+    ProfileUpdate, ResetDataRequest, DeleteAccountRequest,
+    now_utc, new_id
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -563,4 +567,104 @@ async def logout(request: Request, response: Response):
         await db.user_sessions.delete_one({"session_token": token})
     _clear_session_cookie(response, request)
     return {"ok": True}
+
+
+@router.put("/profile")
+async def update_profile(body: ProfileUpdate, user: User = Depends(get_current_user)):
+    updates = {}
+    if body.display_name is not None and body.display_name.strip():
+        updates["display_name"] = body.display_name.strip()
+        updates["name"] = body.display_name.strip()
+    if body.picture is not None and body.picture.strip():
+        updates["picture"] = body.picture.strip()
+
+    if updates:
+        await db.users.update_one({"user_id": user.user_id}, {"$set": updates})
+
+    updated_user = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "password_hash": 0})
+    return updated_user
+
+
+@router.get("/export-all")
+async def export_all_data(user: User = Depends(get_current_user)):
+    hid = user.household_id
+    if not hid:
+        raise HTTPException(400, "Rumah tangga tidak ditemukan")
+
+    hh = await db.households.find_one({"id": hid}, {"_id": 0})
+    members = await db.users.find({"household_id": hid}, {"_id": 0, "password_hash": 0}).to_list(20)
+    wallets = await db.wallets.find({"household_id": hid}, {"_id": 0}).to_list(100)
+    transactions = await db.transactions.find({"household_id": hid}, {"_id": 0}).sort("date", -1).to_list(5000)
+    budgets = await db.budgets.find({"household_id": hid}, {"_id": 0}).to_list(20)
+    goals = await db.goals.find({"household_id": hid}, {"_id": 0}).to_list(100)
+    bills = await db.bills.find({"household_id": hid}, {"_id": 0}).to_list(200)
+    snapshots = await db.networth_snapshots.find({"household_id": hid}, {"_id": 0}).sort("date", -1).to_list(200)
+
+    backup_data = {
+        "version": "tumara-v2",
+        "exported_at": now_utc().isoformat(),
+        "exported_by": user.email,
+        "household": hh,
+        "members": members,
+        "wallets": wallets,
+        "transactions": transactions,
+        "budgets": budgets,
+        "goals": goals,
+        "bills": bills,
+        "networth_snapshots": snapshots,
+    }
+    return backup_data
+
+
+@router.post("/reset-data")
+async def reset_financial_data(body: ResetDataRequest, user: User = Depends(get_current_user)):
+    if (body.confirm_text or "").strip().upper() != "RESET":
+        raise HTTPException(400, "Ketik 'RESET' untuk mengonfirmasi penghapusan seluruh data finansial")
+    if user.role != "admin":
+        raise HTTPException(403, "Hanya admin rumah tangga yang dapat mereset data finansial")
+
+    hid = user.household_id
+    if not hid:
+        raise HTTPException(400, "Rumah tangga tidak ditemukan")
+
+    # Delete transactions, budgets, goals, bills, snapshots
+    await db.transactions.delete_many({"household_id": hid})
+    await db.budgets.delete_many({"household_id": hid})
+    await db.goals.delete_many({"household_id": hid})
+    await db.bills.delete_many({"household_id": hid})
+    await db.networth_snapshots.delete_many({"household_id": hid})
+    # Reset wallet balances to 0
+    await db.wallets.update_many({"household_id": hid}, {"$set": {"balance": 0.0}})
+
+    return {"ok": True, "message": "Seluruh data transaksi, anggaran, tagihan, dan tujuan berhasil direset."}
+
+
+@router.delete("/account")
+async def delete_account(body: DeleteAccountRequest, request: Request, response: Response, user: User = Depends(get_current_user)):
+    if (body.confirm_text or "").strip().upper() != "HAPUS":
+        raise HTTPException(400, "Ketik 'HAPUS' untuk mengonfirmasi penghapusan akun")
+
+    hid = user.household_id
+    if user.role == "admin" and hid:
+        other_members = await db.users.find({"household_id": hid, "user_id": {"$ne": user.user_id}}).to_list(10)
+        if other_members:
+            # Promote next member to admin
+            new_admin_id = other_members[0]["user_id"]
+            await db.users.update_one({"user_id": new_admin_id}, {"$set": {"role": "admin"}})
+        else:
+            # Sole member: delete household and all associated data
+            await db.households.delete_one({"id": hid})
+            await db.wallets.delete_many({"household_id": hid})
+            await db.transactions.delete_many({"household_id": hid})
+            await db.budgets.delete_many({"household_id": hid})
+            await db.goals.delete_many({"household_id": hid})
+            await db.bills.delete_many({"household_id": hid})
+            await db.networth_snapshots.delete_many({"household_id": hid})
+            await db.household_invites.delete_many({"household_id": hid})
+
+    # Delete user's sessions & user record
+    await db.user_sessions.delete_many({"user_id": user.user_id})
+    await db.users.delete_one({"user_id": user.user_id})
+    _clear_session_cookie(response, request)
+    return {"ok": True, "message": "Akun berhasil dihapus permanen"}
 

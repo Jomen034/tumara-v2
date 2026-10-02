@@ -20,6 +20,46 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-03 00:30:00 WIB] — Major Upgrades #1 & #2: Household Couple Finance Center & Profile Settings / Data Management Hub
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Mengimplementasikan dua peningkatan major strategis: (1) Mengubah Halaman Rumah Tangga (`Household.js`) dari tampilan minimalis menjadi pusat keuangan pasangan (*Couple Finance Center*) dengan fitur edit identitas rumah tangga, analitik pembagian belanja pasangan (*Partner Financial Split & Contribution*), linimasa aktivitas mutasi bersama, dan kemampuan keluar rumah tangga (*Leave Household*); serta (2) Membangun Pusat Pengaturan Profil & Manajemen Data (`SettingsModal.js`) lengkap dengan kustomisasi avatar/nama tampilan, preferensi tema & privasi, unduhan cadangan data lengkap (*Full JSON Backup*), dan zona bahaya (*Reset Data & Delete Account*).
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, halaman Rumah Tangga hanya 133 baris kode, tidak ada kemampuan edit nama/emoji keluarga, tidak ada perbandingan pengeluaran antar-anggota (padahal positioning utama Tumara adalah "Kelola Bareng Pasangan"), dan partner tidak memiliki opsi keluar secara mandiri.
+  - Aplikasi belum memiliki modal/pusat pengaturan akun; pengguna tidak bisa mengganti display name, tidak ada opsi export full JSON untuk backup lokal mandiri, dan tidak ada kepatuhan privasi (opsi reset finansial atau hapus akun).
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Menambahkan model `HouseholdUpdate`, `ProfileUpdate`, `ResetDataRequest`, dan `DeleteAccountRequest`.
+  - `backend/routes_household.py`:
+    - Endpoint `GET /household`: Menghitung analitik pengeluaran & pemasukan bulanan per anggota (`total_spent`, `total_income`, `tx_count`, `spent_percentage`), rasio total belanja bersama, dan linimasa 8 transaksi terakhir (`activity_feed`).
+    - Endpoint `PUT /household`: Memungkinkan admin memperbarui nama rumah tangga dan ikon emoji secara instan.
+    - Endpoint `POST /household/leave`: Memungkinkan partner keluar dari rumah tangga secara mandiri dan mengembalikan akun ke ruang pribadi mandiri tanpa menghapus data masa lalunya.
+  - `backend/auth.py`:
+    - Endpoint `PUT /auth/profile`: Memperbarui `display_name` dan avatar picture pengguna.
+    - Endpoint `GET /auth/export-all`: Menghasilkan ekspor data komprehensif (seluruh dompet, transaksi, tagihan, anggaran, tujuan, dan snapshot kekayaan bersih) dalam format file JSON terstruktur.
+    - Endpoint `POST /auth/reset-data`: Menghapus seluruh transaksi, anggaran, tagihan, dan tujuan rumah tangga serta mereset saldo dompet ke 0 dengan validasi konfirmasi teks `RESET`.
+    - Endpoint `DELETE /auth/account`: Menghapus permanen akun pengguna beserta sesi login dengan konfirmasi teks `HAPUS`.
+  - `frontend/src/pages/Household.js`:
+    - Menghadirkan Hero Card **Pembagian Belanja Bulan Ini (Partner Financial Split)**: bar rasio visual 2 warna dinamis (brand & cyan), kartu KPI belanja masing-masing partner (nominal pengeluaran, pemasukan dicatat, transaksi dicatat, dan persentase kontribusi).
+    - Menghadirkan Modal **Edit Identitas Rumah Tangga**: picker 12 ikon emoji ramah keluarga dan input nama kustom.
+    - Menambahkan tombol integrasi **Bagikan ke WhatsApp** untuk link dan kode undangan partner.
+    - Menghadirkan **Linimasa Aktivitas Finansial Terakhir** yang menampilkan siapa yang mencatat belanja atau transfer terkini.
+    - Menambahkan aksi **Keluar Rumah Tangga** untuk partner.
+  - `frontend/src/components/SettingsModal.js` (Baru):
+    - Modal pengaturan komprehensif 4 tab:
+      1. *Profil:* Pilihan 8 karakter avatar DiceBear, edit nama tampilan, info peran & email.
+      2. *Tampilan:* Toggle mode gelap/terang, toggle privasi saldo blur, dan info versi aplikasi.
+      3. *Cadangan:* Unduh cadangan mandiri instan (`tumara-backup-YYYY-MM-DD.json`).
+      4. *Zona Bahaya:* Reset data finansial dengan konfirmasi 'RESET' dan hapus akun dengan konfirmasi 'HAPUS'.
+  - `frontend/src/components/Layout.js`:
+    - Mengintegrasikan pemicu `SettingsModal` pada:
+      - Icon gear pengaturan di bilah aksi atas (desktop & mobile).
+      - Kartu profil pengguna di bagian bawah sidebar desktop (klik kartu atau icon gear).
+      - Bagian bawah mobile drawer samping.
+- **Verifikasi Hasil:**
+  - Sintaksis Python tervalidasi sukses 100% (`py_compile`).
+  - Sintaksis JSX `Household.js`, `SettingsModal.js`, dan `Layout.js` tervalidasi 100% seimbang (0 delta braces, brackets, dan parens).
+
+
 ### [2026-10-03 00:25:00 WIB] — Comprehensive System Audit: Evaluasi Menyeluruh Seluruh Halaman, Fitur, Modal, & Identifikasi Area Major untuk Peningkatan Selanjutnya
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Melakukan audit menyeluruh (360-degree audit) terhadap seluruh ekosistem aplikasi Tumara v2 (meliputi 10 halaman utama, 9 modal interaktif, komponen navigasi, arsitektur data multi-user, dan alur otentikasi) untuk mengidentifikasi area atau fitur berstatus "MAJOR" yang belum tersentuh atau belum maksimal sebelum rilis produksi penuh.
