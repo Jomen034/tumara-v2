@@ -20,6 +20,23 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-03 00:01:00 WIB] — Database Maintenance: Complete Purge of Chat Messages Collection from MongoDB Atlas & Local Instances
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menghapus seluruh dokumen dan koleksi riwayat obrolan AI (`chat_messages`) dari database MongoDB Atlas produksi dan instance lokal, membebaskan 100% ruang penyimpanan obrolan, serta menjamin tidak ada residu pesan lama yang tertinggal di cloud database.
+- **Latar Belakang & Masalah:**
+  - Sejalan dengan migrasi Tumara AI ke sesi *ephemeral* (tanpa penyimpanan obrolan di server), seluruh data pesan obrolan masa lalu di database MongoDB harus dibersihkan total agar ruang storage database tetap hemat, efisien, dan privasi terjaga.
+- **Key Actions & Changes:**
+  - **MongoDB Atlas (Produksi):**
+    - Berhasil terhubung ke replica set MongoDB Atlas `fincfo_db`.
+    - Menghapus dan mendrop koleksi `chat_messages` secara permanen (`db.chat_messages.drop()`).
+    - Memverifikasi status koleksi pasca-eksekusi: koleksi `chat_messages` kini **0 dokumen / terhapus penuh**. Seluruh data penting lainnya (`users`, `wallets`, `transactions`, `budgets`, `goals`, `bills`, `households`, `access_codes`, `networth_snapshots`) tetap 100% aman dan utuh tanpa perubahan.
+  - **Local MongoDB (127.0.0.1:27017):**
+    - Terhubung dan memverifikasi `fincfo_db` lokal: koleksi `chat_messages` berstatus bersih (0 dokumen).
+  - `backend/deps.py`:
+    - Menghapus referensi `"chat_messages"` dari daftar `MIGRATE_COLLECTIONS` agar tidak ada operasi query redundan saat migrasi rumah tangga.
+- **Verifikasi Hasil:**
+  - Database MongoDB Atlas dan lokal kini 100% bersih dari koleksi `chat_messages`.
+
 ### [2026-10-02 23:53:00 WIB] — Tumara AI Guardrails & Ephemeral Session: Anti-Abuse Domain Restriction, Heuristic Pre-Filter & Zero-Database-Storage Session
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menghadirkan perlindungan ketat (guardrail) pada Tumara AI agar 100% fokus hanya pada data finansial pengguna & personal finance (mencegah abuse seperti pertanyaan politik/presiden, tugas sekolah, coding, dsb.), menghentikan penyimpanan chat permanen ke database MongoDB (menghemat 100% storage database dan menjamin privasi), serta menyajikan sesi obrolan sementara (*ephemeral session*) dengan kontrol reset manual.

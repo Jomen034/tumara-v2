@@ -6,7 +6,7 @@ from models import User, Household, now_utc
 from auth import get_current_user
 
 MIGRATE_COLLECTIONS = ["wallets", "transactions", "budgets", "goals",
-                       "chat_messages", "networth_snapshots", "ai_recaps", "bills"]
+                       "networth_snapshots", "ai_recaps", "bills"]
 
 
 @dataclass
