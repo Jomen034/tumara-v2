@@ -136,15 +136,45 @@ async def _validate_wallets(hid: str, ttype: str, wallet_id: str, to_wallet_id: 
 
 
 @router.get("/transactions")
-async def list_transactions(limit: int = 100, member_id: str = None, goal_id: str = None, wallet_id: str = None, ctx: Ctx = Depends(get_ctx)):
-    q = {"household_id": ctx.hid}
-    if member_id:
-        q["member_id"] = member_id
+async def list_transactions(
+    limit: int = 1000,
+    member_id: Optional[str] = None,
+    goal_id: Optional[str] = None,
+    wallet_id: Optional[str] = None,
+    category: Optional[str] = None,
+    type: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    q: Optional[str] = None,
+    ctx: Ctx = Depends(get_ctx),
+):
+    query = {"household_id": ctx.hid}
+    if member_id and member_id != "all":
+        query["member_id"] = member_id
     if goal_id:
-        q["goal_id"] = goal_id
-    if wallet_id:
-        q["$or"] = [{"wallet_id": wallet_id}, {"to_wallet_id": wallet_id}]
-    return await db.transactions.find(q, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(limit)
+        query["goal_id"] = goal_id
+    if wallet_id and wallet_id != "all":
+        query["$or"] = [{"wallet_id": wallet_id}, {"to_wallet_id": wallet_id}]
+    if category and category != "all":
+        query["category"] = category
+    if type and type != "all":
+        query["type"] = type
+    if start_date and end_date:
+        query["date"] = {"$gte": start_date, "$lte": end_date}
+    elif start_date:
+        query["date"] = {"$gte": start_date}
+    elif end_date:
+        query["date"] = {"$lte": end_date}
+    if q:
+        search_filter = [
+            {"note": {"$regex": q, "$options": "i"}},
+            {"category": {"$regex": q, "$options": "i"}},
+        ]
+        if "$or" in query:
+            query = {"$and": [query, {"$or": search_filter}]}
+        else:
+            query["$or"] = search_filter
+    return await db.transactions.find(query, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(limit)
 
 
 @router.get("/transactions/{txn_id}")

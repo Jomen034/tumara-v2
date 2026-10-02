@@ -20,6 +20,29 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-02 23:37:00 WIB] — Transactions Page Redesign: Multi-Dimensional Filters, Real-Time Search, Dynamic Aggregate Strip & Toolbar De-Cluttering
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Mengoptimalkan halaman Transaksi menjadi buku besar finansial yang cepat dan intuitif: menghadirkan search bar instan, filter rentang tanggal (Bulan Ini, Bulan Lalu, 30 Hari Terakhir, Kustom Tanggal), filter dompet/metode pembayaran, filter kategori, strip ringkasan agregasi real-time dari hasil filter, serta membersihkan toolbar dengan menghapus tombol Scan yang redundan.
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, halaman Transaksi hanya memiliki filter Tipe Transaksi (Semua/Keluar/Masuk/Transfer) dan filter anggota keluarga.
+  - Pengguna tidak bisa mencari transaksi berdasarkan nama merchant/toko, tidak bisa menyaring transaksi berdasarkan akun bank/dompet tertentu, dan tidak bisa membatasi rentang tanggal tanpa menggulir seluruh riwayat transaksi lama.
+  - Terdapat tombol `Scan` redundan di toolbar Transaksi, padahal entry point scan struk sudah terintegrasi lengkap di modal `Tambah Transaksi` (dengan kamera, upload foto, itemized scan) dan navbar global.
+- **Key Actions & Changes:**
+  - `backend/routes_finance.py`:
+    - Meningkatkan endpoint `GET /transactions` dengan parameter query dinamis: `limit` (default 1000), `wallet_id`, `category`, `type`, `start_date`, `end_date`, dan `q` (pencarian regex case-insensitive pada catatan dan kategori).
+  - `frontend/src/pages/Transactions.js`:
+    - Menghapus tombol `Scan` dari header aksi (menyisakan tombol bersih dan simetris: `Export CSV`, `Import CSV`, dan `+ Tambah`).
+    - Menambahkan **Search Bar** real-time dengan ikon kaca pembesar dan tombol reset `X`.
+    - Menambahkan **Dropdown Filter Periode**: `Semua Waktu`, `Bulan Ini`, `Bulan Lalu`, `30 Hari Terakhir`, dan `Kustom Tanggal...` (lengkap dengan input picker tanggal awal & akhir).
+    - Menambahkan **Dropdown Filter Dompet / Metode Pembayaran**: memungkinkan isolasi mutasi pada rekening tertentu (BCA, GoPay, Tunai, Kartu Kredit, dll).
+    - Menambahkan **Dropdown Filter Kategori**: memuat seluruh kategori standar serta kategori kustom yang ada pada riwayat transaksi.
+    - Menambahkan **Dynamic Aggregated Summary Strip**: menampilkan jumlah transaksi terfilter, total pengeluaran (-Rp), total pemasukan (+Rp), dan arus kas bersih (Net) dari hasil filter aktif.
+    - Menambahkan tombol **Reset Filter** yang muncul saat filter non-default sedang aktif.
+    - Meningkatkan Empty State agar memberikan respon cerdas ketika pencarian/filter tidak menghasilkan data, dilengkapi tombol reset cepat.
+- **Verifikasi Hasil:**
+  - Sintaks Python tervalidasi via `py_compile`.
+  - Filter real-time multi-dimensi (gabungan teks, tanggal, dompet, kategori, tipe) merespons seketika dengan kalkulasi total terfilter akurat.
+
 ### [2026-10-02 23:26:00 WIB] — Budget Page Overhaul: 50/30/20 Visual Breakdown, Daily Burn Rate Calculator & Category Budget Detail Modal
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Merombak halaman Anggaran (Budget) menjadi command center disiplin finansial proaktif: menghadirkan Hero Summary dengan kalkulator batas belanja harian aman (*safe daily spend pace*) & sisa hari bulan berjalan, visualisasi aturan alokasi 50/30/20 (Kebutuhan, Keinginan, Tabungan), kartu kategori interaktif dengan pratinjau sisa kuota/defisit, serta modal detail anggaran kategori (`BudgetDetailModal`) dengan breakdown kuota, panduan burn rate belanja harian, penyesuaian limit langsung (`PUT /budget/category/{category}`), dan daftar mutasi pengeluaran per pos bulan ini.
