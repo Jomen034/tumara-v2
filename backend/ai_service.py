@@ -4,6 +4,7 @@ import json
 import base64
 from datetime import datetime, timezone
 
+import re
 from PIL import Image
 from db import db
 
@@ -83,17 +84,55 @@ async def build_financial_context(user_id: str) -> str:
     return "\n".join(lines)
 
 
-SYSTEM_PROMPT = (
-    "Kamu adalah 'Tumara', CFO pribadi berbasis AI untuk pengguna di Indonesia dengan filosofi 'Tumbuh dengan arah'. "
-    "Gaya bicara: hangat, santai, memotivasi, seperti teman yang jago finansial (boleh pakai bahasa Gen-Z ringan). "
-    "Selalu jawab dalam Bahasa Indonesia. Gunakan format Rupiah (contoh: Rp 1.500.000). "
-    "Berikan saran yang SPESIFIK dan personal berdasarkan data keuangan pengguna di bawah ini, bukan jawaban generik. "
-    "Jika relevan, sebutkan angka nyata dari data mereka. Buat jawaban ringkas, actionable, dan pakai poin bila perlu. "
-    "Jangan pernah mengaku sebagai penasihat investasi berlisensi; beri disclaimer singkat bila membahas investasi."
+# Heuristic patterns to instantly reject off-topic abuse and save LLM token costs
+OFFTOPIC_PATTERNS = [
+    r"\b(presiden|wakil presiden|wapres|menteri|gubernur|bupati|walikota|partai|dpr|mpr|pemilu|pilpres|pilkada|politik)\b",
+    r"\b(koding|coding|programmer|javascript|python|html|css|php|java|c\+\+|golang|sql query|debug code|buatkan fungsi|bikin fungsi|write code|buatkan script)\b",
+    r"\b(tuliskan puisi|buatkan puisi|buatkan cerpen|bikin pantun|buatkan esai|tulis essay|kerjakan tugas|tugas sekolah|tugas kuliah)\b",
+    r"\b(resep masakan|cara memasak|bikin kue|ramalan zodiak|ramalan bintang|tips pacaran|tips jodoh)\b",
+    r"\b(ignore previous instructions|abaikan instruksi|pretend you are|kamu sekarang adalah chatgpt|jailbreak)\b",
+]
+
+POLITE_REFUSAL = (
+    "Maaf ya, sebagai **Tumara AI (CFO Pribadi)**, fokus utamaku khusus mendampingimu seputar **keuangan pribadi, evaluasi anggaran, dan perencanaan finansial di Tumara**.\n\n"
+    "Aku tidak dapat menjawab pertanyaan di luar topik keuangan (seperti politik, tugas umum, coding, atau topik non-finansial lainnya).\n\n"
+    "Yuk, ada yang mau kita diskusikan seputar pengeluaran, saldo dompet, atau strategi tabunganmu?"
 )
 
 
-async def advisor_stream(user_id: str, session_id: str, message: str, history: list):
+def is_offtopic(msg: str) -> bool:
+    low = (msg or "").lower()
+    for pattern in OFFTOPIC_PATTERNS:
+        if re.search(pattern, low):
+            return True
+    return False
+
+
+SYSTEM_PROMPT = (
+    "Kamu adalah 'Tumara AI', CFO Pribadi dan Penasihat Keuangan eksklusif untuk pengguna Tumara di Indonesia. "
+    "Filosofi kamu adalah 'Tumbuh dengan arah'. "
+    "Gaya bicara: hangat, santai, empatik, objektif, dan suportif (Bahasa Indonesia). "
+    "Selalu gunakan format Rupiah baku (contoh: Rp 1.500.000).\n\n"
+    "=== ATURAN MUTLAK & BATASAN DOMAIN KETAT (DOMAIN GUARDRAIL) ===\n"
+    "1. FOKUS EKSKLUSIF KEUANGAN:\n"
+    "   Kamu HANYA DAN HANYA BOLEH menjawab hal-hal yang berkaitan dengan KEUANGAN PRIBADI, KEUANGAN KELUARGA, ANGGARAN (BUDGET), MANAJEMEN UTANG/KARTU KREDIT, TABUNGAN, TAGIHAN, ARUS KAS, INVESTASI UMUM, DAN DATA PENGGUNA DI TUMARA.\n"
+    "2. PENOLAKAN TEGAS UNTUK NON-FINANSIAL:\n"
+    "   Jika pengguna menanyakan hal-hal di luar keuangan pribadi—termasuk tetapi tidak terbatas pada: politik, tokoh negara/presiden/menteri, coding/programming/software, tugas sekolah/kuliah, resep makanan, sains umum, hiburan/film/game, tips asmara, ramalan, atau topik umum lainnya—kamu WAJIB MENOLAK DENGAN TEGAS SEJAK KALIMAT PERTAMA.\n"
+    "   Pola penolakan wajib:\n"
+    "   'Maaf ya, sebagai Tumara AI (CFO Pribadi), fokus utamaku khusus mendampingimu seputar keuangan pribadi, evaluasi anggaran, dan perencanaan finansial di Tumara. Aku tidak dapat menjawab pertanyaan di luar topik keuangan. Yuk, ada yang mau kita diskusikan seputar pengeluaran, saldo dompet, atau strategi tabunganmu?'\n"
+    "3. JANGAN PERNAH MENJAWAB PERTANYAANNYA TERLEBIH DAHULU. Langsung tolak pertanyaan non-finansial sejak awal.\n"
+    "4. JANGAN PERNAH menjadi asisten umum atau ensiklopedia bebas (general-purpose AI).\n"
+    "5. DATA-DRIVEN: Selalu gunakan data riil pengguna yang tertera di konteks bawah (saldo dompet, riwayat transaksi, anggaran, tujuan) agar saranmu spesifik dan actionable.\n"
+    "6. DISCLAIMER: Beri edukasi bijak, jangan mengaku sebagai perencana keuangan bersertifikat resmi atau pialang efek berlisensi."
+)
+
+
+async def advisor_stream(user_id: str, session_id: str, message: str, history: list = None):
+    # 0. Instant heuristic refusal to prevent token abuse
+    if is_offtopic(message):
+        yield POLITE_REFUSAL
+        return
+
     context = await build_financial_context(user_id)
     system = SYSTEM_PROMPT + "\n\n" + context
 
@@ -101,9 +140,18 @@ async def advisor_stream(user_id: str, session_id: str, message: str, history: l
     if GEMINI_API_KEY and genai_modern_client:
         try:
             from google.genai import types
+            formatted_history = []
+            if history:
+                for h in history[-6:]:
+                    r = "user" if h.get("role") == "user" else "model"
+                    txt = h.get("content", "").strip()
+                    if txt:
+                        formatted_history.append(types.Content(role=r, parts=[types.Part.from_text(text=txt)]))
+
             chat = genai_modern_client.aio.chats.create(
                 model=MODEL_NAME,
-                config=types.GenerateContentConfig(system_instruction=system)
+                config=types.GenerateContentConfig(system_instruction=system),
+                history=formatted_history if formatted_history else None,
             )
             response_stream = await chat.send_message_stream(message)
             async for chunk in response_stream:
@@ -141,7 +189,7 @@ async def advisor_stream(user_id: str, session_id: str, message: str, history: l
                     yield ev.content
                 elif isinstance(ev, StreamDone):
                     break
-            return
+                return
         except Exception as e:
             print(f"[AI Service] emergentintegrations stream error: {e}")
 

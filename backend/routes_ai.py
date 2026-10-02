@@ -18,12 +18,13 @@ class ParseRequest(BaseModel):
 
 @router.get("/chat/history")
 async def chat_history(user: User = Depends(get_current_user)):
-    msgs = await db.chat_messages.find({"user_id": user.user_id}, {"_id": 0}).sort("created_at", 1).to_list(200)
-    return msgs
+    # Ephemeral session: Chat history is not permanently persisted on database
+    return []
 
 
 @router.delete("/chat/history")
 async def clear_history(user: User = Depends(get_current_user)):
+    # Clean up any legacy chat records for this user
     await db.chat_messages.delete_many({"user_id": user.user_id})
     return {"ok": True}
 
@@ -32,27 +33,14 @@ async def clear_history(user: User = Depends(get_current_user)):
 async def chat(body: ChatRequest, ctx: Ctx = Depends(get_ctx)):
     user = ctx.user
     session_id = f"advisor_{user.user_id}"
-    user_msg = {
-        "id": new_id("msg"), "user_id": user.user_id, "role": "user",
-        "content": body.message, "created_at": now_utc(),
-    }
-    await db.chat_messages.insert_one(dict(user_msg))
 
     async def gen():
-        full = ""
         try:
-            async for token in advisor_stream(ctx.hid, session_id, body.message, []):
-                full += token
+            async for token in advisor_stream(ctx.hid, session_id, body.message, body.history or []):
                 yield token
         except Exception as e:
             err = f"\n\n⚠️ Maaf, terjadi kendala: {str(e)[:120]}"
-            full += err
             yield err
-        finally:
-            await db.chat_messages.insert_one({
-                "id": new_id("msg"), "user_id": user.user_id, "role": "assistant",
-                "content": full, "created_at": now_utc(),
-            })
 
     return StreamingResponse(
         gen(), media_type="text/plain",

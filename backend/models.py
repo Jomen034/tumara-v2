@@ -203,3 +203,5 @@ class GoalDeposit(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
+    history: Optional[List[dict]] = None
+

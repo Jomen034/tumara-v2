@@ -20,6 +20,32 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-02 23:53:00 WIB] — Tumara AI Guardrails & Ephemeral Session: Anti-Abuse Domain Restriction, Heuristic Pre-Filter & Zero-Database-Storage Session
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menghadirkan perlindungan ketat (guardrail) pada Tumara AI agar 100% fokus hanya pada data finansial pengguna & personal finance (mencegah abuse seperti pertanyaan politik/presiden, tugas sekolah, coding, dsb.), menghentikan penyimpanan chat permanen ke database MongoDB (menghemat 100% storage database dan menjamin privasi), serta menyajikan sesi obrolan sementara (*ephemeral session*) dengan kontrol reset manual.
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, pengguna bisa menanyakan hal di luar konteks Tumara (misal "siapa presiden indonesia saat ini?") dan AI menjawab layaknya ChatGPT umum. Hal ini merugikan karena menghabiskan kuota token API untuk hal non-finansial.
+  - Setiap pesan chat disimpan permanen di MongoDB `db.chat_messages`, menyebabkan penumpukan data tak terhingga seiring waktu dan mengancam kuota storage database.
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Menambahkan field `history: Optional[List[dict]] = None` pada `ChatRequest` untuk mendukung percakapan multi-turn sesi aktif tanpa persistensi database.
+  - `backend/ai_service.py`:
+    - Menambahkan **Ironclad Domain Guardrail** pada `SYSTEM_PROMPT`: mewajibkan AI menolak sejak kalimat pertama semua pertanyaan di luar keuangan pribadi (politik, tokoh negara, coding, tugas, resep, sains, hiburan, jailbreak), dan mengarahkan kembali ke data finansial Tumara.
+    - Menambahkan **Pre-Filter Heuristik Cepat (`is_offtopic`)**: mendeteksi kata kunci penyalahgunaan non-finansial dan langsung mengembalikan pesan penolakan sopan instan tanpa menghabiskan kuota token LLM.
+    - Mendukung format percakapan multi-turn dari parameter `history` sesi aktif.
+  - `backend/routes_ai.py`:
+    - Menghapus seluruh operasi penulisan pesan chat ke database MongoDB (`await db.chat_messages.insert_one` dihapus total). Database sekarang **0 bytes** bertambah dari aktivitas chat.
+    - Mengembalikan array kosong `[]` pada `GET /ai/chat/history` karena seluruh sesi bersifat sementara.
+  - `frontend/src/pages/Advisor.js`:
+    - Mengubah manajemen state obrolan menggunakan `sessionStorage` browser yang otomatis bersih saat tab browser ditutup atau sesi berakhir.
+    - Menambahkan **Banner Informasi Privasi & Sesi Sementara**: *"🔒 Sesi Privat & Sementara: Obrolan ini tidak disimpan di database server demi menjaga privasi & efisiensi kuota. Percakapan akan otomatis ter-reset saat sesi ditutup atau dimulai ulang."*
+    - Menambahkan tombol **Sesi Baru** (ikon `RotateCcw`) di header untuk membersihkan chat secara instan kapan saja.
+    - Memperbarui suggestion chips ke topik finansial relevan dan placeholder textarea: *"Tanya seputar pengeluaran, anggaran, atau dompetmu..."*.
+- **Verifikasi Hasil:**
+  - Pertanyaan off-topic otomatis ditolak dengan sopan.
+  - Percakapan multi-turn pada tab aktif tetap berjalan lancar.
+  - Tidak ada dokumen baru yang tersimpan ke MongoDB `db.chat_messages`.
+
 ### [2026-10-02 23:44:00 WIB] — Financial Reports Overhaul: Executive KPI Strip, Multi-Horizon Period Filter, Assets vs Debt Net Worth Chart, Top Expense Drivers & Monthly Performance Table
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Merombak total halaman Laporan (Reports) dari grafik statis datar menjadi pusat wawasan kekayaan eksekutif: menghadirkan selector rentang periode laporan dinamis, 4 Hero Executive KPI cards (Net Worth & delta, Net Cash Flow, Savings Rate %, dan Rata-rata Belanja Harian), grafik Net Worth multi-horizon dengan breakdown Aset vs Utang, Donut kategori dengan progress bar persentase, kartu Top 5 Pengeluaran Terbesar (*Largest Expenses*), serta tabel kinerja arus kas bulanan terperinci (*Monthly Performance Table*).
