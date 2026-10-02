@@ -63,6 +63,59 @@ async def delete_wallet(wallet_id: str, ctx: Ctx = Depends(get_ctx)):
     return {"ok": True}
 
 
+@router.get("/wallets/{wallet_id}/detail")
+async def get_wallet_detail(wallet_id: str, limit: int = 10, ctx: Ctx = Depends(get_ctx)):
+    wallet = await db.wallets.find_one({"id": wallet_id, "household_id": ctx.hid}, {"_id": 0})
+    if not wallet:
+        raise HTTPException(404, "Wallet not found")
+
+    txn_query = {
+        "household_id": ctx.hid,
+        "$or": [{"wallet_id": wallet_id}, {"to_wallet_id": wallet_id}],
+    }
+    recent_txns = await db.transactions.find(txn_query, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(limit)
+
+    cur_month = _month()
+    month_query = {
+        "household_id": ctx.hid,
+        "date": {"$regex": f"^{cur_month}"},
+        "$or": [{"wallet_id": wallet_id}, {"to_wallet_id": wallet_id}],
+    }
+    month_txns = await db.transactions.find(month_query, {"_id": 0}).to_list(2000)
+
+    inflow = 0.0
+    outflow = 0.0
+    for t in month_txns:
+        amt = float(t.get("amount", 0))
+        ttype = t.get("type")
+        twallet = t.get("wallet_id")
+        tto_wallet = t.get("to_wallet_id")
+
+        if ttype == "income" and twallet == wallet_id:
+            inflow += amt
+        elif ttype == "expense" and twallet == wallet_id:
+            outflow += amt
+        elif ttype == "transfer":
+            if twallet == wallet_id:
+                outflow += amt
+            if tto_wallet == wallet_id:
+                inflow += amt
+
+    total_count = await db.transactions.count_documents(txn_query)
+
+    return {
+        "wallet": wallet,
+        "recent_transactions": recent_txns,
+        "monthly_flow": {
+            "month": cur_month,
+            "inflow": inflow,
+            "outflow": outflow,
+            "net": inflow - outflow,
+        },
+        "transaction_count": total_count,
+    }
+
+
 # ---------------- Transactions ----------------
 async def _apply_txn(hid: str, t: Transaction, sign: int):
     await ledger.apply_transaction(hid, t, sign)
@@ -82,13 +135,15 @@ async def _validate_wallets(hid: str, ttype: str, wallet_id: str, to_wallet_id: 
 
 
 @router.get("/transactions")
-async def list_transactions(limit: int = 100, member_id: str = None, goal_id: str = None, ctx: Ctx = Depends(get_ctx)):
+async def list_transactions(limit: int = 100, member_id: str = None, goal_id: str = None, wallet_id: str = None, ctx: Ctx = Depends(get_ctx)):
     q = {"household_id": ctx.hid}
     if member_id:
         q["member_id"] = member_id
     if goal_id:
         q["goal_id"] = goal_id
-    return await db.transactions.find(q, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    if wallet_id:
+        q["$or"] = [{"wallet_id": wallet_id}, {"to_wallet_id": wallet_id}]
+    return await db.transactions.find(q, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(limit)
 
 
 @router.get("/transactions/{txn_id}")

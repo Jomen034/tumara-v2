@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import { motion } from "framer-motion";
 import * as Icons from "lucide-react";
 import { Plus, Trash2, Pencil } from "lucide-react";
@@ -19,14 +20,19 @@ import {
   EmptyState,
   Progress,
 } from "../components/ui";
+import WalletDetailModal from "../components/WalletDetailModal";
 
 export default function Wallets() {
   const { privacy } = useTheme();
   const { bump } = useRefresh();
+  const outletCtx = useOutletContext();
+  const openAdd = outletCtx?.openAdd;
+
   const [wallets, setWallets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [selectedWallet, setSelectedWallet] = useState(null);
   const [form, setForm] = useState({
     name: "",
     type: "bank",
@@ -44,6 +50,14 @@ export default function Wallets() {
   useEffect(() => {
     load();
   }, []);
+
+  // Sync selectedWallet if wallets list refreshed
+  useEffect(() => {
+    if (selectedWallet) {
+      const updated = wallets.find((w) => w.id === selectedWallet.id);
+      if (updated) setSelectedWallet(updated);
+    }
+  }, [wallets]);
 
   const openNew = (preset) => {
     setEditing(null);
@@ -99,6 +113,7 @@ export default function Wallets() {
     try {
       await api.delete(`/wallets/${id}`);
       toast.success("Dompet dihapus");
+      if (selectedWallet?.id === id) setSelectedWallet(null);
       load();
       bump();
     } catch {
@@ -140,35 +155,91 @@ export default function Wallets() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 min-w-0">
-        <Card className="p-4 sm:p-5">
-          <p className="text-xs text-tmuted font-semibold uppercase truncate">Total Aset</p>
-          <p
-            className={`text-lg sm:text-2xl font-head font-bold font-mono text-brand mt-1 truncate ${
-              privacy ? "privacy-blur" : ""
-            }`}
-          >
-            {formatRp(totalAssets, privacy)}
-          </p>
-        </Card>
-        <Card className="p-4 sm:p-5">
-          <p className="text-xs text-tmuted font-semibold uppercase truncate">Total Utang</p>
-          <p
-            className={`text-lg sm:text-2xl font-head font-bold font-mono text-rose mt-1 truncate ${
-              privacy ? "privacy-blur" : ""
-            }`}
-          >
-            {formatRp(totalDebt, privacy)}
-          </p>
+      {/* Liquidity Summary Hero Strip */}
+      <div className="rounded-2xl sm:rounded-3xl bg-surface/90 border border-borderc/80 p-4 sm:p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-borderc/40">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-brand animate-pulse" />
+            <h2 className="text-xs font-bold text-tmuted uppercase tracking-wider">
+              Ringkasan Likuiditas Finansial
+            </h2>
+          </div>
           {debtWalletsWithLimit.length > 0 && (
-            <p className="text-[11px] text-tmuted mt-1 truncate">
-              Sisa Plafon:{" "}
-              <span className={`text-cyan font-mono font-semibold ${privacy ? "privacy-blur" : ""}`}>
+            <span className="text-[11px] text-tmuted hidden sm:inline">
+              Sisa Plafon Kredit:{" "}
+              <strong className={`text-cyan font-mono font-semibold ${privacy ? "privacy-blur" : ""}`}>
                 {formatRp(totalAvailableCredit, privacy)}
-              </span>
-            </p>
+              </strong>
+            </span>
           )}
-        </Card>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6 divide-y sm:divide-y-0 sm:divide-x divide-borderc/40">
+          {/* Total Aset */}
+          <div className="min-w-0">
+            <p className="text-[11px] sm:text-xs text-tmuted font-medium flex items-center gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-brand shrink-0" /> Total Aset Kas
+            </p>
+            <p
+              className={`text-lg sm:text-2xl font-head font-bold font-mono text-brand mt-1 truncate ${
+                privacy ? "privacy-blur" : ""
+              }`}
+            >
+              {formatRp(totalAssets, privacy)}
+            </p>
+            <span className="text-[10px] text-tmuted block mt-0.5 truncate">
+              Rekening bank, e-wallet & tunai
+            </span>
+          </div>
+
+          {/* Total Utang */}
+          <div className="min-w-0 pt-3 sm:pt-0 sm:pl-6">
+            <p className="text-[11px] sm:text-xs text-tmuted font-medium flex items-center gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose shrink-0" /> Total Tagihan & Utang
+            </p>
+            <p
+              className={`text-lg sm:text-2xl font-head font-bold font-mono text-rose mt-1 truncate ${
+                privacy ? "privacy-blur" : ""
+              }`}
+            >
+              {formatRp(totalDebt, privacy)}
+            </p>
+            <span className="text-[10px] text-tmuted block mt-0.5 truncate">
+              {debtWalletsWithLimit.length > 0
+                ? `Sisa Plafon: ${formatRp(totalAvailableCredit, privacy)}`
+                : "Kartu kredit & paylater"}
+            </span>
+          </div>
+
+          {/* Net Kas Likuid (Aset - Utang) */}
+          <div className="col-span-2 sm:col-span-1 min-w-0 pt-3 sm:pt-0 sm:pl-6">
+            <p className="text-[11px] sm:text-xs text-tmuted font-medium flex items-center gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan shrink-0" /> Kas Bersih Likuid
+            </p>
+            <p
+              className={`text-lg sm:text-2xl font-head font-bold font-mono text-tprimary mt-1 truncate ${
+                privacy ? "privacy-blur" : ""
+              }`}
+            >
+              {formatRp(totalAssets - totalDebt, privacy)}
+            </p>
+            <span className="text-[10px] text-tmuted block mt-0.5 truncate">
+              Aset likuid dikurangi utang berjalan
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Sub-Header for Wallet Cards */}
+      <div className="flex items-center justify-between pt-1">
+        <div>
+          <h2 className="text-base sm:text-lg font-bold font-head text-tprimary">
+            Daftar Rekening & Dompet ({wallets.length})
+          </h2>
+          <p className="text-xs text-tmuted">
+            Pilih dompet untuk melihat detail mutasi & riwayat transaksi.
+          </p>
+        </div>
       </div>
 
       {loading ? (
@@ -220,7 +291,11 @@ export default function Wallets() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
               >
-                <Card hover className="p-4 sm:p-5 flex flex-col justify-between gap-3.5">
+                <Card
+                  hover
+                  onClick={() => setSelectedWallet(w)}
+                  className="p-4 sm:p-5 flex flex-col justify-between gap-3.5 cursor-pointer hover:border-brand/50 hover:shadow-md transition-all group"
+                >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div
@@ -230,7 +305,9 @@ export default function Wallets() {
                         <Ic size={22} style={{ color: w.color }} />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-base truncate text-tprimary">{w.name}</p>
+                        <p className="font-semibold text-base truncate text-tprimary group-hover:text-brand transition-colors">
+                          {w.name}
+                        </p>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <Badge color={m.color}>{m.label}</Badge>
                         </div>
@@ -238,7 +315,10 @@ export default function Wallets() {
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
-                        onClick={() => openEdit(w)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEdit(w);
+                        }}
                         data-testid={`edit-wallet-${w.id}`}
                         className="p-2 rounded-lg hover:bg-elevated text-tsecondary hover:text-tprimary transition-colors"
                         title="Edit Dompet"
@@ -246,7 +326,10 @@ export default function Wallets() {
                         <Pencil size={15} />
                       </button>
                       <button
-                        onClick={() => del(w.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          del(w.id);
+                        }}
                         data-testid={`delete-wallet-${w.id}`}
                         className="p-2 rounded-lg hover:bg-elevated text-tmuted hover:text-rose transition-colors"
                         title="Hapus Dompet"
@@ -308,7 +391,10 @@ export default function Wallets() {
                         <div className="pt-1 flex items-center justify-between text-[11px] text-tmuted">
                           <span>Limit plafon belum ditentukan</span>
                           <button
-                            onClick={() => openEdit(w)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEdit(w);
+                            }}
                             className="text-brand hover:underline font-medium"
                           >
                             + Atur limit
@@ -337,6 +423,7 @@ export default function Wallets() {
         </div>
       )}
 
+      {/* Edit / Add Modal */}
       <Modal
         open={open}
         onClose={() => setOpen(false)}
@@ -483,6 +570,17 @@ export default function Wallets() {
           </Button>
         </div>
       </Modal>
+
+      {/* Interactive Wallet Detail Modal */}
+      <WalletDetailModal
+        wallet={selectedWallet}
+        open={!!selectedWallet}
+        onClose={() => setSelectedWallet(null)}
+        onEdit={(w) => openEdit(w)}
+        onAddTransaction={(w) => {
+          if (openAdd) openAdd("manual");
+        }}
+      />
     </div>
   );
 }

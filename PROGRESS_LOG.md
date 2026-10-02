@@ -20,6 +20,26 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-02 23:03:00 WIB] — Wallet Experience Overhaul: Liquidity Summary Hero Strip & Interactive Wallet Detail Modal with 10 Recent Transactions
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Memperbaiki hierarki visual halaman Dompet (membedakan agregasi total vs kartu dompet), menghadirkan hero banner ringkasan likuiditas finansial (Total Aset, Total Utang, Kas Bersih Likuid), serta menjadikan kartu dompet interaktif dengan modal detail akun yang menampilkan mini arus kas bulanan dan 10 mutasi transaksi terakhir.
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, kartu Total Aset dan Total Utang menggunakan komponen kartu identik dalam grid 2 kolom yang persis sama dengan kartu dompet, menimbulkan *visual homogeneity* di mana pengguna mengira kedua kartu tersebut adalah rekening dompet biasa.
+  - Kartu dompet bersifat pasif (hanya edit nama/limit dan hapus). Pengguna tidak bisa langsung memeriksa mutasi pengeluaran terakhir di dompet tersebut tanpa harus berpindah ke menu Transaksi dan memfilter manual.
+- **Key Actions & Changes:**
+  - `backend/routes_finance.py`:
+    - Menambahkan endpoint `GET /wallets/{wallet_id}/detail`: mengembalikan dokumen dompet, 10 transaksi mutasi terakhir (mengikutsertakan transaksi keluar maupun transfer masuk), ringkasan arus kas bulan berjalan (`inflow`, `outflow`, `net`), serta total hitungan transaksi.
+    - Menambahkan filter `wallet_id` pada `GET /transactions` untuk mendukung penelusuran riwayat dompet secara spesifik via `$or: [{"wallet_id": wallet_id}, {"to_wallet_id": wallet_id}]`.
+  - `frontend/src/components/WalletDetailModal.js` (Baru):
+    - Komponen modal detail akun: menampilkan identitas dompet (ikon, nama, badge jenis), saldo berjalan / tagihan terpakai, indikator limit & rasio utilisasi (untuk kartu kredit/paylater), kartu mini arus kas bulanan (Uang Masuk vs Uang Keluar), daftar 10 mutasi terakhir lengkap dengan status pergerakan dan nominal, tautan cepat ke semua transaksi, serta tombol aksi `+ Catat Transaksi` dan `Edit Dompet`.
+  - `frontend/src/pages/Wallets.js`:
+    - Merombak area atas menjadi **Liquidity Summary Hero Strip** terpadu: menampilkan Total Aset Kas, Total Tagihan & Utang, dan Kas Bersih Likuid dalam 1 wadah dengan pemisah vertikal elegan.
+    - Menambahkan sub-header penjelas: `Daftar Rekening & Dompet ({count})`.
+    - Kartu dompet kini interaktif (`cursor-pointer group`) yang membuka `WalletDetailModal` ketika diklik, dengan tombol Edit dan Hapus yang terisolasi (`e.stopPropagation()`).
+- **Verifikasi Hasil:**
+  - Hierarki visual halaman Dompet kini sangat jelas dan tidak lagi membingungkan.
+  - Pengguna dapat langsung meninjau 10 mutasi terakhir rekening atau kartu kredit mereka dalam satu sentuhan.
+
 ### [2026-10-02 22:52:00 WIB] — Form Ergonomics & One-Stop Entry Point: Stacked Date/Note Rows & Integrated Receipt Scanner Tab
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Memisahkan field Tanggal dan Catatan ke baris mandiri (full-width) pada modal transaksi untuk kenyamanan penulisan/keterbacaan, menyelaraskan form tagihan, serta mengintegrasikan pemindai struk (Foto Struk / AI OCR) ke dalam modal Tambah Transaksi sebagai satu pintu masuk (*one-stop entry point*).
