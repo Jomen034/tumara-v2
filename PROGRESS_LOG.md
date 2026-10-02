@@ -20,6 +20,38 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-03 00:25:00 WIB] — Comprehensive System Audit: Evaluasi Menyeluruh Seluruh Halaman, Fitur, Modal, & Identifikasi Area Major untuk Peningkatan Selanjutnya
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Melakukan audit menyeluruh (360-degree audit) terhadap seluruh ekosistem aplikasi Tumara v2 (meliputi 10 halaman utama, 9 modal interaktif, komponen navigasi, arsitektur data multi-user, dan alur otentikasi) untuk mengidentifikasi area atau fitur berstatus "MAJOR" yang belum tersentuh atau belum maksimal sebelum rilis produksi penuh.
+- **Hasil Audit Status Halaman & Modal yang Sudah Matang (Completed & Production-Ready):**
+  1. **Beranda / Dashboard (`/dashboard`):** Sudah berstatus Mission Control harian dengan Daily Spend Pulse (batas belanja aman harian), 1-Tap Quick Pay tagihan, Sorotan Tujuan (Goals Spotlight), Net Cash Flow badge (Surplus/Defisit), dan interaktivitas penuh riwayat transaksi.
+  2. **Dompet (`/wallets`):** Tampilan grid dompet, visual batas kredit & pemakaian CC/Paylater, modal detail dompet dengan alur mutasi, modal transfer antar-dompet, dan standarisasi tombol aksi 50:50.
+  3. **Transaksi (`/transactions`):** Multi-filter komprehensif (tipe, periode waktu, custom date range, dompet, kategori, anggota), pencarian live, import & export CSV, serta modal tambah 3 mode (manual, AI prompt cepat, scan struk kamera/upload).
+  4. **Tagihan & Kalender (`/bills`):** Kalender heatmap bulanan interaktif dengan Barometer Kewajiban, multi-bill badge counter (`2`, `3`), navigasi bulan, filter tanggal, dan modal pelunasan instan.
+  5. **Anggaran (`/budget`):** Sistem alokasi 50/30/20, monitor real-time kategori, modal detail budget kategori dengan shortcut catat transaksi, dan wizard perencanaan.
+  6. **Tujuan Menabung (`/goals`):** Kartu progres visual, hitung mundur deadline, setoran dana terhubung pemotongan saldo dompet, riwayat deposit, dan animasi selebrasi pencapaian.
+  7. **Laporan Keuangan (`/reports`):** 4 Hero KPI eksekutif (Net Worth & delta, Net Cash Flow, Savings Rate %, Rata-rata Belanja Harian), grafik Aset vs Utang multi-horizon, Donut kategori, Top 5 pengeluaran terbesar, dan Tabel Kinerja Bulanan tabular.
+  8. **Tumara AI / CFO Pribadi (`/advisor`):** Guardrail domain personal finance ketat, heuristik pre-filter pencegah abuse, arsitektur sesi sementara (*zero database storage*) untuk efisiensi kuota 100% dan privasi penuh.
+- **Temuan Major yang Perlu Ditingkatkan (Identified Major Gaps & Opportunities):**
+  1. **[MAJOR #1] Halaman Rumah Tangga (Household) — Dari "Barebones" Menjadi Pusat Finansial Pasangan:**
+     - *Kondisi Saat Ini:* Tagline utama Tumara adalah "Kelola Keuangan Bareng Pasangan", namun halaman Household saat ini masih sangat minim (hanya 133 baris kode) dan hanya menampilkan daftar nama member serta kode undangan.
+     - *Rekomendasi Peningkatan:*
+       - **Personalisasi Identitas Rumah Tangga:** Fitur ganti nama rumah tangga (misal: "Keluarga Budi & Sarah") dan custom icon emoji (🏠, 🏡, 🌴, ☕, 🚗) oleh Admin.
+       - **Partner Financial Contribution & Split:** Visualisasi kontribusi finansial antar-pasangan bulan berjalan (perbandingan total pengeluaran Kamu vs Pasangan, persentase kontribusi split, dan jumlah pencatatan transaksi masing-masing).
+       - **Mekanisme Keluar Rumah Tangga (Leave Household):** Tombol bagi partner untuk unpair / keluar secara mandiri jika ingin mengelola keuangan pribadi terpisah.
+       - **Household Activity Stream (Linimasa Aktivitas):** Log aktivitas real-time transaksi atau pembayaran tagihan yang dicatat oleh pasangan.
+  2. **[MAJOR #2] Pusat Pengaturan Profil, Akun, & Manajemen Data (Settings / Profile Modal):**
+     - *Kondisi Saat Ini:* Tidak ada halaman atau modal pengaturan akun tersendiri di aplikasi. Pengguna tidak bisa mengubah nama tampilan (`display_name`), tidak ada pusat backup data all-in-one, dan tidak ada fitur "Danger Zone" (Reset Data / Hapus Akun).
+     - *Rekomendasi Peningkatan:*
+       - **Modal Profil & Preferensi:** Memungkinkan pengguna mengubah nama tampilan, avatar, serta melihat email akun.
+       - **Full Data Backup (Export All JSON):** Fitur ekspor komprehensif seluruh data akun (dompet, transaksi, tagihan, tujuan, anggaran) dalam satu file JSON untuk kepastian rasa aman pengguna.
+       - **Danger Zone (Reset Data & Hapus Akun):** Fitur reset seluruh data finansial ke kondisi awal tanpa menghapus akun, serta opsi hapus akun permanen sesuai standar privasi dan kepatuhan GDPR.
+  3. **[MAJOR #3] In-App Notification Center / Alert Drawer (Lonceng Notifikasi):**
+     - *Kondisi Saat Ini:* Notifikasi tagihan darurat (H-3 jatuh tempo) dan peringatan overbudget saat ini hanya terlihat jika user mengunjungi halaman spesifik.
+     - *Rekomendasi Peningkatan:* Menambahkan icon lonceng dengan badge merah di header navigasi yang merangkum tagihan jatuh tempo dalam 3 hari dan anggaran yang menipis (<15%).
+- **Langkah Tindak Lanjut:**
+  - Melaporkan hasil audit komprehensif ini kepada pengguna dan mendiskusikan prioritas implementasi berikutnya (direkomendasikan fokus pada Halaman Rumah Tangga / Household terlebih dahulu).
+
 ### [2026-10-03 00:15:00 WIB] — Dashboard Mission Control: Daily Spend Pulse, 1-Tap Bill Pay, Interactive Recent Txns, Goals Spotlight & Net Cash Flow Badge
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Mengubah Beranda dari sekadar ringkasan angka pasif menjadi "pusat kendali harian" (*daily mission control*) yang sangat berdampak dan membantu pengguna: menghadirkan kartu panduan batas belanja aman hari ini (*Daily Spend Pulse*), tombol bayar 1-tap untuk tagihan darurat/jatuh tempo, interaktivitas penuh pada riwayat transaksi terbaru (buka detail & edit modal seketika), kartu spotlight target tujuan finansial aktif (*Goals Tracker*), serta badge arus kas bersih (*Net Cash Flow*) dengan status surplus/defisit.
