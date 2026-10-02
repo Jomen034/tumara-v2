@@ -392,17 +392,187 @@ async def dashboard(ctx: Ctx = Depends(get_ctx)):
     expense = sum(t["amount"] for t in month_txns if t["type"] == "expense")
     savings_rate = (income - expense) / income if income > 0 else 0
 
-    score = 0
-    score += 25 if net_worth > 0 else max(0, 25 + net_worth / max(assets, 1) * 25)
-    score += min(30, max(0, savings_rate * 100 * 0.6))
-    total_budget = sum(c["limit"] for c in budget["categories"]) if budget else 0
-    if total_budget:
-        adherence = 1 - min(1, expense / total_budget)
-        score += adherence * 25
+    # 1. Solvabilitas & Net Worth (max 25)
+    if assets == 0 and debt == 0:
+        nw_score = 15
+        nw_desc = "Belum ada saldo dompet yang dicatat."
+        nw_status = "neutral"
+    elif net_worth > 0:
+        if debt == 0:
+            nw_score = 25
+            nw_desc = f"Aset positif (Rp {assets:,.0f}) dan bebas dari utang berbunga/paylater.".replace(",", ".")
+            nw_status = "good"
+        else:
+            debt_ratio = debt / assets
+            nw_score = max(10, int(round(25 * (1 - min(1, debt_ratio)))))
+            nw_desc = f"Aset Rp {assets:,.0f} vs Utang Rp {debt:,.0f} (Rasio utang {debt_ratio*100:.1f}%)".replace(",", ".")
+            nw_status = "good" if debt_ratio <= 0.3 else "warning"
     else:
-        score += 8
-    score += 20 if any(g["saved_amount"] > 0 for g in goals) else 5
-    score = int(max(0, min(100, round(score))))
+        nw_score = max(0, int(round(max(0, 25 + (net_worth / max(assets, 1)) * 25))))
+        nw_desc = f"Utang (Rp {debt:,.0f}) melebihi total aset (Rp {assets:,.0f}).".replace(",", ".")
+        nw_status = "danger"
+
+    # 2. Saving rate (max 30)
+    if income > 0:
+        sr_score = min(30, max(0, int(round(savings_rate * 100 * 0.6))))
+        sr_desc = f"Menabung {savings_rate * 100:.1f}% dari pemasukan bulan ini."
+        sr_status = "good" if savings_rate >= 0.2 else "warning" if savings_rate > 0 else "danger"
+    else:
+        sr_score = 0
+        sr_desc = "Belum ada pemasukan yang dicatat bulan ini."
+        sr_status = "neutral"
+
+    # 3. Budget adherence (max 25)
+    total_budget = sum(c["limit"] for c in budget["categories"]) if budget else 0
+    if total_budget > 0:
+        if expense <= total_budget:
+            adherence = 1 - (expense / total_budget)
+            b_score = int(round(15 + adherence * 10))
+            b_desc = f"Pengeluaran aman: Rp {expense:,.0f} dari limit Rp {total_budget:,.0f} ({expense/total_budget*100:.0f}% terpakai).".replace(",", ".")
+            b_status = "good"
+        else:
+            over = expense - total_budget
+            b_score = max(0, int(round(15 - min(15, (over / total_budget) * 15))))
+            b_desc = f"Overbudget Rp {over:,.0f} dari limit Rp {total_budget:,.0f}.".replace(",", ".")
+            b_status = "danger"
+    else:
+        b_score = 10
+        b_desc = "Belum ada anggaran bulanan yang diset untuk membatasi pengeluaran."
+        b_status = "neutral"
+
+    # 4. Goals & Menabung (max 20)
+    has_deposited_goals = any(g.get("saved_amount", 0) > 0 for g in goals)
+    if has_deposited_goals:
+        g_score = 20
+        total_saved = sum(g.get("saved_amount", 0) for g in goals)
+        g_desc = f"Aktif menabung! Total Rp {total_saved:,.0f} tersimpan untuk tujuan finansial.".replace(",", ".")
+        g_status = "good"
+    elif len(goals) > 0:
+        g_score = 10
+        g_desc = "Sudah memiliki tujuan nabung, tapi belum ada setoran tercatat."
+        g_status = "warning"
+    else:
+        g_score = 5
+        g_desc = "Belum membuat tujuan finansial atau dana darurat."
+        g_status = "neutral"
+
+    score = int(max(0, min(100, round(nw_score + sr_score + b_score + g_score))))
+
+    if score >= 80:
+        status_label = "Sangat Sehat"
+        summary_msg = "Kondisi finansial Anda sangat prima! Arus kas, aset, dan tujuan terkelola dengan sangat baik."
+    elif score >= 65:
+        status_label = "Sehat"
+        summary_msg = "Kondisi finansial Anda berada di jalur aman, namun ada beberapa pos yang bisa dioptimalkan lebih lanjut."
+    elif score >= 45:
+        status_label = "Cukup"
+        summary_msg = "Keuangan Anda cukup stabil, namun perlu perhatian ekstra pada alokasi anggaran dan tabungan agar tidak rentan."
+    else:
+        status_label = "Perlu Perhatian"
+        summary_msg = "Kesehatan finansial Anda perlu pembenahan segera, terutama pada rasio utang dan pengelolaan pengeluaran."
+
+    pillars = [
+        {
+            "id": "net_worth",
+            "title": "Solvabilitas & Aset",
+            "score": nw_score,
+            "max": 25,
+            "status": nw_status,
+            "desc": nw_desc
+        },
+        {
+            "id": "savings_rate",
+            "title": "Tingkat Tabungan (Savings Rate)",
+            "score": sr_score,
+            "max": 30,
+            "status": sr_status,
+            "desc": sr_desc
+        },
+        {
+            "id": "budget",
+            "title": "Disiplin Anggaran",
+            "score": b_score,
+            "max": 25,
+            "status": b_status,
+            "desc": b_desc
+        },
+        {
+            "id": "goals",
+            "title": "Komitmen Nabung & Masa Depan",
+            "score": g_score,
+            "max": 20,
+            "status": g_status,
+            "desc": g_desc
+        }
+    ]
+
+    recommendations = []
+    if not budget:
+        recommendations.append({
+            "action_id": "create_budget",
+            "title": "Buat Budget Bulanan",
+            "desc": "Kendalikan pengeluaran dengan limit per kategori agar terhindar dari bocor halus.",
+            "btn_label": "Atur Budget",
+            "target": "/budget",
+            "badge": "Prioritas"
+        })
+    elif total_budget > 0 and expense > total_budget:
+        recommendations.append({
+            "action_id": "review_budget",
+            "title": "Evaluasi Pos Pengeluaran",
+            "desc": f"Pengeluaran bulan ini (Rp {expense:,.0f}) sudah melampaui limit anggaran (Rp {total_budget:,.0f}).".replace(",", "."),
+            "btn_label": "Cek Anggaran",
+            "target": "/budget",
+            "badge": "Peringatan"
+        })
+
+    if income == 0:
+        recommendations.append({
+            "action_id": "add_income",
+            "title": "Catat Pemasukan Bulan Ini",
+            "desc": "Masukkan pemasukan (gaji, bisnis, bonus) agar Tumara dapat mengukur rasio menabungmu.",
+            "btn_label": "Catat Pemasukan",
+            "target": "open_add_income",
+            "badge": "Penting"
+        })
+
+    if not has_deposited_goals:
+        recommendations.append({
+            "action_id": "fund_goal",
+            "title": "Mulai Setor ke Tujuan Nabung",
+            "desc": "Buat atau setor ke pos tujuan menabung untuk memperkuat dana darurat masa depan.",
+            "btn_label": "Buka Tujuan",
+            "target": "/goals",
+            "badge": "Saran"
+        })
+
+    if debt > 0:
+        recommendations.append({
+            "action_id": "reduce_debt",
+            "title": "Kurangi Saldo Utang",
+            "desc": f"Lunasi tagihan kartu kredit atau paylater sebesar Rp {debt:,.0f} untuk memaksimalkan skor.".replace(",", "."),
+            "btn_label": "Cek Dompet",
+            "target": "/wallets",
+            "badge": "Penting"
+        })
+
+    recommendations.append({
+        "action_id": "ask_ai",
+        "title": "Konsultasi Finansial dengan AI",
+        "desc": f"Tanyakan ke Tumara AI strategi personal untuk menaikkan skormu dari {score}/100.",
+        "btn_label": "Tanya Tumara",
+        "target": "/advisor",
+        "badge": "AI Advisor"
+    })
+
+    health_detail = {
+        "score": score,
+        "status_label": status_label,
+        "summary": summary_msg,
+        "pillars": pillars,
+        "recommendations": recommendations,
+        "savings_rate_pct": round(savings_rate * 100, 1),
+    }
 
     cat = {}
     for t in month_txns:
@@ -444,7 +614,7 @@ async def dashboard(ctx: Ctx = Depends(get_ctx)):
     return {
         "net_worth": net_worth, "assets": assets, "debt": debt,
         "income": income, "expense": expense, "savings_rate": savings_rate,
-        "health_score": score, "wallet_count": len(wallets),
+        "health_score": score, "health_detail": health_detail, "wallet_count": len(wallets),
         "category_breakdown": [{"category": k, "amount": v} for k, v in sorted(cat.items(), key=lambda x: -x[1])],
         "budget_status": budget_status,
         "recent_transactions": [annotate(t) for t in txns[:8]],

@@ -10,6 +10,7 @@ import { useTheme } from "../context/ThemeContext";
 import { formatRp, formatShort } from "../lib/format";
 import { catMeta, walletMeta } from "../lib/constants";
 import { Card, Progress, Badge, Spinner, EmptyState, Button } from "../components/ui";
+import FinancialHealthModal from "../components/FinancialHealthModal";
 
 function HealthGauge({ score }) {
   const r = 52, c = 2 * Math.PI * r;
@@ -37,7 +38,17 @@ export default function Dashboard() {
   const { version } = useRefresh();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [healthModalOpen, setHealthModalOpen] = useState(false);
   const navigate = useNavigate();
+
+  const handleHealthAction = (rec) => {
+    setHealthModalOpen(false);
+    if (rec.target === "open_add_income") {
+      openAdd("manual");
+    } else if (rec.target) {
+      navigate(rec.target);
+    }
+  };
 
   const [error, setError] = useState(false);
 
@@ -116,10 +127,20 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        <Card data-testid="health-score-widget" className="flex flex-col items-center justify-center">
-          <p className="text-xs font-semibold text-tmuted uppercase tracking-wider mb-3">Financial Health</p>
+        <Card
+          data-testid="health-score-widget"
+          onClick={() => setHealthModalOpen(true)}
+          className="flex flex-col items-center justify-center cursor-pointer transition-all hover:border-brand/60 active:scale-[0.99] group relative overflow-hidden"
+        >
+          <div className="absolute top-3 right-3 text-tmuted group-hover:text-brand transition-colors" title="Ketuk untuk detail">
+            <Icons.Info size={15} />
+          </div>
+          <p className="text-xs font-semibold text-tmuted uppercase tracking-wider mb-2">Financial Health</p>
           <HealthGauge score={data.health_score} />
-          <p className="text-xs text-tsecondary mt-3 text-center">Skor berdasarkan net worth, saving rate & budget.</p>
+          <p className="text-xs text-tsecondary mt-2 text-center">Skor berdasarkan net worth, saving rate & budget.</p>
+          <span className="text-[11px] font-semibold text-brand flex items-center gap-1 mt-2.5 group-hover:gap-1.5 transition-all">
+            Lihat Analisis & Rekomendasi <ArrowRight size={12} />
+          </span>
         </Card>
       </div>
 
@@ -250,6 +271,14 @@ export default function Dashboard() {
           </Card>
         )}
       </div>
+
+      {/* Financial Health Diagnostic Modal */}
+      <FinancialHealthModal
+        open={healthModalOpen}
+        onClose={() => setHealthModalOpen(false)}
+        data={data.health_detail}
+        onAction={handleHealthAction}
+      />
     </div>
   );
 }
