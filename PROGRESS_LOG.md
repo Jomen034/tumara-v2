@@ -20,7 +20,18 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
-### [2026-10-04 01:46:00 WIB] — Preserve Factual Transaction Dates, Restore Ledger Accounting Integrity, and Deliver Monthly Budget Navigation in Tumara
+### [2026-10-04 01:48:00 WIB] — Hotfix ESLint Build Errors in Budget.js (Restore autoBalancing State and currentMonthName Alias)
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menyelesaikan error kompilasi ESLint pada Vercel build (`setAutoBalancing`, `autoBalancing`, dan `currentMonthName` reported as undefined in `Budget.js`).
+- **Key Actions & Changes:**
+  - `frontend/src/pages/Budget.js`:
+    - Mengembalikan deklarasi state `const [autoBalancing, setAutoBalancing] = useState(false);`.
+    - Menetapkan alias `const currentMonthName = activeMonthName;` agar seluruh referensi nama bulan dinamis selaras tanpa variabel tak terdefinisi.
+- **Verifikasi Hasil:**
+  - Seluruh identifier diverifikasi eksistensinya dan tervalidasi via Node.js script.
+  - Perubahan siap di-deploy ke Vercel.
+
+---
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menjaga integritas pembukuan akuntansi dengan mempertahankan tanggal transaksi faktual (struk Grand Lucky tetap di 24 September 2026), menghapus seluruh logika pemaksaan mutasi tanggal sepihak (*unilateral date mutation*), menyesuaikan scanner struk agar default ke tanggal asli kertas struk, serta menghadirkan fitur **Month Navigator** interaktif di halaman Budget (`<` Prev, Month Year, `>` Next, `Bulan Ini`) sehingga pengguna dapat meninjau realisasi budget bulan lalu (September 2026) maupun bulan berjalan (Oktober 2026) secara transparan dan akurat.
 - **Latar Belakang & Analisa Solusi:**

@@ -91,6 +91,7 @@ export default function Budget() {
   const [editIncomeOpen, setEditIncomeOpen] = useState(false);
   const [incomeInput, setIncomeInput] = useState("");
   const [savingIncome, setSavingIncome] = useState(false);
+  const [autoBalancing, setAutoBalancing] = useState(false);
   const now = new Date();
   const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const [selectedMonth, setSelectedMonth] = useState(currentMonthStr);
@@ -541,6 +542,7 @@ export default function Budget() {
     "Juli", "Agustus", "September", "Oktober", "November", "Desember",
   ];
   const activeMonthName = monthNames[selectedMonthNum - 1];
+  const currentMonthName = activeMonthName;
   const safeDailyTotal = daysLeft > 0 ? Math.round(totalRemaining / daysLeft) : 0;
 
   const prevMonth = () => {
