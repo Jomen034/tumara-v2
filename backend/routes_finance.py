@@ -233,6 +233,11 @@ async def _new_txn(ctx: Ctx, data: dict) -> Transaction:
 @router.post("/transactions")
 async def create_transaction(body: TransactionCreate, ctx: Ctx = Depends(get_ctx)):
     t = await _new_txn(ctx, body.model_dump())
+    if t.goal_id and t.source != "goal_deposit":
+        await db.goals.update_one(
+            {"id": t.goal_id, "household_id": ctx.hid},
+            {"$inc": {"saved_amount": float(t.amount)}}
+        )
     await _snapshot_networth(ctx.hid)
     out = t.model_dump()
     out["household_id"] = ctx.hid

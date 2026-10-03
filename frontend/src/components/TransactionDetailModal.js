@@ -20,10 +20,24 @@ export default function TransactionDetailModal({
 
   if (!t) return null;
 
-  const m = catMeta(t.category);
-  const Ic = Icons[m.icon] || Icons.MoreHorizontal;
+  const [goalTitle, setGoalTitle] = useState("");
+  useEffect(() => {
+    if (t?.goal_id) {
+      api.get("/goals")
+        .then((r) => {
+          const found = r.data?.find((g) => g.id === t.goal_id);
+          if (found) setGoalTitle(`${found.emoji || "🎯"} ${found.title}`);
+        })
+        .catch(() => {});
+    } else {
+      setGoalTitle("");
+    }
+  }, [t?.goal_id]);
+
   const isIncome = t.type === "income";
   const isTransfer = t.type === "transfer";
+  const m = catMeta(isTransfer ? "Transfer" : t.category, t.type);
+  const Ic = isTransfer ? Icons.ArrowLeftRight : (Icons[m.icon] || Icons.MoreHorizontal);
 
   const walletFrom = wallets.find((w) => w.id === t.wallet_id);
   const walletTo = wallets.find((w) => w.id === t.to_wallet_id);
@@ -134,7 +148,7 @@ export default function TransactionDetailModal({
                 Terkait Tujuan
               </span>
               <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-brand/15 text-brand flex items-center gap-1">
-                🎯 Terhubung ke Nabung
+                {goalTitle || "🎯 Terhubung ke Nabung"}
               </span>
             </div>
           )}

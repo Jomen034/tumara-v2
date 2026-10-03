@@ -13,11 +13,12 @@ import {
   UploadCloud,
   ScanLine,
   RotateCcw,
+  Target,
 } from "lucide-react";
 import clsx from "clsx";
 import api from "../lib/api";
 import { CATEGORIES, catMeta } from "../lib/constants";
-import { formatRp } from "../lib/format";
+import { formatRp, formatShort } from "../lib/format";
 import { Modal, Button, Input, Select, Spinner } from "./ui";
 
 const TYPES = [
@@ -40,6 +41,8 @@ export default function AddTransactionModal({
   initialCategory,
 }) {
   const [wallets, setWallets] = useState([]);
+  const [goals, setGoals] = useState([]);
+  const [goalId, setGoalId] = useState("");
   const [mode, setMode] = useState(initialMode);
   const [type, setType] = useState("expense");
   const [amount, setAmount] = useState("");
@@ -82,17 +85,21 @@ export default function AddTransactionModal({
     resetScan();
     setAiText("");
     setDraft(null);
-    api.get("/wallets").then((r) => {
-      setWallets(r.data);
-      if (r.data[0]) setWalletId(r.data[0].id);
-      if (r.data[1]) setToWalletId(r.data[1].id);
-    });
+    Promise.all([api.get("/wallets"), api.get("/goals")])
+      .then(([rw, rg]) => {
+        setWallets(rw.data || []);
+        setGoals(rg.data || []);
+        if (rw.data?.[0]) setWalletId(rw.data[0].id);
+        if (rw.data?.[1]) setToWalletId(rw.data[1].id);
+      })
+      .catch(() => {});
   }, [open, initialMode]);
 
   const resetForm = () => {
     setType("expense");
     setAmount("");
     setCategory(initialCategory || "Groceries & Kebutuhan Rumah");
+    setGoalId("");
     setNote("");
     setDate(new Date().toISOString().slice(0, 10));
     setSubItemsDraft(null);
@@ -290,9 +297,14 @@ export default function AddTransactionModal({
         note,
         date,
         source: draft ? (draft.source || "ai_text") : "manual",
+        goal_id: (type === "expense" || type === "transfer") && goalId ? goalId : undefined,
         items: subItemsDraft && subItemsDraft.length > 0 ? subItemsDraft : undefined,
       });
-      toast.success("Transaksi tersimpan!");
+      toast.success(
+        goalId
+          ? "Transaksi tersimpan & progres tabungan bertambah! 🎯"
+          : "Transaksi tersimpan!"
+      );
       onSaved?.();
       onClose();
     } catch {
@@ -781,6 +793,59 @@ export default function AddTransactionModal({
                 </option>
               ))}
             </Select>
+          )}
+
+          {/* Tautkan ke Tujuan Finansial (Opsional) */}
+          {goals.length > 0 && (type === "expense" || type === "transfer") && (
+            <div className="space-y-1.5 p-3 rounded-2xl bg-surface border border-borderc">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-tprimary flex items-center gap-1.5">
+                  <Target size={14} className="text-brand" />
+                  Alokasikan ke Tujuan Finansial
+                  <span className="text-[10px] text-tmuted font-normal">(Opsional)</span>
+                </label>
+                {goalId && (
+                  <button
+                    type="button"
+                    onClick={() => setGoalId("")}
+                    className="text-[11px] text-rose font-medium hover:underline"
+                  >
+                    Batal tautkan
+                  </button>
+                )}
+              </div>
+              <Select
+                value={goalId}
+                onChange={(e) => {
+                  const gid = e.target.value;
+                  setGoalId(gid);
+                  if (gid) {
+                    const matchedGoal = goals.find((g) => g.id === gid);
+                    if (type === "expense" && category === "Groceries & Kebutuhan Rumah") {
+                      setCategory("Investasi");
+                    }
+                    if (!note.trim() && matchedGoal) {
+                      setNote(`Nabung: ${matchedGoal.title}`);
+                    }
+                  }
+                }}
+                className={goalId ? "border-brand/60 bg-brand/5" : ""}
+                data-testid="txn-goal-select"
+              >
+                <option value="">— Tidak ditautkan ke tujuan —</option>
+                {goals.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.emoji || "🎯"} {g.title} (Target: {formatShort(g.target_amount)})
+                  </option>
+                ))}
+              </Select>
+              {goalId && (
+                <p className="text-[11px] text-brand flex items-center gap-1 pt-0.5">
+                  <Check size={12} className="shrink-0" />
+                  Progres target tujuan ini akan otomatis bertambah sebesar nominal transaksi.
+                </p>
+              )}
+            </div>
           )}
 
           {/* Tanggal: Full-width dedicated row */}

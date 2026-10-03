@@ -20,6 +20,33 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-04 01:25:00 WIB] — Bidirectional Goal-Transaction Synchronization: Direct Financial Goal Allocation from Quick Add & Edit Modals with Real-Time Progress Updates
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menghubungkan secara dua arah (*bidirectional sync*) antara pencatatan transaksi biasa (`+ Transaksi`) dengan kartu Tujuan Finansial (*Financial Goals*). Pengguna kini dapat mencatat mutasi transfer (misal BCA ➔ Bibit) atau pengeluaran investasi dari mana saja, memilih tujuan finansial yang ditautkan, dan sistem secara otomatis memperbarui progres tabungan tujuan, mutasi saldo dompet, serta riwayat setoran tujuan secara konsisten dan real-time.
+- **Latar Belakang & Analisa Masalah:**
+  - Sebelumnya, penambahan progres tabungan tujuan hanya dapat dilakukan melalui tombol *"Setor"* di halaman Tujuan (`Goals.js`).
+  - Ketika pengguna mencatat transaksi via tombol cepat `+ Transaksi` di navbar atau FAB (misalnya transfer ke Bibit untuk Pendidikan Anak), tidak ada opsi untuk menautkan transaksi tersebut ke kartu Tujuan. Akibatnya, transaksi tercatat namun progres kartu Tujuan tidak bertambah, memaksa pengguna bolak-balik mengedit progres secara manual di halaman Tujuan.
+- **Key Actions & Changes:**
+  - `backend/routes_finance.py`:
+    - Memperbarui `create_transaction`: saat transaksi dibuat (`POST /transactions`) dengan membawa `goal_id` (dan sumber bukan duplikasi `goal_deposit`), backend otomatis meng-increment `saved_amount` pada kartu Tujuan (`db.goals.update_one({"id": t.goal_id}, {"$inc": {"saved_amount": float(t.amount)}})`).
+    - Memastikan konsistensi penuh pada `update_transaction` (yang membalikkan progres tujuan lama dan menambah ke tujuan baru) serta `delete_transaction` (yang otomatis memotong balik progres tujuan jika transaksi terkait dihapus).
+  - `frontend/src/components/AddTransactionModal.js`:
+    - Mengintegrasikan pemanggilan API `/goals` saat modal dibuka.
+    - Menambahkan komponen selektor interaktif: **"Alokasikan ke Tujuan Finansial (Opsional)"** dengan ikon target `🎯` untuk tipe pengeluaran maupun transfer.
+    - Menghadirkan *smart auto-completion*: jika tujuan dipilih saat kategori masih default, kategori otomatis diset ke `"Investasi"`, dan catatan otomatis diisi `"Nabung: [Nama Tujuan]"`.
+    - Menampilkan konfirmasi visual hijau terang: *"✓ Progres target tujuan ini akan otomatis bertambah sebesar nominal transaksi."*
+    - Mengirimkan `goal_id` ke payload backend dan menampilkan toast sukses khusus: *"Transaksi tersimpan & progres tabungan bertambah! 🎯"*.
+  - `frontend/src/components/EditTransactionModal.js`:
+    - Menambahkan pemanggilan `/goals` dan selektor tujuan yang sama, memungkinkan pengguna menautkan, mengganti, atau membatalkan tautan tujuan pada transaksi yang sudah ada.
+  - `frontend/src/components/TransactionDetailModal.js`:
+    - Menyelaraskan detail transaksi: jika transaksi memiliki `goal_id`, sistem mengambil data tujuan dan menampilkan nama tujuan secara lengkap (`🎯 {goalTitle}`) bukan sekadar label generik.
+- **Verifikasi Hasil:**
+  - Sintaks JavaScript / JSX diverifikasi via Node.js: seluruh berkas lolos uji keseimbangan tanda kurung (*balanced brackets* 100%).
+  - Sintaks Python backend diverifikasi via `python3 -m py_compile`: semua file backend lolos tanpa peringatan atau eror.
+  - Transaksi yang ditautkan ke Tujuan kini otomatis berlabel `🎯 Nabung`, langsung menggerakkan persentase target tabungan, dan muncul di tab riwayat kartu tujuan.
+
+---
+
 ### [2026-10-04 01:15:00 WIB] — Comprehensive UI/UX Proportion Overhaul: Mobile Truncation Resolution, First-Class Transfer Categorization, Balanced Financial Liquidity Cards, and Responsive Widget Harmonization
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menyelesaikan isu proporsi elemen antarmuka, pemotongan teks agresif pada orientasi layar vertikal (portrait) hp, kartu yang tidak seimbang di halaman Laporan & Dompet, serta menaikkan status transaksi jenis "Transfer" menjadi kategori kelas satu (first-class citizen) dengan aksen Cyan dan ikon `ArrowLeftRight` (menggantikan fallback kategori "Lainnya" abu-abu).

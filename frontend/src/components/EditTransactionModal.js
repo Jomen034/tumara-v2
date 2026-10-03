@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Check, X } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Check, X, Target } from "lucide-react";
 import clsx from "clsx";
 import api from "../lib/api";
 import { CATEGORIES } from "../lib/constants";
+import { formatShort } from "../lib/format";
 import { Modal, Button, Input, Select } from "./ui";
 
 const TYPES = [
@@ -13,6 +14,8 @@ const TYPES = [
 ];
 
 export default function EditTransactionModal({ open, onClose, transaction: t, wallets = [], onSaved }) {
+  const [goals, setGoals] = useState([]);
+  const [goalId, setGoalId] = useState("");
   const [type, setType] = useState("expense");
   const [amount, setAmount] = useState("");
   const [walletId, setWalletId] = useState("");
@@ -29,8 +32,10 @@ export default function EditTransactionModal({ open, onClose, transaction: t, wa
     setWalletId(t.wallet_id || (wallets[0]?.id || ""));
     setToWalletId(t.to_wallet_id || (wallets[1]?.id || ""));
     setCategory(t.category || "Groceries & Kebutuhan Rumah");
+    setGoalId(t.goal_id || "");
     setNote(t.note || "");
     setDate(t.date || (t.created_at ? t.created_at.slice(0, 10) : new Date().toISOString().slice(0, 10)));
+    api.get("/goals").then((r) => setGoals(r.data || [])).catch(() => {});
   }, [open, t, wallets]);
 
   const save = async () => {
@@ -58,8 +63,13 @@ export default function EditTransactionModal({ open, onClose, transaction: t, wa
             : category,
         note,
         date,
+        goal_id: (type === "expense" || type === "transfer") && goalId ? goalId : null,
       });
-      toast.success("Perubahan transaksi berhasil disimpan!");
+      toast.success(
+        goalId
+          ? "Perubahan transaksi berhasil & progres tujuan disesuaikan! 🎯"
+          : "Perubahan transaksi berhasil disimpan!"
+      );
       onSaved?.();
       onClose();
     } catch (err) {
@@ -164,6 +174,53 @@ export default function EditTransactionModal({ open, onClose, transaction: t, wa
               </option>
             ))}
           </Select>
+        )}
+
+        {/* Tautkan ke Tujuan Finansial (Opsional) */}
+        {goals.length > 0 && (type === "expense" || type === "transfer") && (
+          <div className="space-y-1.5 p-3 rounded-2xl bg-surface border border-borderc">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-tprimary flex items-center gap-1.5">
+                <Target size={14} className="text-brand" />
+                Alokasikan ke Tujuan Finansial
+                <span className="text-[10px] text-tmuted font-normal">(Opsional)</span>
+              </label>
+              {goalId && (
+                <button
+                  type="button"
+                  onClick={() => setGoalId("")}
+                  className="text-[11px] text-rose font-medium hover:underline"
+                >
+                  Batal tautkan
+                </button>
+              )}
+            </div>
+            <Select
+              value={goalId}
+              onChange={(e) => {
+                const gid = e.target.value;
+                setGoalId(gid);
+                if (gid && type === "expense" && category === "Groceries & Kebutuhan Rumah") {
+                  setCategory("Investasi");
+                }
+              }}
+              className={goalId ? "border-brand/60 bg-brand/5" : ""}
+              data-testid="edit-txn-goal-select"
+            >
+              <option value="">— Tidak ditautkan ke tujuan —</option>
+              {goals.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.emoji || "🎯"} {g.title} (Target: {formatShort(g.target_amount)})
+                </option>
+              ))}
+            </Select>
+            {goalId && (
+              <p className="text-[11px] text-brand flex items-center gap-1 pt-0.5">
+                <Check size={12} className="shrink-0" />
+                Progres target tujuan ini akan otomatis diselaraskan dengan transaksi ini.
+              </p>
+            )}
+          </div>
         )}
 
         {/* Date: Dedicated full-width row */}
