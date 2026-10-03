@@ -22,7 +22,7 @@ import clsx from "clsx";
 import api from "../lib/api";
 import { useRefresh } from "../context/RefreshContext";
 import { useTheme } from "../context/ThemeContext";
-import { formatRp } from "../lib/format";
+import { formatRp, formatDateGroup } from "../lib/format";
 import { CATEGORIES } from "../lib/constants";
 import { Card, Button, Spinner, EmptyState, Modal } from "../components/ui";
 import { TxnRow } from "./Dashboard";
@@ -224,12 +224,29 @@ export default function Transactions() {
     setCustomEnd("");
   };
 
-  // Group by date
-  const groups = {};
-  filtered.forEach((t) => {
-    (groups[t.date] = groups[t.date] || []).push(t);
+  // Sort filtered strictly from newest to oldest by transaction date, with created_at as tie-breaker
+  const sortedFiltered = [...filtered].sort((a, b) => {
+    const dateA = a.date || (a.created_at ? a.created_at.slice(0, 10) : "");
+    const dateB = b.date || (b.created_at ? b.created_at.slice(0, 10) : "");
+    if (dateA !== dateB) {
+      return dateB.localeCompare(dateA); // newest date first
+    }
+    const timeA = a.created_at || "";
+    const timeB = b.created_at || "";
+    return timeB.localeCompare(timeA); // newest created_at first within same date
   });
-  const dates = Object.keys(groups).sort().reverse();
+
+  // Group by normalized date key (YYYY-MM-DD)
+  const groups = {};
+  sortedFiltered.forEach((t) => {
+    const dKey = t.date
+      ? t.date.slice(0, 10)
+      : t.created_at
+      ? t.created_at.slice(0, 10)
+      : "Lainnya";
+    (groups[dKey] = groups[dKey] || []).push(t);
+  });
+  const dates = Object.keys(groups).sort((a, b) => b.localeCompare(a));
   const isShared = members.length > 1;
 
   // Filtered sums
@@ -534,27 +551,37 @@ export default function Transactions() {
         </Card>
       ) : (
         <div className="space-y-5" data-testid="transactions-list">
-          {dates.map((d) => (
-            <div key={d}>
-              <p className="text-xs font-semibold text-tmuted uppercase tracking-wider mb-2 px-1">
-                {d}
-              </p>
-              <Card className="divide-y divide-[color:var(--border)] p-0 overflow-hidden">
-                {groups[d].map((t) => (
-                  <TxnRow
-                    key={t.id}
-                    t={t}
-                    privacy={privacy}
-                    onDelete={del}
-                    onEdit={(txn) => setEditingTxn(txn)}
-                    onSelect={(txn) => setSelectedTxn(txn)}
-                    memberMap={memberMap}
-                    walletMap={walletMap}
-                  />
-                ))}
-              </Card>
-            </div>
-          ))}
+          {dates.map((d) => {
+            const isDifferentYear = d.length >= 4 && d.slice(0, 4) !== String(currentYear);
+            return (
+              <div key={d}>
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <p className="text-xs font-semibold text-tmuted tracking-wide">
+                    {formatDateGroup(d)}
+                  </p>
+                  {isDifferentYear && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber/15 text-amber border border-amber/30">
+                      Tahun {d.slice(0, 4)}
+                    </span>
+                  )}
+                </div>
+                <Card className="divide-y divide-[color:var(--border)] p-0 overflow-hidden">
+                  {groups[d].map((t) => (
+                    <TxnRow
+                      key={t.id}
+                      t={t}
+                      privacy={privacy}
+                      onDelete={del}
+                      onEdit={(txn) => setEditingTxn(txn)}
+                      onSelect={(txn) => setSelectedTxn(txn)}
+                      memberMap={memberMap}
+                      walletMap={walletMap}
+                    />
+                  ))}
+                </Card>
+              </div>
+            );
+          })}
         </div>
       )}
 

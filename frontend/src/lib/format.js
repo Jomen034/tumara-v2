@@ -34,3 +34,44 @@ export const monthLabel = (ym) => {
   const names = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
   return `${names[parseInt(m, 10) - 1]} ${y.slice(2)}`;
 };
+
+export const formatDateGroup = (d) => {
+  if (!d || d === "Lainnya") return "Lainnya";
+  try {
+    const parts = d.split("-");
+    if (parts.length === 3) {
+      const year = Number(parts[0]);
+      const month = Number(parts[1]) - 1;
+      const day = Number(parts[2]);
+      const dateObj = new Date(year, month, day);
+
+      const today = new Date();
+      const isToday =
+        dateObj.getDate() === today.getDate() &&
+        dateObj.getMonth() === today.getMonth() &&
+        dateObj.getFullYear() === today.getFullYear();
+
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
+      const isYesterday =
+        dateObj.getDate() === yesterday.getDate() &&
+        dateObj.getMonth() === yesterday.getMonth() &&
+        dateObj.getFullYear() === yesterday.getFullYear();
+
+      const formatted = dateObj.toLocaleDateString("id-ID", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+
+      if (isToday) return `Hari ini · ${formatted}`;
+      if (isYesterday) return `Kemarin · ${formatted}`;
+      return formatted;
+    }
+    return formatDate(d);
+  } catch {
+    return d;
+  }
+};
+

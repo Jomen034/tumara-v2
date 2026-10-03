@@ -24,7 +24,7 @@ import clsx from "clsx";
 import api from "../lib/api";
 import { useRefresh } from "../context/RefreshContext";
 import { useTheme } from "../context/ThemeContext";
-import { formatRp, formatShort } from "../lib/format";
+import { formatRp, formatShort, formatDate } from "../lib/format";
 import { catMeta, walletMeta } from "../lib/constants";
 import { Card, Progress, Badge, Spinner, EmptyState, Button } from "../components/ui";
 import FinancialHealthModal from "../components/FinancialHealthModal";
@@ -671,7 +671,7 @@ export function TxnRow({ t, privacy, onDelete, onEdit, onSelect, memberMap, wall
           {mem && <img src={getUserAvatar(mem)} alt="" title={mem.name} className="w-4 h-4 rounded-full object-cover inline-block shrink-0 shadow-sm" />}
           {walletLabel && <span className="font-semibold text-tsecondary">{walletLabel} ·</span>}
           <span>{isTransfer ? "Transfer" : t.category}</span>
-          <span>· {t.date}</span>
+          <span>· {formatDate(t.date) || t.date}</span>
         </p>
       </div>
       <span className={`font-mono text-sm font-semibold shrink-0 ${privacy ? "privacy-blur" : ""} ${isIncome ? "text-brand" : isTransfer ? "text-cyan" : "text-rose"}`}>

@@ -234,6 +234,8 @@ RECEIPT_PROMPT = (
     "4. 'Kesehatan': Obat-obatan, vitamin, suplemen, masker medis, transaksi apotek/klinik.\n"
     "5. 'Transportasi': Bensin/SPBU (Pertamina, Shell, BP), parkir, tol, tiket perjalanan, ojol.\n"
     "6. 'Tagihan & Utilitas': Pembayaran listrik, air, internet/wifi, pulsa, IPL.\n\n"
+    "ATURAN TANGGAL:\n"
+    "- Ekstrak tanggal transaksi struk secara akurat dalam format 'YYYY-MM-DD'. Perhatikan penulisan tahun (misal: 24-Sep-2026 atau 27/09/24 -> 2024-09-27 atau 2026-09-24). Jika tahun ditulis 2 digit (misal '26' atau '24'), konversikan ke 4 digit tahun 2000-an ('2026' atau '2024'). Jika tanggal tidak tertera pada struk, kembalikan null.\n\n"
     "ATURAN HARGA:\n"
     "- Harga per item (price) dan total harus berupa angka integer murni tanpa titik atau koma ribuan (contoh: 107978 bukan 107.978). "
     "Jika ada desimal, bulatkan ke bilangan bulat terdekat.\n"

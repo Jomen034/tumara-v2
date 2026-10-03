@@ -20,6 +20,37 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-04 00:45:00 WIB] — Enforcing Strict Transaction Date Chronological Ordering (Newest First) & Localized Date Headers with Multi-Year Visual Clarification
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menyelaraskan dan menegakkan urutan penayangan transaksi secara mutlak dari **terbaru ke terlama (descending)** di seluruh aplikasi (Halaman Transaksi, Dashboard Beranda "Transaksi Terbaru", dan Modal Detail Dompet "10 Mutasi Terakhir") berdasarkan **tanggal transaksi riil (`date` / trx date)**, dengan `created_at` sebagai tie-breaker intra-hari untuk transaksi pada tanggal yang sama. Menghilangkan ilusi tanggal terbalik antara tahun yang berbeda (misal `2026-09-24` vs `2024-09-27`) melalui header tanggal lokal Bahasa Indonesia yang ramah dan badge pembeda tahun lampau.
+- **Latar Belakang & Analisa Masalah:**
+  - Pengguna melihat feed transaksi dengan urutan grup tanggal:
+    - `2026-10-01` (Gocar, Makan siang padang, Top up Gopay)
+    - `2026-09-24` (GrandLucky 39 item)
+    - `2024-09-27` (harlan + holden coffee)
+  - Secara sekilas mata pada teks monospace abu-abu `YYYY-MM-DD`, pengguna melihat angka "24" berada di atas angka "27" pada bulan September, sehingga tampak seperti urutan yang keliru/terbalik jika tahunnya tidak terbaca seksama (padahal yang satu adalah tahun 2026 dan yang satu lagi adalah 2024, selisih 2 tahun!).
+  - Selain itu, ditemukan inkonsistensi query mendasar:
+    - Di endpoint `/dashboard` (`backend/routes_finance.py`), query `recent_transactions` sebelumnya menggunakan `.sort("created_at", -1)`. Akibatnya, struk lama yang baru saja di-scan atau diinput hari ini justru melompat ke posisi teratas di Beranda, tidak konsisten dengan Halaman Transaksi yang berbasis `date`.
+    - Di `frontend/src/pages/Transactions.js`, array `filtered` tidak di-sort secara eksplisit di JavaScript sebelum dikelompokkan ke `groups[t.date]`, serta format tanggal grup hanya string mentah `d` tanpa pelindung fallback untuk tanggal undefined.
+- **Key Actions & Changes:**
+  - `backend/routes_finance.py`:
+    - Mengubah query `dashboard` dari `.sort("created_at", -1)` menjadi `.sort([("date", -1), ("created_at", -1)])`, memastikan "Transaksi Terbaru" di Beranda 100% selaras dengan tanggal transaksi sebenarnya.
+    - Mengubah `list_goal_transactions` dan `export_transactions` agar konsisten menyertakan sort `[("date", -1), ("created_at", -1)]`.
+  - `backend/ai_service.py`:
+    - Menambahkan `ATURAN TANGGAL` pada `RECEIPT_PROMPT`: mewajibkan AI OCR membaca tahun secara akurat (konversi format 2-digit tahun 2000-an seperti '26' -> '2026', '24' -> '2024') untuk mencegah kesalahan deteksi tahun pada struk fisik.
+  - `frontend/src/lib/format.js`:
+    - Menambahkan helper `formatDateGroup(d)`: mengonversi string tanggal `YYYY-MM-DD` menjadi format Bahasa Indonesia yang natural (`Kamis, 1 Okt 2026`), dengan pengenalan pintar `Hari ini · ...` dan `Kemarin · ...`.
+  - `frontend/src/pages/Transactions.js`:
+    - Melakukan pre-sorting eksplisit pada array `filtered` dari terbaru ke terlama (`dateB.localeCompare(dateA)`), dengan `created_at` descending sebagai tie-breaker intra-hari untuk transaksi di hari yang sama.
+    - Normalisasi pengelompokan tanggal (`t.date?.slice(0, 10)` dengan fallback aman ke `created_at` atau `"Lainnya"`).
+    - Memperbarui tampilan header grup tanggal dengan `formatDateGroup(d)` dan menambahkan badge visual khusus `Tahun {YYYY}` (misal: `Tahun 2024` warna amber) jika transaksi berasal dari tahun selain tahun berjalan, sehingga pengguna langsung memahami dengan jelas konteks tahun lampau.
+  - `frontend/src/pages/Dashboard.js` (`TxnRow`) & `frontend/src/components/WalletDetailModal.js`:
+    - Memperbarui penayangan tanggal sub-baris transaksi dengan `formatDate(t.date)` yang rapi dan konsisten (`1 Okt 2026`, `24 Sep 2026`, `27 Sep 2024`).
+    - Memastikan daftar 10 mutasi dompet terurut mutlak `(date DESC, created_at DESC)`.
+- **Verifikasi:**
+  - Kompilasi Python syntax backend 100% sukses tanpa error.
+  - Keseimbangan kurung/braket frontend tervalidasi 0 delta.
+
 ### [2026-10-03 23:05:00 WIB] — Full Implementation of the Hybrid Parent-Child Transaction Model ("Detail Sub-Items"): Clean Wallet Ledger with Granular Multi-Category Budget Distribution & Itemized Inspection
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Mengimplementasikan secara menyeluruh arsitektur transaksi hibrida "Parent Transaksi + Child Sub-Items" untuk hasil pemindaian struk belanja (AI Receipt Scan). Solusi ini menggabungkan keunggulan 1 mutasi bank/dompet yang rapi dan bebas banjir feed riwayat (mencegah clutter dari 39 baris belanjaan supermarket) dengan presisi pelacakan multi-kategori anggaran 50/30/20, pencarian granular nama barang di database, live breakdown preview kategori sebelum disimpan, serta modal inspeksi detail belanjaan yang interaktif dan nyaman.

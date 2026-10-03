@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import api from "../lib/api";
-import { formatRp } from "../lib/format";
+import { formatRp, formatDate } from "../lib/format";
 import { walletMeta, catMeta } from "../lib/constants";
 import { useTheme } from "../context/ThemeContext";
 import { Modal, Button, Badge, Progress, Spinner, EmptyState } from "./ui";
@@ -57,7 +57,12 @@ export default function WalletDetailModal({
   const utilColor =
     utilPct > 70 ? "var(--rose)" : utilPct > 30 ? "#F59E0B" : "var(--brand)";
 
-  const recentTxns = detail?.recent_transactions || [];
+  const recentTxns = [...(detail?.recent_transactions || [])].sort((a, b) => {
+    const dA = a.date || (a.created_at ? a.created_at.slice(0, 10) : "");
+    const dB = b.date || (b.created_at ? b.created_at.slice(0, 10) : "");
+    if (dA !== dB) return dB.localeCompare(dA);
+    return (b.created_at || "").localeCompare(a.created_at || "");
+  });
   const flow = detail?.monthly_flow || { inflow: 0, outflow: 0, net: 0 };
   const txnCount = detail?.transaction_count || 0;
 
@@ -261,7 +266,7 @@ export default function WalletDetailModal({
                           {t.note || t.category}
                         </p>
                         <p className="text-[11px] text-tmuted truncate mt-0.5">
-                          <span>{t.date}</span> · <span>{t.category}</span>
+                          <span>{formatDate(t.date) || t.date}</span> · <span>{t.category}</span>
                         </p>
                       </div>
                     </div>

@@ -303,7 +303,7 @@ async def delete_transaction(txn_id: str, ctx: Ctx = Depends(get_ctx)):
 # ---------------- CSV Export / Import ----------------
 @router.get("/transactions/export")
 async def export_transactions(ctx: Ctx = Depends(get_ctx)):
-    txns = await db.transactions.find({"household_id": ctx.hid}, {"_id": 0}).sort("date", -1).to_list(5000)
+    txns = await db.transactions.find({"household_id": ctx.hid}, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(5000)
     wallets = {w["id"]: w["name"] for w in await db.wallets.find({"household_id": ctx.hid}, {"_id": 0}).to_list(500)}
     members = {m["user_id"]: m["name"] for m in await household_members(ctx.hid)}
     buf = io.StringIO()
@@ -661,7 +661,7 @@ async def get_goal_detail(goal_id: str, ctx: Ctx = Depends(get_ctx)):
 
 @router.get("/goals/{goal_id}/transactions")
 async def list_goal_transactions(goal_id: str, ctx: Ctx = Depends(get_ctx)):
-    return await db.transactions.find({"household_id": ctx.hid, "goal_id": goal_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return await db.transactions.find({"household_id": ctx.hid, "goal_id": goal_id}, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(100)
 
 
 @router.delete("/goals/{goal_id}")
@@ -678,7 +678,7 @@ async def dashboard(ctx: Ctx = Depends(get_ctx)):
     hid = ctx.hid
     wallets = await db.wallets.find({"household_id": hid}, {"_id": 0}).to_list(500)
     month = _month()
-    txns = await db.transactions.find({"household_id": hid}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    txns = await db.transactions.find({"household_id": hid}, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(1000)
     budget = await db.budgets.find_one({"household_id": hid, "month": month}, {"_id": 0})
     goals = await db.goals.find({"household_id": hid}, {"_id": 0}).to_list(200)
     members = await household_members(hid)
