@@ -1,16 +1,28 @@
 export const CATEGORIES = [
-  { name: "Groceries & Kebutuhan Rumah", icon: "ShoppingCart", color: "#10B981" },
-  { name: "Makanan & Minuman", icon: "UtensilsCrossed", color: "#FF7A45" },
-  { name: "Transportasi", icon: "Car", color: "#38BDF8" },
-  { name: "Belanja", icon: "ShoppingBag", color: "#E879F9" },
-  { name: "Tagihan & Utilitas", icon: "ReceiptText", color: "#FBBF24" },
-  { name: "Hiburan", icon: "Gamepad2", color: "#A78BFA" },
-  { name: "Kesehatan", icon: "HeartPulse", color: "#FB7185" },
-  { name: "Pendidikan", icon: "GraduationCap", color: "#34D399" },
-  { name: "Investasi", icon: "TrendingUp", color: "#00E676" },
-  { name: "Gaji", icon: "Wallet", color: "#22D3EE" },
-  { name: "Bonus", icon: "Gift", color: "#F472B6" },
-  { name: "Lainnya", icon: "MoreHorizontal", color: "#94A3B8" },
+  { name: "Groceries & Kebutuhan Rumah", icon: "ShoppingCart", emoji: "🛒", color: "#10B981" },
+  { name: "Makanan & Minuman", icon: "UtensilsCrossed", emoji: "🍜", color: "#FF7A45" },
+  { name: "Transportasi", icon: "Car", emoji: "🚗", color: "#38BDF8" },
+  { name: "Belanja", icon: "ShoppingBag", emoji: "🛍️", color: "#E879F9" },
+  { name: "Tagihan & Utilitas", icon: "ReceiptText", emoji: "⚡", color: "#FBBF24" },
+  { name: "Hiburan", icon: "Gamepad2", emoji: "🎮", color: "#A78BFA" },
+  { name: "Kesehatan", icon: "HeartPulse", emoji: "💊", color: "#FB7185" },
+  { name: "Pendidikan", icon: "GraduationCap", emoji: "🎓", color: "#34D399" },
+  { name: "Investasi", icon: "TrendingUp", emoji: "📈", color: "#00E676" },
+  { name: "Gaji", icon: "Wallet", emoji: "💰", color: "#22D3EE" },
+  { name: "Bonus", icon: "Gift", emoji: "🎁", color: "#F472B6" },
+  { name: "Lainnya", icon: "MoreHorizontal", emoji: "📦", color: "#94A3B8" },
+];
+
+export const TRANSACTION_TYPES = [
+  { value: "expense", label: "Pengeluaran", emoji: "💸", color: "var(--rose)", sign: "-" },
+  { value: "income", label: "Pemasukan", emoji: "💰", color: "var(--brand)", sign: "+" },
+  { value: "transfer", label: "Transfer", emoji: "🔄", color: "var(--cyan)", sign: "➔" },
+];
+
+export const BUDGET_GROUPS = [
+  { key: "needs", label: "Kebutuhan", emoji: "🛡️", target: "50%", color: "var(--brand)" },
+  { key: "wants", label: "Keinginan", emoji: "✨", target: "30%", color: "var(--amber)" },
+  { key: "savings", label: "Tabungan", emoji: "📈", target: "20%", color: "var(--cyan)" },
 ];
 
 export const catMeta = (name) => {
@@ -40,13 +52,28 @@ export const catMeta = (name) => {
   return CATEGORIES[CATEGORIES.length - 1];
 };
 
+export const getCategoryEmoji = (name) => {
+  const meta = catMeta(name);
+  return meta?.emoji || "📦";
+};
+
+export const getTypeEmoji = (type) => {
+  const t = TRANSACTION_TYPES.find((item) => item.value === type);
+  return t?.emoji || "💸";
+};
+
+export const getGroupEmoji = (group) => {
+  const g = BUDGET_GROUPS.find((item) => item.key === group);
+  return g?.emoji || "🛡️";
+};
+
 export const WALLET_TYPES = [
-  { value: "bank", label: "Rekening Bank", icon: "Landmark", color: "#00E676" },
-  { value: "ewallet", label: "E-Wallet", icon: "Smartphone", color: "#00F0FF" },
-  { value: "credit_card", label: "Kartu Kredit", icon: "CreditCard", color: "#FF4D4D" },
-  { value: "paylater", label: "PayLater", icon: "Clock", color: "#FFB800" },
-  { value: "cash", label: "Tunai", icon: "Banknote", color: "#34D399" },
-  { value: "investment", label: "Investasi", icon: "LineChart", color: "#A78BFA" },
+  { value: "bank", label: "Rekening Bank", icon: "Landmark", emoji: "🏦", color: "#00E676" },
+  { value: "ewallet", label: "E-Wallet", icon: "Smartphone", emoji: "📱", color: "#00F0FF" },
+  { value: "credit_card", label: "Kartu Kredit", icon: "CreditCard", emoji: "💳", color: "#FF4D4D" },
+  { value: "paylater", label: "PayLater", icon: "Clock", emoji: "⏳", color: "#FFB800" },
+  { value: "cash", label: "Tunai", icon: "Banknote", emoji: "💵", color: "#34D399" },
+  { value: "investment", label: "Investasi", icon: "LineChart", emoji: "📊", color: "#A78BFA" },
 ];
 
 export const walletMeta = (type) =>

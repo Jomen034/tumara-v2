@@ -26,6 +26,8 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { Button } from "./ui";
 import SettingsModal from "./SettingsModal";
+import TumaraLogo from "./TumaraLogo";
+import { getUserAvatar } from "../lib/avatars";
 
 const NAV = [
   { to: "/dashboard", label: "Beranda", icon: LayoutDashboard },
@@ -48,14 +50,7 @@ const BOTTOM = [
 ];
 
 function Logo({ small }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <div className="w-9 h-9 rounded-xl bg-brand flex items-center justify-center shadow-lg shadow-[var(--glow)]">
-        <span className="text-black font-head font-extrabold text-lg">T</span>
-      </div>
-      {!small && <span className="font-head font-extrabold text-xl tracking-tight">Tumara</span>}
-    </div>
-  );
+  return <TumaraLogo size={36} withText={!small} />;
 }
 
 export default function Layout({ children, onAdd, onScan }) {
@@ -124,9 +119,9 @@ export default function Layout({ children, onAdd, onScan }) {
             title="Buka Pengaturan Akun"
           >
             <img
-              src={user?.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${user?.name}`}
+              src={getUserAvatar(user)}
               alt=""
-              className="w-9 h-9 rounded-full bg-elevated object-cover border border-borderc"
+              className="w-9 h-9 rounded-full bg-elevated object-cover border border-borderc shadow-sm"
             />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold truncate group-hover:text-brand transition-colors">
@@ -198,9 +193,9 @@ export default function Layout({ children, onAdd, onScan }) {
                   className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-elevated cursor-pointer transition-colors mb-2"
                 >
                   <img
-                    src={user?.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${user?.name}`}
+                    src={getUserAvatar(user)}
                     alt=""
-                    className="w-9 h-9 rounded-full bg-elevated object-cover border border-borderc"
+                    className="w-9 h-9 rounded-full bg-elevated object-cover border border-borderc shadow-sm"
                   />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold truncate">

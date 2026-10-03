@@ -1,4 +1,4 @@
-# Test Credentials — Nusa (Personal AI Finance CFO)
+# Test Credentials — Tumara (Personal AI Finance CFO)
 
 ## Authentication: Emergent-managed Google OAuth
 No app-managed passwords. To test auth-gated flows, create a test user + session directly in MongoDB.

@@ -3,6 +3,7 @@ import * as Icons from "lucide-react";
 import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Calendar, Wallet as WalletIcon, Tag, User, Sparkles, Trash2, Pencil, Target } from "lucide-react";
 import { formatRp, formatDate } from "../lib/format";
 import { catMeta } from "../lib/constants";
+import { getUserAvatar } from "../lib/avatars";
 import { Modal, Button } from "./ui";
 
 export default function TransactionDetailModal({
@@ -123,7 +124,7 @@ export default function TransactionDetailModal({
                 Dicatat Oleh
               </span>
               <span className="font-medium flex items-center gap-2 text-tprimary">
-                <img src={member.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.name}`} alt="" className="w-5 h-5 rounded-full object-cover" />
+                <img src={getUserAvatar(member)} alt="" className="w-5 h-5 rounded-full object-cover shadow-sm" />
                 {member.name}
               </span>
             </div>

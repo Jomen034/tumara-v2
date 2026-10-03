@@ -21,17 +21,7 @@ import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { Modal, Button, Input, Spinner, Badge } from "./ui";
-
-const AVATAR_SEEDS = [
-  "Felix",
-  "Aneka",
-  "Willow",
-  "Jasper",
-  "Luna",
-  "Leo",
-  "Milo",
-  "Maya",
-];
+import { AVATAR_CHARACTERS, AVATAR_DATA_URIS, getUserAvatar } from "../lib/avatars";
 
 export default function SettingsModal({ open, onClose }) {
   const { user, checkAuth, logout } = useAuth();
@@ -41,8 +31,7 @@ export default function SettingsModal({ open, onClose }) {
 
   // Profile state
   const [displayName, setDisplayName] = useState(user?.display_name || user?.name || "");
-  const [avatarSeed, setAvatarSeed] = useState(user?.name || "Felix");
-  const [avatarUrl, setAvatarUrl] = useState(user?.picture || "");
+  const [avatarUrl, setAvatarUrl] = useState(getUserAvatar(user));
   const [savingProfile, setSavingProfile] = useState(false);
 
   // Backup state
@@ -57,14 +46,12 @@ export default function SettingsModal({ open, onClose }) {
   useEffect(() => {
     if (user) {
       setDisplayName(user.display_name || user.name || "");
-      setAvatarUrl(user.picture || "");
+      setAvatarUrl(getUserAvatar(user));
     }
   }, [user]);
 
-  const selectAvatarSeed = (seed) => {
-    setAvatarSeed(seed);
-    const newPic = `https://api.dicebear.com/7.x/notionists/svg?seed=${seed}`;
-    setAvatarUrl(newPic);
+  const selectAvatar = (char) => {
+    setAvatarUrl(AVATAR_DATA_URIS[char.id]);
   };
 
   const handleSaveProfile = async (e) => {
@@ -195,13 +182,13 @@ export default function SettingsModal({ open, onClose }) {
           <form onSubmit={handleSaveProfile} className="space-y-4">
             <div className="flex items-center gap-4 bg-elevated/60 p-4 rounded-2xl border border-borderc/40">
               <img
-                src={avatarUrl || `https://api.dicebear.com/7.x/notionists/svg?seed=${user?.name}`}
+                src={avatarUrl || getUserAvatar(user)}
                 alt=""
-                className="w-16 h-16 rounded-full object-cover bg-surface border-2 border-brand/30 shrink-0"
+                className="w-16 h-16 rounded-full object-cover bg-surface border-2 border-brand/30 shrink-0 shadow-md"
               />
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-sm text-tprimary flex items-center gap-1.5">
-                  {user?.name} {user?.role === "admin" && <Crown size={14} className="text-amber" />}
+                  {displayName || user?.name} {user?.role === "admin" && <Crown size={14} className="text-amber" />}
                 </p>
                 <p className="text-xs text-tmuted truncate">{user?.email}</p>
                 <div className="flex items-center gap-2 mt-2">
@@ -212,31 +199,36 @@ export default function SettingsModal({ open, onClose }) {
               </div>
             </div>
 
-            {/* Avatar Seed Chooser */}
+            {/* Avatar Character Chooser */}
             <div>
               <label className="text-xs font-semibold text-tsecondary block mb-2">
-                Pilih Karakter Avatar
+                Pilih Karakter Avatar (8 Pilihan Menarik & Simpel)
               </label>
-              <div className="grid grid-cols-4 gap-2">
-                {AVATAR_SEEDS.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => selectAvatarSeed(s)}
-                    className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${
-                      avatarSeed === s
-                        ? "border-brand bg-brand/10 shadow-sm"
-                        : "border-borderc bg-elevated/40 hover:bg-elevated"
-                    }`}
-                  >
-                    <img
-                      src={`https://api.dicebear.com/7.x/notionists/svg?seed=${s}`}
-                      alt={s}
-                      className="w-8 h-8 rounded-full bg-surface"
-                    />
-                    <span className="text-[10px] font-medium text-tsecondary truncate">{s}</span>
-                  </button>
-                ))}
+              <div className="grid grid-cols-4 gap-2.5">
+                {AVATAR_CHARACTERS.map((char) => {
+                  const isSelected = avatarUrl === AVATAR_DATA_URIS[char.id];
+                  return (
+                    <button
+                      key={char.id}
+                      type="button"
+                      onClick={() => selectAvatar(char)}
+                      className={`p-2 rounded-2xl border flex flex-col items-center gap-1.5 transition-all ${
+                        isSelected
+                          ? "border-brand bg-brand/10 shadow-sm ring-2 ring-brand/40"
+                          : "border-borderc bg-elevated/40 hover:bg-elevated hover:border-brand/40"
+                      }`}
+                    >
+                      <img
+                        src={AVATAR_DATA_URIS[char.id]}
+                        alt={char.name}
+                        className="w-11 h-11 rounded-full shadow-sm"
+                      />
+                      <span className="text-[11px] font-semibold text-tprimary truncate">
+                        {char.name}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

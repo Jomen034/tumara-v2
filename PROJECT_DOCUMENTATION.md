@@ -30,20 +30,20 @@
 
 | Area | Feature | Notes |
 |------|---------|-------|
-| **Dashboard** | Net worth, assets vs debt, monthly income/expense, **Financial Health Score (0–100)**, quick actions | Health score = net worth + savings rate + budget adherence + goals |
-| **Wallets** | Multi-wallet: bank, e-wallet, credit card, PayLater, cash, investment | Quick-add presets (BCA, GoPay, OVO, DANA…) |
-| **Transactions** | Income / Expense / Transfer; auto-adjusts wallet balances | Grouped by date; delete reverts balance |
+| **Dashboard** | Net worth, assets vs debt, monthly cashflow summary, **Financial Health Score (0–100)**, quick filter chips, interactive budget mini-progress widget | Health score = net worth + savings rate + budget adherence + goals |
+| **Wallets** | Multi-wallet: bank, e-wallet, credit card, PayLater, cash, investment, proportional detail modal controls | Quick-add presets (BCA, GoPay, OVO, DANA…) |
+| **Transactions** | Income / Expense / Transfer; auto-adjusts wallet balances | Grouped by date; delete reverts balance; member attribution |
 | **AI Text Entry** | Type `isi bensin bp 92 400k pakai debit ocbc` → AI parses → **confirm / correct / reject** modal | Gemini matches wallet + category |
-| **AI Receipt Scanner** | Photo of a receipt → extracts merchant, total, items, category | Optional: save each item as its own categorised transaction |
-| **AI Advisor ("Tumara AI")** | Streaming chat that reads your real financial context | Warm, Indonesian, actionable |
+| **AI Receipt Scanner** | Photo of a receipt → extracts merchant, total, items, category | Domain-aware prompt separates Groceries from food/lifestyle; editable per-item category overrides |
+| **AI Advisor ("Tumara AI")** | Streaming chat that reads your real financial context with **rich Markdown rendering** | Headings, bullet lists, bold text, code, callout cards |
 | **Weekly AI Recap** | Dashboard card summarising the last 7 days + a tip | Cached per ISO week, manual refresh |
-| **Budget** | 3-step wizard: 50/30/20 rule or custom limits; over-budget alerts | Per-category groups: needs / wants / savings |
+| **Budget** | 3-step wizard + **Independent Budgeting**: dynamic custom categories, safe deletion guardrails, inline salary edits, 50/30/20 auto-balancer, health diagnostics | Per-category groups: needs / wants / savings |
 | **Goals** | Savings goals with target, deadline, emoji, deposits, progress | Preset ideas (Dana Darurat, Liburan…) |
-| **Bills** | Recurring bills (weekly/monthly/yearly/once), due-soon alerts, mark-as-paid | Optional auto-record expense + advance due date |
+| **Bills** | Recurring bills (weekly/monthly/yearly/once), due-soon alerts, mark-as-paid, **monthly heatmap calendar** with date density indicators | Optional auto-record expense + advance due date |
 | **Reports** | Cash-flow trend, category donut, monthly savings bar, **net worth history** | Recharts |
-| **Household Sharing** | Admin invites 1 partner (max 2) via link/code; shared data; per-member attribution + filter | Google login to join |
+| **Household Sharing** | Admin invites 1 partner (max 2) via link/code; shared data; **Couple Finance Center** (50/50 & fair share split calculator, spend attribution) | Google login to join |
 | **CSV** | Export all transactions; import historical CSV | Flexible ID/EN headers, auto-creates missing wallet |
-| **UX** | Dark/light theme, **privacy mode** (blur balances), PWA install prompt (incl. iOS hint) | |
+| **UX & Brand** | **Fresh Tumara Logo** (stem & directional vector), PWA home screen icons, **8 self-hosted SVG avatars**, canonical emojis, dark/light theme, privacy mode | 100% offline-ready assets |
 | **Auth** | Emergent-managed Google OAuth (session cookie) | No passwords stored |
 
 ---
@@ -486,7 +486,7 @@ To move your data to your own database, set `MONGO_URL` to your connection strin
 **Yes, for the coding/maintenance work.** A free model via the Kilo Code Gateway can read this repository and implement features, fixes, and refactors. But understand these realities:
 
 **There are TWO separate "AIs" — don't confuse them:**
-| | Coding AI (Kilo Code) | App runtime AI (in Nusa) |
+| | Coding AI (Kilo Code) | App runtime AI (in Tumara) |
 |---|---|---|
 | Purpose | Helps *you write/edit code* in VS Code | Powers advisor chat, receipt scan, text parse, weekly recap for end-users |
 | Credential | Your Kilo provider (free Kilo gateway model, or your own key) | `EMERGENT_LLM_KEY` (or your own Gemini key) |

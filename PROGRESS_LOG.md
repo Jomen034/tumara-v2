@@ -20,6 +20,59 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-03 22:45:00 WIB] — Brand Assets Refresh, 8 Modern Self-Hosted Avatars, Canonical Emoji System, AI Markdown Typography & Markdown Docs Synchronization
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menyempurnakan identitas visual dan pengalaman pengguna Tumara secara holistik:
+  1. Menghadirkan logo & ikon aplikasi baru yang segar, modern, dan selaras dengan filosofi inti Tumara (*Tumbuh dengan arah*: tunas pertumbuhan vertikal + vektor arah tujuan finansial ke depan-atas) baik untuk web maupun PWA home screen di smartphone.
+  2. Merombak total sistem avatar pengguna: menggantikan ilustrasi hitam-putih lawas dengan 8 karakter avatar modern, ramah, dan berkarakter (Aria, Bima, Citra, Daffa, Elena, Fajar, Gita, Hadi) yang 100% self-hosted SVG (zero external network dependency, bebas risiko CORS/blokir 403, andal saat offline).
+  3. Menstandarkan dan menyelaraskan ekosistem emoji di seluruh aplikasi (kategori transaksi, alokasi budget 50/30/20, tipe transaksi pemasukan/pengeluaran/transfer, dan dompet) agar konsisten di setiap halaman dan modal.
+  4. Menyempurnakan formatting jawaban Tumara AI (`/advisor`): mengonversi raw markdown streaming (seperti `###`, `**`, `---`, `*`) menjadi format tipografi yang rapi, bersih, memiliki visual hierarchy yang elegan, daftar poin berjarak nyaman, serta callout cards.
+  5. Melakukan review menyeluruh dan sinkronisasi seluruh file dokumentasi `.md`: menyelaraskan stack teknis, menghapus file usang/tidak relevan (`auth_testing.md`, `image_testing.md`), dan mengeliminasi sisa referensi legacy "Nusa".
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, identitas visual logo di app bar dan landing page masih menggunakan kotak huruf "T" monokrom generik. Ikon PWA di HP juga belum mencerminkan esensi brand *Tumbuh dengan arah*.
+  - Karakter avatar sebelumnya mengandalkan API pihak ketiga DiceBear `notionists` yang bersifat eksternal, berisiko diblokir jaringan/CORS, dan bergaya coretan sketsa hitam-putih yang kurang modern dan hangat.
+  - Emoji untuk kategori, budget, dan tipe transaksi tersebar dengan variasi yang tidak konsisten di berbagai file komponen.
+  - Halaman Tumara AI (`/advisor`) menampilkan jawaban AI apa adanya dalam raw text / raw markdown (tampak tanda `###`, `**`, `*`, `---`), sehingga sulit dibaca dan terasa tidak rapi.
+  - Dokumentasi proyek memiliki inkonsistensi: file `TUMARA_BRAND_AND_VISION.md` masih menyebutkan stack lama (Supabase & RLS), `memory/PRD.md` dan `PROJECT_DOCUMENTATION.md` masih memiliki jejak nama legacy "Nusa", serta terdapat file pengujian scratch usang (`auth_testing.md`, `image_testing.md`).
+- **Key Actions & Changes:**
+  - `frontend/src/components/TumaraLogo.js` (Baru):
+    - Komponen SVG murni responsif yang menampilkan lambang tunas pertumbuhan (*Tumbuh*) yang berakar kokoh dan panah vektor terarah (*Arah*) dengan gradasi zamrud ke mint (`#10B981` → `#34D399` / `#059669`).
+    - Mendukung konfigurasi ukuran (`size`), opsi teks tipografi brand (`withText`), serta adaptasi tema gelap/terang.
+  - `frontend/public/favicon.svg` & `frontend/public/icons/`:
+    - Memperbarui master vector favicon (`favicon.svg`).
+    - Membuat dan mengupdate aset ikon PWA beresolusi tinggi (`icon-512.png`, `icon-192.png`, `apple-touch-icon.png`, `logo512.png`) yang cocok dan jernih saat ditambahkan ke Home Screen ponsel Android/iOS.
+  - `frontend/src/components/Layout.js` & `frontend/src/pages/Landing.js`:
+    - Mengintegrasikan `<TumaraLogo />` pada sidebar navigasi desktop, drawer mobile, dan header landing page.
+  - `frontend/src/lib/avatars.js` (Baru):
+    - Menghadirkan 8 karakter avatar modern, elegan, dan penuh warna: Aria, Bima, Citra, Daffa, Elena, Fajar, Gita, dan Hadi.
+    - Semua avatar di-generate sebagai SVG data URI mandiri (100% self-hosted, tanpa request ke server pihak ketiga, bekerja sempurna saat PWA offline).
+    - Menyediakan fungsi `getUserAvatar(user)` dengan mekanisme auto-fallback migration untuk akun dengan URL avatar legacy.
+  - `frontend/src/components/SettingsModal.js`:
+    - Memperbarui modal profil pengguna dengan live preview avatar baru dan grid pemilih 8 karakter avatar.
+  - `frontend/src/pages/Dashboard.js`, `frontend/src/pages/Household.js`, `frontend/src/pages/Transactions.js`, `frontend/src/components/TransactionDetailModal.js`:
+    - Memperbarui seluruh komponen yang menampilkan avatar anggota keluarga menggunakan helper `getUserAvatar`.
+  - `frontend/src/lib/constants.js`:
+    - Menstandarkan kamus `CATEGORIES` dengan emoji kanonikal (`🛒`, `🍜`, `🚗`, `🛍️`, `⚡`, `🎮`, `💊`, `🎓`, `📈`, `💰`, `🎁`, `📦`).
+    - Menambahkan kamus `TRANSACTION_TYPES` (`💸`, `💰`, `🔄`), `BUDGET_GROUPS` (`🛡️`, `✨`, `📈`), dan helper `getCategoryEmoji()`, `getTypeEmoji()`, `getGroupEmoji()`.
+  - `frontend/src/components/FormattedMessage.js` (Baru):
+    - Komponen parser Markdown custom yang ringan (zero extra npm dependency, aman dari risiko inflasi bundle/lockfile).
+    - Mendukung parsing judul (`###`, `##`, `#`), divider horizontal (`---`), bullet points bertingkat (`*`, `-`), numbered lists, inline bold (`**`), inline code, dan card callouts.
+  - `frontend/src/pages/Advisor.js`:
+    - Mengganti render raw text di dalam bubble chat dengan `<FormattedMessage content={m.content} />`.
+    - Menambahkan indikator animasi streaming dan integrasi avatar karakter pengguna pada bubble percakapan.
+  - `.gitignore`:
+    - Memperbaiki aturan ignores (`!frontend/src/lib/` dan `/lib/`) agar library frontend internal ter-tracking sempurna oleh git.
+  - **Sinkronisasi & Pembersihan Dokumentasi (`.md` Files):**
+    - `TUMARA_BRAND_AND_VISION.md`: Memperbarui arsitektur teknologi ke FastAPI + MongoDB + Gemini Flash, mempertegas isolasi data rumah tangga (`household_id`), dan menambahkan Bab 6 tentang Filosofi Logo, Aset PWA, Sistem Avatar, dan Standar Emoji Kanonikal.
+    - `memory/PRD.md`: Memperbarui nama dokumen ke Tumara dan mendokumentasikan seluruh fitur Round 4 (Kalender Heatmap Tagihan, Couple Finance Center, Kontrol Modal Dompet Proposional, Redesain Beranda, Taksonomi Groceries, Budgeting Mandiri & Guardrails Finansial, Logo & Avatar Baru, AI Markdown Typography).
+    - `memory/test_credentials.md`: Mengubah judul dan referensi nama produk menjadi Tumara.
+    - `PROJECT_DOCUMENTATION.md`: Mengeliminasi referensi sisa nama "Nusa", memperbarui tabel fitur lengkap dengan fitur-fitur mutakhir.
+    - `AGENTS.md`: Menyelaraskan nama proyek dan arsitektur sebagai panduan utama AI coding agents.
+    - Menghapus file scratch usang: `auth_testing.md` dan `image_testing.md`.
+- **Verifikasi Hasil:**
+  - Seluruh komponen React (`TumaraLogo.js`, `FormattedMessage.js`, `avatars.js`, `SettingsModal.js`, `Advisor.js`, `Dashboard.js`, `Household.js`, `Transactions.js`) teruji bebas error sintaks JSX dan bracket seimbang.
+  - File PWA PNG (512x512, 192x192, 180x180) dan SVG favicon tervalidasi dapat dibuka dan terbaca dengan baik.
+
 ### [2026-10-03 22:30:00 WIB] — Independent Budget Management & Dynamic Category Control with Smart Financial Health Guardrails
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menghadirkan kemampuan penuh bagi pengguna untuk mengelola budget secara mandiri: menambah pos kategori baru, menghapus/mengurangi pos anggaran yang tidak dibutuhkan, mengubah limit dan klasifikasi alokasi (Kebutuhan/Keinginan/Tabungan) secara fleksibel, mengedit penghasilan bulanan langsung tanpa mengulang wizard, serta menyematkan "Guardrails Finansial Pintar" untuk membimbing dan menjaga agar alokasi budgeting pengguna tidak keliru (over-allocated, defisit penghasilan, kebocoran pos keinginan, atau ketiadaan pos tabungan).

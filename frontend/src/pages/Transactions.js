@@ -28,6 +28,7 @@ import { Card, Button, Spinner, EmptyState, Modal } from "../components/ui";
 import { TxnRow } from "./Dashboard";
 import TransactionDetailModal from "../components/TransactionDetailModal";
 import EditTransactionModal from "../components/EditTransactionModal";
+import { getUserAvatar } from "../lib/avatars";
 
 const FILTERS = [
   { value: "all", label: "Semua" },
@@ -441,7 +442,7 @@ export default function Transactions() {
                 )}
               >
                 <img
-                  src={m.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${m.name}`}
+                  src={getUserAvatar(m)}
                   alt=""
                   className="w-3.5 h-3.5 rounded-full"
                 />

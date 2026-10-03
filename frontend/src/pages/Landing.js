@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 import { Spinner, Modal, Input, Button } from "../components/ui";
 import api, { postWithColdStartRetry } from "../lib/api";
+import TumaraLogo from "../components/TumaraLogo";
 
 const FEATURES = [
   { icon: Wallet, title: "Semua dompet, satu layar", desc: "Bank, e-wallet, kartu kredit & PayLater. Lihat net worth real-time." },
@@ -237,12 +238,7 @@ export default function Landing() {
 
       {/* nav */}
       <header className="max-w-6xl mx-auto px-5 py-5 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-brand flex items-center justify-center shadow-lg shadow-[var(--glow)]">
-            <span className="text-black font-head font-extrabold text-lg">T</span>
-          </div>
-          <span className="font-head font-extrabold text-xl">Tumara</span>
-        </div>
+        <TumaraLogo size={36} withText={true} />
         <div className="flex items-center gap-2">
           <button data-testid="nav-login-button" onClick={() => { setAuthTab("login"); setAuthModalOpen(true); }}
             className="text-sm font-semibold px-5 py-2.5 rounded-full bg-elevated hover:bg-borderc transition-colors">

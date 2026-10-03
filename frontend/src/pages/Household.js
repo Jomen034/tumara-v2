@@ -23,6 +23,7 @@ import {
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { getUserAvatar } from "../lib/avatars";
 import { formatRp, formatDate } from "../lib/format";
 import { catMeta } from "../lib/constants";
 import { Card, Button, Input, Spinner, Badge, Modal } from "../components/ui";
@@ -266,9 +267,9 @@ export default function Household() {
                 >
                   <div className="flex items-center gap-3 mb-3">
                     <img
-                      src={m.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${m.name}`}
+                      src={getUserAvatar(m)}
                       alt=""
-                      className="w-10 h-10 rounded-full object-cover bg-surface border border-borderc"
+                      className="w-10 h-10 rounded-full object-cover bg-surface border border-borderc shadow-sm"
                     />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-bold truncate flex items-center gap-1.5">
@@ -341,9 +342,9 @@ export default function Household() {
                 className="flex items-center gap-3 bg-elevated rounded-xl p-3 sm:p-3.5 border border-borderc/40"
               >
                 <img
-                  src={m.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${m.name}`}
+                  src={getUserAvatar(m)}
                   alt=""
-                  className="w-10 h-10 rounded-full object-cover bg-surface border border-borderc"
+                  className="w-10 h-10 rounded-full object-cover bg-surface border border-borderc shadow-sm"
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate flex items-center gap-1.5">
@@ -449,12 +450,9 @@ export default function Household() {
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <img
-                      src={
-                        actMember?.picture ||
-                        `https://api.dicebear.com/7.x/notionists/svg?seed=${actMember?.name || "user"}`
-                      }
+                      src={getUserAvatar(actMember)}
                       alt=""
-                      className="w-7 h-7 rounded-full object-cover bg-surface border border-borderc shrink-0"
+                      className="w-7 h-7 rounded-full object-cover bg-surface border border-borderc shrink-0 shadow-sm"
                     />
                     <div className="min-w-0">
                       <p className="font-semibold text-tprimary truncate">

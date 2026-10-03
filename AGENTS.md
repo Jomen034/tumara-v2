@@ -1,4 +1,4 @@
-# Nusa (Tumara v2) — AI Agent Guidelines & Architecture Manual
+# Tumara — AI Agent Guidelines & Architecture Manual
 
 This file serves as the definitive onboarding guide for AI agents (GitHub Copilot, Claude Code, Cline, Roo Code, Cursor, etc.) working on this repository.
 
@@ -6,7 +6,7 @@ This file serves as the definitive onboarding guide for AI agents (GitHub Copilo
 
 ## 1. Project Overview & Architecture
 
-**Nusa** is an AI-powered personal finance management app (Bahasa Indonesia · IDR · PWA) built with:
+**Tumara** is an AI-powered personal finance management app (Bahasa Indonesia · IDR · PWA) built with:
 - **Frontend:** React 18 (SPA), Tailwind CSS, Framer Motion, Recharts, Lucide Icons, Axios.
 - **Backend:** FastAPI (Python 3.9+ / 3.10+), Uvicorn, Motor (Async MongoDB), Pydantic v2.
 - **Database:** MongoDB (Local or MongoDB Atlas) — Database name: `fincfo_db`.

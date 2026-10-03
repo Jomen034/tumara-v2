@@ -11,6 +11,9 @@ import {
 import { toast } from "sonner";
 import api, { API } from "../lib/api";
 import { Spinner } from "../components/ui";
+import { useAuth } from "../context/AuthContext";
+import { getUserAvatar } from "../lib/avatars";
+import FormattedMessage from "../components/FormattedMessage";
 
 const SUGGESTIONS = [
   "Analisa pos pengeluaran terbesarku bulan ini",
@@ -22,6 +25,7 @@ const SUGGESTIONS = [
 const SESSION_STORAGE_KEY = "tumara_advisor_session";
 
 export default function Advisor() {
+  const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -217,7 +221,7 @@ export default function Advisor() {
             </div>
           </div>
         ) : (
-          messages.map((m) => <Bubble key={m.id} m={m} />)
+          messages.map((m) => <Bubble key={m.id} m={m} user={user} />)
         )}
       </div>
 
@@ -250,7 +254,7 @@ export default function Advisor() {
   );
 }
 
-function Bubble({ m }) {
+function Bubble({ m, user }) {
   const isUser = m.role === "user";
   return (
     <motion.div
@@ -259,31 +263,47 @@ function Bubble({ m }) {
       className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}
     >
       <div
-        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-          isUser ? "bg-elevated" : "bg-brand"
+        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 overflow-hidden shadow-sm ${
+          isUser ? "bg-elevated" : "bg-brand shadow-emerald-500/20"
         }`}
       >
         {isUser ? (
-          <User size={16} className="text-tsecondary" />
+          <img
+            src={getUserAvatar(user)}
+            alt=""
+            className="w-full h-full object-cover"
+          />
         ) : (
           <Sparkles size={16} className="text-black" />
         )}
       </div>
       <div
-        className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+        className={`max-w-[88%] sm:max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
           isUser
-            ? "bg-brand text-black rounded-tr-sm font-medium"
-            : "bg-surface border border-borderc rounded-tl-sm text-tprimary"
+            ? "bg-brand text-black rounded-tr-sm font-medium whitespace-pre-wrap shadow-sm"
+            : "bg-surface border border-borderc rounded-tl-sm text-tprimary shadow-sm"
         }`}
       >
-        {m.content ||
-          (m.pending && (
-            <span className="inline-flex gap-1 py-1">
-              <Dot />
-              <Dot d={0.15} />
-              <Dot d={0.3} />
-            </span>
-          ))}
+        {isUser ? (
+          m.content
+        ) : m.content ? (
+          <div>
+            <FormattedMessage content={m.content} />
+            {m.pending && (
+              <span className="inline-flex gap-1 pt-1.5 opacity-70">
+                <Dot />
+                <Dot d={0.15} />
+                <Dot d={0.3} />
+              </span>
+            )}
+          </div>
+        ) : m.pending ? (
+          <span className="inline-flex gap-1 py-1">
+            <Dot />
+            <Dot d={0.15} />
+            <Dot d={0.3} />
+          </span>
+        ) : null}
       </div>
     </motion.div>
   );

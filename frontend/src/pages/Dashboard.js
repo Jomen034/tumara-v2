@@ -28,6 +28,7 @@ import { formatRp, formatShort } from "../lib/format";
 import { catMeta, walletMeta } from "../lib/constants";
 import { Card, Progress, Badge, Spinner, EmptyState, Button } from "../components/ui";
 import FinancialHealthModal from "../components/FinancialHealthModal";
+import { getUserAvatar } from "../lib/avatars";
 import TransactionDetailModal from "../components/TransactionDetailModal";
 import EditTransactionModal from "../components/EditTransactionModal";
 
@@ -401,7 +402,7 @@ export default function Dashboard() {
               return (
                 <div key={i}>
                   <div className="flex items-center gap-2 mb-1.5">
-                    <img src={m.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${m.name}`} alt="" className="w-6 h-6 rounded-full" />
+                    <img src={getUserAvatar(m)} alt="" className="w-6 h-6 rounded-full shadow-sm" />
                     <span className="text-sm font-medium flex-1">{m.name}</span>
                     <span className={`font-mono text-sm ${privacy ? "privacy-blur" : ""}`}>{formatRp(m.amount, privacy)}</span>
                   </div>
@@ -662,7 +663,7 @@ export function TxnRow({ t, privacy, onDelete, onEdit, onSelect, memberMap, wall
           )}
         </div>
         <p className="text-xs text-tmuted flex items-center gap-1.5 truncate mt-0.5">
-          {mem && <img src={mem.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${mem.name}`} alt="" title={mem.name} className="w-4 h-4 rounded-full object-cover inline-block shrink-0" />}
+          {mem && <img src={getUserAvatar(mem)} alt="" title={mem.name} className="w-4 h-4 rounded-full object-cover inline-block shrink-0 shadow-sm" />}
           {walletLabel && <span className="font-semibold text-tsecondary">{walletLabel} ·</span>}
           <span>{isTransfer ? "Transfer" : t.category}</span>
           <span>· {t.date}</span>

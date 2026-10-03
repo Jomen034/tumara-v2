@@ -1,4 +1,4 @@
-# Nusa — Personal AI Finance CFO (PRD)
+# Tumara — Personal AI Finance CFO (PRD)
 
 ## Original Problem Statement
 Build a personal AI finance CFO inspired by budggt.com — unique, not identical, using free tools. Blank repo: github.com/Jomen034/tumara-v2. Must be installable as a PWA on Android & iOS.
@@ -8,7 +8,7 @@ Build a personal AI finance CFO inspired by budggt.com — unique, not identical
 - AI model: Gemini 3 Flash (gemini-3-flash-preview) via Emergent Universal LLM key
 - AI features: AI advisor chat + AI receipt scanner
 - Currency/Language: IDR (Rupiah) / Bahasa Indonesia
-- Design: Bibit/Stockbit-inspired palette (emerald + dark obsidian). App name "Nusa".
+- Design: Bibit/Stockbit-inspired palette (emerald + dark obsidian). App name "Tumara".
 
 ## Architecture
 - Frontend: React (CRA) + Tailwind + framer-motion + recharts + sonner, dark/light theme, PWA (manifest + service worker + install prompt).
@@ -43,6 +43,28 @@ Build a personal AI finance CFO inspired by budggt.com — unique, not identical
 - Bill reminders: recurring bills (weekly/monthly/yearly/once) with due dates, "due soon" card on dashboard, mark-as-paid (auto-records expense + advances due date). /api/bills(+upcoming/{id}/pay). Double-pay guarded in UI.
 - CSV export (/api/transactions/export) + import (/api/transactions/import, auto-creates missing cash wallet, flexible ID/EN headers).
 - Verified: 14/14 round3 backend + 13/13 regression + frontend flows.
+
+## Implemented — Round 4 (2026-10): Comprehensive Polish, Taxonomy, Brand & Visual Refresh
+- **Bill Heatmap Calendar (`/bills`)**: Interactive monthly heatmap displaying bill due-date density, color intensity indicators, and popover for dates with multiple bills.
+- **Couple Finance Center (`/household`)**: Split expense calculator (50/50, fair share proportional to income, or custom), settlement tracker, and member attribution.
+- **Proportional Wallet Modal Controls (`/wallets`)**: Optimized layout for Add/Edit buttons on wallet details.
+- **Home Dashboard UX Redesign (`/dashboard`)**: Monthly cashflow summary pills, quick filter chips, interactive budget mini-progress widget, and clear net worth visibility.
+- **Intelligent Financial Taxonomy**:
+  - Isolated `Groceries & Kebutuhan Rumah` from `Makanan & Minuman` (culinary/ready-to-eat) and `Belanja` (lifestyle/discretionary).
+  - Domain-aware AI receipt scanner prompt recognizing supermarket lines (GrandLucky, Superindo, etc.) and allowing per-item category overrides.
+  - Aligned groceries and health expenses into the Needs (50%) budget group.
+- **Independent Budgeting & Smart Guardrails (`/budget`)**:
+  - Add custom budget categories dynamically (`POST /budget/category`).
+  - Delete budget categories safely with confirmation guardrails (`DELETE /budget/category/{category}`).
+  - Quick inline salary update (`PUT /budget/income`).
+  - Real-time financial health diagnostic (zero-based budgeting status, over-allocation warnings, wants >35% alerts, savings <15% alerts).
+  - One-click auto-balance according to the 50/30/20 formula.
+- **Brand Visual Assets & AI Response Typography**:
+  - Vector brand logo (`<TumaraLogo />`) representing the growth stem ("Tumbuh") and directional vector ("Arah").
+  - Fresh PWA icons (`icon-512.png`, `icon-192.png`, `apple-touch-icon.png`, `favicon.svg`).
+  - 8 modern, illustrated self-hosted SVG avatars (Aria, Bima, Citra, Daffa, Elena, Fajar, Gita, Hadi) with zero external dependency.
+  - Standardized canonical emoji dictionary across categories, budget groups, and transaction types.
+  - Custom markdown typography renderer (`<FormattedMessage />`) for Tumara AI streaming advisor responses.
 
 ## Backlog / Next
 - P2: Real push notifications (Web Push/VAPID) for bill reminders

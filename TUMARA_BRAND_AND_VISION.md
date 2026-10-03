@@ -36,17 +36,35 @@
 
 1. **Bahasa Indonesia First**: All user-facing copy, categories, buttons, notifications, and AI responses use natural, everyday Bahasa Indonesia (e.g., *Pemasukan*, *Pengeluaran*, *Catat*, *Rekap*).
 2. **Privacy & Trust Through Transparency**:
-   - Strict Row-Level Security (RLS) for complete household isolation.
+   - Strict Household-Level Isolation (`household_id`) on every data query with secure session tokens.
    - **Data Minimization**: Never asks for or stores real bank account numbers, PINs, or banking credentials (only custom account labels like "BCA Debit").
    - Dedicated in-app **Keamanan & Privasi** transparency page.
 3. **AI-Agnostic Architecture**: All AI components (parser, coaching engine) are wrapped behind swappable interfaces so models can change without refactoring the app.
-4. **Free-Tools-First & Cost Efficiency**: Built on a free-tier stack (Vercel, Supabase, Gemini Flash) while prioritizing user data privacy.
+4. **Free-Tools-First & Cost Efficiency**: Built on a modern, cost-effective stack (React, FastAPI, MongoDB, Gemini Flash) while prioritizing user data privacy.
 5. **Iterative Increment Growth**: Built strictly step-by-step in clear, executable increments.
 
 ---
 
 ## 5. UI & Design System Principles
 
-- **Light Mode Base**: Clean white & green visual hierarchy representing growth and clarity.
+- **Light Mode & Dark Mode Harmony**: Clean emerald & obsidian visual hierarchy representing growth, clarity, and calm stability.
 - **Simplicity over Density**: Essential totals shown first; breakdown details disclosed cleanly on demand.
 - **Visual Anchors**: Large, highly legible numbers (`formatRupiah`) serve as key focal points on every screen.
+
+---
+
+## 6. Logo, Asset, & Visual Identity
+
+- **The Logo Glyph**: 
+  - Represents the synthesis of ***Tumbuh*** (the rooted vertical growth stem) and ***Arah*** (the forward-upward directional arrow vector).
+  - Encased in a rounded squircle badge with an energetic emerald-to-mint gradient (`#10B981` → `#34D399` / `#059669`).
+  - Implemented as a pure, responsive vector SVG component (`<TumaraLogo />`) and exported to high-resolution PWA icons (`icon-512.png`, `icon-192.png`, `apple-touch-icon.png`, `favicon.svg`) for an authentic native app presence on Android and iOS home screens.
+- **Avatar System**:
+  - 8 distinct, friendly, and modern illustrated characters: **Aria**, **Bima**, **Citra**, **Daffa**, **Elena**, **Fajar**, **Gita**, and **Hadi**.
+  - **100% Self-Hosted Vector Assets**: Embedded directly within `avatars.js` as SVG data URIs, completely eliminating third-party API dependencies (no DiceBear 403 blocks, CORS, or rate limits). Works 100% offline in PWA mode.
+  - Smooth backward-compatibility fallback from legacy avatar URLs.
+- **Canonical Emoji & Icon Standards**:
+  - Consistent and intuitive emoji associations across all screens:
+    - **Categories**: `🛒` Groceries, `🍜` Makanan & Minuman, `🚗` Transportasi, `🛍️` Belanja, `⚡` Tagihan & Utilitas, `🎮` Hiburan & Hobi, `💊` Kesehatan, `🎓` Pendidikan, `📈` Investasi, `💰` Gaji & Pemasukan, `🎁` Hadiah & Donasi, `📦` Lainnya.
+    - **Transaction Types**: `💸` Pengeluaran, `💰` Pemasukan, `🔄` Transfer Antar Dompet.
+    - **Budget Groups (50/30/20)**: `🛡️` Kebutuhan (Needs), `✨` Keinginan (Wants), `📈` Tabungan & Investasi (Savings).
