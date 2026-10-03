@@ -20,6 +20,41 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-03 22:50:00 WIB] — Architectural Analysis: Pros & Cons of Itemized vs Consolidated Transaction Storage for Long Supermarket Receipts (Grand Lucky Case Study)
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Mendokumentasikan analisa mendalam mengenai dampak arsitektur data, akurasi budgeting, dan user experience (UX) saat pengguna memindai struk belanja supermarket panjang (seperti Grand Lucky 39 item) dan memilih opsi "Simpan sebagai item terpisah" (Itemized) dibandingkan "Simpan sebagai satu transaksi gabungan" (Consolidated).
+- **Latar Belakang Kasus (Grand Lucky Receipt):**
+  - Struk belanja supermarket modern di Indonesia umumnya memiliki 20 hingga 50 baris item yang sangat beragam: campuran kebutuhan pokok mentah (sayur/daging/bumbu), barang pembersih/sanitasi (sabun/deterjen/tissue), camilan/snack impor/minuman gaya hidup, hingga barang non-konsumsi (alat dapur/wadah plastik).
+  - Tumara saat ini menyediakan dua opsi saat scan struk berhasil:
+    1. *Simpan Gabungan (Lump-sum)*: Satu transaksi total nominal struk dengan satu kategori dominan (misal `Groceries & Kebutuhan Rumah`).
+    2. *Simpan Terpisah (Itemized)*: Setiap baris item dibuat menjadi 1 transaksi independen di database dengan kategori masing-masing.
+- **Analisa Kelebihan (Pros) Menyimpan Sebagai Item Terpisah:**
+  1. **Presisi Taksonomi & Akurasi Kaidah Budget 50/30/20 (Zero Distortion)**:
+     - Belanja supermarket seringkali menggabungkan *Kebutuhan Primer (Needs 50%)* seperti beras/sayur/telur, dengan *Keinginan/Lifestyle (Wants 30%)* seperti snack impor, cokelat mahal, atau minuman bersoda, serta *Peralatan Rumah Tangga (Needs/Wants)*.
+     - Menyimpan terpisah memastikan porsi "Keinginan" tidak tersamarkan di dalam pos "Kebutuhan Pokok", sehingga laporan evaluasi gaya hidup pengguna tetap objektif dan tidak bias.
+  2. **Pencarian Spesifik & Audit Pengeluaran (Granular Searchability)**:
+     - Pengguna dapat mencari nama barang spesifik di masa depan (contoh: "keju mozarella", "olive oil", "deterjen liquid") untuk melihat riwayat pembelian, tanggal beli, dan harganya, alih-alih hanya melihat nama merchant "Grand Lucky".
+  3. **Fondasi Price Tracking & Deteksi Inflasi Belanja**:
+     - Membuka potensi fitur lanjutan di masa depan (Price Intelligence) untuk mendeteksi kenaikan harga bahan pokok dari waktu ke waktu berdasarkan riwayat item yang tercatat.
+  4. **Kemudahan Split Bill / Titipan Belanja Pasangan**:
+     - Jika ada barang titipan teman atau barang pribadi pasangan yang ingin dikeluarkan dari anggaran bersama, item tersebut bisa dihapus atau dialokasikan ulang tanpa harus menghitung ulang sisa total struk secara manual.
+- **Analisa Kekurangan (Cons) Menyimpan Sebagai Item Terpisah:**
+  1. **Polusi & Kepadatan Feed Transaksi (Transaction Feed Clutter)**:
+     - 1 struk panjang berisi 39 item akan langsung membanjiri feed riwayat transaksi dengan 39 baris entri di hari yang sama. Transaksi penting lain (seperti transfer bank, tagihan listrik, cicilan) akan tenggelam oleh entri kecil (seperti daun bawang Rp 5.000 atau permen Rp 8.000).
+  2. **Ketidakcocokan Rekonsiliasi Rekening Bank (Bank Mutation Reconciliation Mismatch)**:
+     - Pada mutasi mutasi rekening bank / kartu debit / e-wallet pengguna, hanya ada **1 baris mutasi** keluar sebesar misal Rp 1.450.000 ke Grand Lucky.
+     - Saat pengguna membandingkan saldo mutasi bank dengan riwayat di Tumara, pengguna tidak menemukan nominal Rp 1.450.000, melainkan puluhan angka pecahan kecil, yang menyulitkan pencocokan saldo secara cepat.
+  3. **Beban Maintenance & Error Correction (High Cognitive & Operational Burden)**:
+     - Jika pengguna salah memilih sumber dompet bayar (misal keliru memilih Dompet Tunai padahal memakai Kartu Debit BCA), pengguna terpaksa mengedit 39 transaksi satu per satu, atau menghapus 39 transaksi satu per satu jika ingin membatalkan.
+  4. **Overhead Database & Net Worth Snapshots**:
+     - 1 kali pemindaian struk memicu 39 operasi insert transaksi dan 39 kalkulasi ledger saldo, meningkatkan volume dokumen dan payload query riwayat secara signifikan untuk nilai transaksi bernilai rendah.
+- **Rekomendasi Arsitektur Masa Depan (The Hybrid Parent-Child Model):**
+  - **Satu Transaksi Utama (Parent) dengan Rincian Item (Child Sub-Items)**:
+    - Di level transaksi & ledger, dicatat sebagai **1 transaksi induk** sebesar Rp 1.450.000 ke merchant "Grand Lucky" dengan dompet terkait (menjaga mutasi bank 1:1 dan menjaga feed riwayat tetap bersih dan rapi).
+    - Di dalam dokumen transaksi, disimpan array `items: [...]` hasil OCR scan.
+    - **Multi-Category Budget Allocation**: Transaksi induk secara otomatis memecah dampak budget ke beberapa kategori (misal: Rp 1.100.000 ke `Groceries`, Rp 350.000 ke `Makanan & Minuman` / `Hiburan`) tanpa perlu membuat baris transaksi baru di feed utama.
+    - Pengguna dapat mengetuk (tap) transaksi Grand Lucky kapan saja untuk membuka modal detail yang menampilkan seluruh daftar barang belanjaan beserta pencarian nama barang.
+
 ### [2026-10-03 22:45:00 WIB] — Brand Assets Refresh, 8 Modern Self-Hosted Avatars, Canonical Emoji System, AI Markdown Typography & Markdown Docs Synchronization
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menyempurnakan identitas visual dan pengalaman pengguna Tumara secara holistik:
