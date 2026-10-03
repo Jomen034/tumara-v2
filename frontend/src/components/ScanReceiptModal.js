@@ -70,16 +70,7 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
 
       const rawDate = res.data.date;
       setRawScannedDate(rawDate || "");
-      if (rawDate) {
-        const rawMonth = rawDate.slice(0, 7);
-        if (rawMonth !== currentMonthStr) {
-          setReceiptDate(todayStr);
-        } else {
-          setReceiptDate(rawDate);
-        }
-      } else {
-        setReceiptDate(todayStr);
-      }
+      setReceiptDate(rawDate || todayStr);
 
       toast.success("Struk berhasil dipindai!");
     } catch (e) {
@@ -257,36 +248,36 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
               </div>
 
               {rawScannedDate && rawScannedDate.slice(0, 7) !== currentMonthStr && (
-                <div className="text-[11px] bg-amber/10 border border-amber/25 text-amber rounded-xl p-2.5 space-y-1.5">
-                  <div className="flex items-center justify-between font-medium">
-                    <span>⚠️ Struk fisik tertera tanggal:</span>
-                    <span className="font-mono font-bold">{rawScannedDate}</span>
+                <div className="text-[11px] bg-elevated border border-borderc text-tsecondary rounded-xl p-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between font-medium text-tprimary">
+                    <span>🧾 Tanggal struk fisik:</span>
+                    <span className="font-mono font-bold text-brand">{rawScannedDate}</span>
                   </div>
-                  <p className="text-tsecondary text-[11px] leading-relaxed">
-                    Tumara mengarahkan ke tanggal <strong className="text-tprimary font-mono">{receiptDate}</strong> agar transaksi ini otomatis dihitung ke anggaran bulan berjalan ({currentMonthStr}).
+                  <p className="text-[11px] leading-relaxed">
+                    Transaksi dicatat sesuai tanggal asli ke buku kas <strong>{rawScannedDate.slice(0, 7)}</strong>. Anda tetap bisa mengalihkannya ke hari ini bila diinginkan.
                   </p>
                   <div className="flex items-center gap-2 pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setReceiptDate(todayStr)}
-                      className={`text-[10px] px-2.5 py-1 rounded-lg border transition-all ${
-                        receiptDate === todayStr
-                          ? "bg-brand text-black font-semibold border-brand shadow-sm"
-                          : "bg-surface hover:bg-elevated border-borderc text-tsecondary"
-                      }`}
-                    >
-                      ✓ Pakai Hari Ini ({todayStr})
-                    </button>
                     <button
                       type="button"
                       onClick={() => setReceiptDate(rawScannedDate)}
                       className={`text-[10px] px-2.5 py-1 rounded-lg border transition-all ${
                         receiptDate === rawScannedDate
+                          ? "bg-brand text-black font-semibold border-brand shadow-sm"
+                          : "bg-surface hover:bg-elevated border-borderc text-tsecondary"
+                      }`}
+                    >
+                      ✓ Tanggal Struk Asli ({rawScannedDate})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReceiptDate(todayStr)}
+                      className={`text-[10px] px-2.5 py-1 rounded-lg border transition-all ${
+                        receiptDate === todayStr
                           ? "bg-amber text-black font-semibold border-amber shadow-sm"
                           : "bg-surface hover:bg-elevated border-borderc text-tsecondary"
                       }`}
                     >
-                      Pakai Tanggal Struk Asli ({rawScannedDate})
+                      Ganti ke Hari Ini ({todayStr})
                     </button>
                   </div>
                 </div>

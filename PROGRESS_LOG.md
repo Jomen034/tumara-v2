@@ -20,7 +20,39 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
-### [2026-10-04 01:36:00 WIB] — Fix ESLint Vercel Build Blocker, Synchronize Receipt Scanner Transaction Dates with Active Budget Period, and Implement Canonical Category Normalization
+### [2026-10-04 01:46:00 WIB] — Preserve Factual Transaction Dates, Restore Ledger Accounting Integrity, and Deliver Monthly Budget Navigation in Tumara
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menjaga integritas pembukuan akuntansi dengan mempertahankan tanggal transaksi faktual (struk Grand Lucky tetap di 24 September 2026), menghapus seluruh logika pemaksaan mutasi tanggal sepihak (*unilateral date mutation*), menyesuaikan scanner struk agar default ke tanggal asli kertas struk, serta menghadirkan fitur **Month Navigator** interaktif di halaman Budget (`<` Prev, Month Year, `>` Next, `Bulan Ini`) sehingga pengguna dapat meninjau realisasi budget bulan lalu (September 2026) maupun bulan berjalan (Oktober 2026) secara transparan dan akurat.
+- **Latar Belakang & Analisa Solusi:**
+  - Pengguna secara tepat mengoreksi bahwa transaksi belanja Grand Lucky faktual terjadi pada **24 September 2026**, sehingga masuknya transaksi tersebut ke buku kas September 2026 dan status budget Groceries Oktober yang masih bernilai `Rp 0` (0 transaksi) adalah **fakta akuntansi yang 100% valid dan sehat**.
+  - Kebingungan terjadi semata-mata karena halaman Budget sebelumnya terkunci pada bulan berjalan tanpa ada tombol pemilih bulan, sehingga pengguna tidak dapat melihat realisasi budget bulan September tempat transaksi Grand Lucky tersebut sebenarnya tercatat.
+  - Solusi yang tepat bukan memindahkan tanggal transaksi pengguna, melainkan memberikan kendali navigasi bulan pada lembar anggaran (*Budget Sheet*).
+- **Key Actions & Changes:**
+  - `backend/server.py`:
+    - Menghapus migrasi pemaksaan tanggal.
+    - Menambahkan pemulihan otomatis jika ada transaksi Grand Lucky yang sempat berubah ke 2026-10-01 agar kembali ke tanggal asli `2026-09-24`.
+  - `backend/routes_finance.py`:
+    - Menghapus endpoint `align-receipt-dates`.
+    - Memperbarui `GET /budget`: menambahkan parameter query `month` (`GET /budget?month=YYYY-MM`), menghitung `budget_status`, `total_spent`, dan `category_breakdown` spesifik untuk bulan yang diminta.
+    - Mempertahankan `_canonical_category` dan sub-item category distribution agar pos belanja tetap terdistribusi presisi.
+  - `frontend/src/pages/Budget.js`:
+    - Menghapus pemanggilan `align-receipt-dates`.
+    - Menambahkan state `selectedMonth` (default: bulan berjalan) dan memperbarui `load()` dengan `params: { month: selectedMonth }`.
+    - Menambahkan komponen **Month Navigator** di header halaman Budget lengkap dengan tombol panah `<` dan `>`, label bulan aktif, serta tombol pintas *"Bulan Ini"*.
+    - Menghubungkan perhitungan pacing kalender dan grup 50/30/20 secara dinamis ke bulan yang dipilih.
+    - Meneruskan prop `month={selectedMonth}` ke `BudgetDetailModal`.
+  - `frontend/src/components/BudgetDetailModal.js`:
+    - Menerima prop `month` dan mengirimkannya sebagai parameter query ke `GET /budget/category/{category}`.
+  - `frontend/src/components/ScanReceiptModal.js` & `frontend/src/components/AddTransactionModal.js`:
+    - Mengembalikan default tanggal transaksi ke **tanggal faktual struk** yang diekstrak oleh OCR (misal: `2026-09-24`), tanpa pemaksaan ke hari ini.
+    - Mempertahankan kolom input tanggal interaktif agar pengguna tetap fleksibel mengedit.
+    - Memperbarui banner informatif: memberitahu pengguna bahwa transaksi akan dicatat ke buku kas bulan struk tersebut, disertai tombol pintas jika pengguna secara sengaja ingin mengalihkannya ke hari ini.
+- **Verifikasi Hasil:**
+  - Sintaks seluruh berkas JavaScript frontend tervalidasi via Node.js (0 error).
+  - Seluruh skrip Python backend lolos kompilasi `python3 -m py_compile`.
+  - Transaksi Grand Lucky tetap aman di tanggal 24 September 2026 dan pengguna dapat melihat pemakaian anggarannya saat berpindah ke bulan September di halaman Budget.
+
+---
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Memperbaiki kegagalan build produksi Vercel (`react-hooks/rules-of-hooks` & missing imports pada `TransactionDetailModal.js`), menyelesaikan akar masalah transaksi belanja struk Grand Lucky & Harlan yang belum terhitung ke budget bulan berjalan (tampil Rp 0), menambahkan normalisasi kategori kanonikal (*Groceries & Kebutuhan Rumah*), serta melengkapi modal pemindai struk dengan kontrol tanggal interaktif & deteksi otomatis beda bulan.
 - **Latar Belakang & Analisa Masalah:**

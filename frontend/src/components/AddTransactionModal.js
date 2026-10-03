@@ -183,18 +183,9 @@ export default function AddTransactionModal({
 
       const rawDate = res.data.date;
       setRawScanDate(rawDate || "");
-      if (rawDate) {
-        if (rawDate.slice(0, 7) !== currentMonthStr) {
-          setScanDate(todayDateStr);
-          setDate(todayDateStr);
-        } else {
-          setScanDate(rawDate);
-          setDate(rawDate);
-        }
-      } else {
-        setScanDate(todayDateStr);
-        setDate(todayDateStr);
-      }
+      const finalScanDate = rawDate || todayDateStr;
+      setScanDate(finalScanDate);
+      setDate(finalScanDate);
 
       toast.success("Struk berhasil dipindai!");
     } catch (e) {
@@ -525,29 +516,15 @@ export default function AddTransactionModal({
                 </div>
 
                 {rawScanDate && rawScanDate.slice(0, 7) !== currentMonthStr && (
-                  <div className="text-[11px] bg-amber/10 border border-amber/25 text-amber rounded-xl p-2.5 space-y-1.5">
-                    <div className="flex items-center justify-between font-medium">
-                      <span>⚠️ Struk fisik tertera tanggal:</span>
-                      <span className="font-mono font-bold">{rawScanDate}</span>
+                  <div className="text-[11px] bg-elevated border border-borderc text-tsecondary rounded-xl p-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between font-medium text-tprimary">
+                      <span>🧾 Tanggal struk fisik:</span>
+                      <span className="font-mono font-bold text-brand">{rawScanDate}</span>
                     </div>
-                    <p className="text-tsecondary text-[11px] leading-relaxed">
-                      Tumara mengarahkan ke tanggal <strong className="text-tprimary font-mono">{scanDate}</strong> agar transaksi ini otomatis dihitung ke anggaran bulan berjalan ({currentMonthStr}).
+                    <p className="text-[11px] leading-relaxed">
+                      Transaksi dicatat sesuai tanggal asli ke buku kas <strong>{rawScanDate.slice(0, 7)}</strong>. Anda tetap bisa mengalihkannya ke hari ini bila diinginkan.
                     </p>
                     <div className="flex items-center gap-2 pt-0.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setScanDate(todayDateStr);
-                          setDate(todayDateStr);
-                        }}
-                        className={`text-[10px] px-2.5 py-1 rounded-lg border transition-all ${
-                          scanDate === todayDateStr
-                            ? "bg-brand text-black font-semibold border-brand shadow-sm"
-                            : "bg-surface hover:bg-elevated border-borderc text-tsecondary"
-                        }`}
-                      >
-                        ✓ Pakai Hari Ini ({todayDateStr})
-                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -556,11 +533,25 @@ export default function AddTransactionModal({
                         }}
                         className={`text-[10px] px-2.5 py-1 rounded-lg border transition-all ${
                           scanDate === rawScanDate
+                            ? "bg-brand text-black font-semibold border-brand shadow-sm"
+                            : "bg-surface hover:bg-elevated border-borderc text-tsecondary"
+                        }`}
+                      >
+                        ✓ Tanggal Struk Asli ({rawScanDate})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScanDate(todayDateStr);
+                          setDate(todayDateStr);
+                        }}
+                        className={`text-[10px] px-2.5 py-1 rounded-lg border transition-all ${
+                          scanDate === todayDateStr
                             ? "bg-amber text-black font-semibold border-amber shadow-sm"
                             : "bg-surface hover:bg-elevated border-borderc text-tsecondary"
                         }`}
                       >
-                        Pakai Tanggal Struk Asli ({rawScanDate})
+                        Ganti ke Hari Ini ({todayDateStr})
                       </button>
                     </div>
                   </div>

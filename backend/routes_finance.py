@@ -444,8 +444,49 @@ async def import_transactions(file: UploadFile = File(...), ctx: Ctx = Depends(g
 
 # ---------------- Budget ----------------
 @router.get("/budget")
-async def get_budget(ctx: Ctx = Depends(get_ctx)):
-    return await db.budgets.find_one({"household_id": ctx.hid, "month": _month()}, {"_id": 0})
+async def get_budget(month: Optional[str] = None, ctx: Ctx = Depends(get_ctx)):
+    target_month = month or _month()
+    b = await db.budgets.find_one({"household_id": ctx.hid, "month": target_month}, {"_id": 0})
+    if not b:
+        b = await db.budgets.find_one({"household_id": ctx.hid}, {"_id": 0}, sort=[("month", -1)])
+    if not b:
+        return None
+
+    # Calculate actual category spending and budget_status for the target month
+    month_txns = await db.transactions.find({
+        "household_id": ctx.hid,
+        "date": {"$regex": f"^{target_month}"}
+    }, {"_id": 0}).to_list(1000)
+
+    cat = {}
+    for t in month_txns:
+        if t.get("type") == "expense":
+            for c_name, c_amt in _distribute_txn_categories(t).items():
+                cat[c_name] = cat.get(c_name, 0.0) + c_amt
+
+    budget_status = []
+    total_spent = 0.0
+    for c in b.get("categories", []):
+        canon_c = _canonical_category(c.get("category", ""))
+        spent = cat.get(c.get("category", ""), cat.get(canon_c, 0.0))
+        total_spent += spent
+        budget_status.append({
+            "category": c.get("category"),
+            "group": c.get("group", "needs"),
+            "limit": c.get("limit", 0),
+            "spent": spent,
+            "over": spent > c.get("limit", 0) and c.get("limit", 0) > 0,
+        })
+
+    cat_breakdown = [{"category": k, "amount": v} for k, v in cat.items() if v > 0]
+    cat_breakdown.sort(key=lambda x: x["amount"], reverse=True)
+
+    result = dict(b)
+    result["month"] = target_month
+    result["budget_status"] = budget_status
+    result["total_spent"] = total_spent
+    result["category_breakdown"] = cat_breakdown
+    return result
 
 
 @router.post("/budget")
@@ -458,44 +499,6 @@ async def set_budget(body: BudgetCreate, ctx: Ctx = Depends(get_ctx)):
     )
     await db.users.update_one({"user_id": ctx.user.user_id}, {"$set": {"onboarded": True}})
     return doc
-
-
-@router.post("/budget/align-receipt-dates")
-async def align_receipt_dates(ctx: Ctx = Depends(get_ctx)):
-    current_ym = _month()
-    target_date = f"{current_ym}-01"
-    # Update Grand Lucky / supermarket transactions
-    r1 = await db.transactions.update_many(
-        {
-            "household_id": ctx.hid,
-            "note": {"$regex": "grand lucky|grandlucky|supermarket|superindo|struk belanja", "$options": "i"},
-            "date": {"$lt": target_date}
-        },
-        {"$set": {"date": target_date, "category": "Groceries & Kebutuhan Rumah"}}
-    )
-    # Update Harlan transactions
-    r2 = await db.transactions.update_many(
-        {
-            "household_id": ctx.hid,
-            "note": {"$regex": "harlan", "$options": "i"},
-            "date": {"$lt": target_date}
-        },
-        {"$set": {"date": target_date}}
-    )
-    # Update any receipt scanned transactions created this month or recently with dates older than this month
-    r3 = await db.transactions.update_many(
-        {
-            "household_id": ctx.hid,
-            "source": "ai_receipt",
-            "date": {"$lt": target_date}
-        },
-        {"$set": {"date": target_date}}
-    )
-    return {
-        "status": "ok",
-        "current_month": current_ym,
-        "aligned_count": (r1.modified_count or 0) + (r2.modified_count or 0) + (r3.modified_count or 0)
-    }
 
 
 @router.get("/budget/category/{category:path}")

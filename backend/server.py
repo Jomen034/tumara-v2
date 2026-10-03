@@ -104,37 +104,14 @@ async def on_startup():
     except Exception as e:
         print(f"[Startup Migration] Warning normalizing groceries: {e}")
 
-    # Synchronize receipt scan dates (e.g. Grand Lucky from Sep 24 -> active Oct 2026, Harlan 2024 -> active Oct 2026)
+    # Restore Grand Lucky factual receipt date to 2026-09-24 if it was previously set to 2026-10-01
     try:
-        from datetime import datetime, timezone
-        current_ym = datetime.now(timezone.utc).strftime("%Y-%m")
-        target_date = f"{current_ym}-01"
-        # Grand Lucky / supermarket receipts
         await db.transactions.update_many(
-            {
-                "note": {"$regex": "grand lucky|grandlucky|supermarket|superindo|struk belanja", "$options": "i"},
-                "date": {"$lt": target_date}
-            },
-            {"$set": {"date": target_date, "category": "Groceries & Kebutuhan Rumah"}}
-        )
-        # Harlan receipts
-        await db.transactions.update_many(
-            {
-                "note": {"$regex": "harlan", "$options": "i"},
-                "date": {"$lt": target_date}
-            },
-            {"$set": {"date": target_date}}
-        )
-        # All AI-scanned receipts with past dates
-        await db.transactions.update_many(
-            {
-                "source": "ai_receipt",
-                "date": {"$lt": target_date}
-            },
-            {"$set": {"date": target_date}}
+            {"note": {"$regex": "grand lucky|grandlucky", "$options": "i"}, "date": "2026-10-01"},
+            {"$set": {"date": "2026-09-24"}}
         )
     except Exception as e:
-        print(f"[Startup Migration] Warning aligning receipt dates: {e}")
+        print(f"[Startup Migration] Warning restoring Grand Lucky date: {e}")
 
 raw_origins = os.environ.get("CORS_ORIGINS", "")
 parsed_origins = [o.strip().rstrip("/") for o in raw_origins.split(",") if o.strip() and o.strip() != "*"]

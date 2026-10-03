@@ -15,6 +15,7 @@ import {
   Pencil,
   Flame,
   Calendar,
+  ChevronLeft,
   ChevronRight,
   Plus,
   Sparkles,
@@ -90,23 +91,27 @@ export default function Budget() {
   const [editIncomeOpen, setEditIncomeOpen] = useState(false);
   const [incomeInput, setIncomeInput] = useState("");
   const [savingIncome, setSavingIncome] = useState(false);
-  const [autoBalancing, setAutoBalancing] = useState(false);
+  const now = new Date();
+  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthStr);
 
-  const load = () =>
-    api
-      .post("/budget/align-receipt-dates")
-      .catch(() => {})
-      .then(() => Promise.all([api.get("/budget"), api.get("/dashboard")]))
+  const load = () => {
+    setLoading(true);
+    return Promise.all([
+      api.get("/budget", { params: { month: selectedMonth } }),
+      api.get("/dashboard"),
+    ])
       .then(([b, d]) => {
         setBudget(b.data);
         setDash(d.data);
       })
       .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version]);
+  }, [version, selectedMonth]);
 
   // auto-start wizard for first-run onboarding
   useEffect(() => {
@@ -515,28 +520,42 @@ export default function Budget() {
   }
 
   // ---------- Overview ----------
-  const status = dash?.budget_status || [];
-  const totalSpent = status.reduce((a, b) => a + b.spent, 0);
-  const totalBudget = status.reduce((a, b) => a + b.limit, 0);
+  const status = budget?.budget_status || dash?.budget_status || [];
+  const totalSpent = status.reduce((a, b) => a + (b.spent || 0), 0);
+  const totalBudget = status.reduce((a, b) => a + (b.limit || 0), 0);
   const totalRemaining = Math.max(0, totalBudget - totalSpent);
   const isTotalOver = totalSpent > totalBudget && totalBudget > 0;
   const totalOverAmount = Math.max(0, totalSpent - totalBudget);
   const totalPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
   const monthlyIncome = budget?.monthly_income || 0;
 
-  // Calendar & pacing
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
-  const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const currentDay = now.getDate();
-  const daysLeft = Math.max(1, totalDaysInMonth - currentDay + 1);
+  // Calendar & pacing based on selectedMonth
+  const [selectedYear, selectedMonthNum] = (selectedMonth || currentMonthStr).split("-").map(Number);
+  const isCurrentMonth = (selectedMonth || currentMonthStr) === currentMonthStr;
+
+  const totalDaysInMonth = new Date(selectedYear, selectedMonthNum, 0).getDate();
+  const currentDay = isCurrentMonth ? now.getDate() : totalDaysInMonth;
+  const daysLeft = isCurrentMonth ? Math.max(1, totalDaysInMonth - currentDay + 1) : 0;
   const monthNames = [
     "Januari", "Februari", "Maret", "April", "Mei", "Juni",
     "Juli", "Agustus", "September", "Oktober", "November", "Desember",
   ];
-  const currentMonthName = monthNames[currentMonth];
+  const activeMonthName = monthNames[selectedMonthNum - 1];
   const safeDailyTotal = daysLeft > 0 ? Math.round(totalRemaining / daysLeft) : 0;
+
+  const prevMonth = () => {
+    const d = new Date(selectedYear, selectedMonthNum - 2, 1);
+    setSelectedMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+
+  const nextMonth = () => {
+    const d = new Date(selectedYear, selectedMonthNum, 1);
+    setSelectedMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+
+  const goToCurrentMonth = () => {
+    setSelectedMonth(currentMonthStr);
+  };
 
   // 50/30/20 Group Aggregates
   const groupStats = {
@@ -563,18 +582,51 @@ export default function Budget() {
 
   // Unbudgeted spending detection from transactions
   const budgetedCategories = new Set(status.map((s) => s.category));
-  const unbudgetedTransactions = (dash?.category_breakdown || []).filter(
+  const unbudgetedTransactions = (budget?.category_breakdown || dash?.category_breakdown || []).filter(
     (c) => c.amount > 0 && !budgetedCategories.has(c.category)
   );
 
   return (
     <div className="space-y-6">
-      {/* Header with Title & Action Buttons */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Header with Title & Action Buttons & Month Navigator */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-head font-extrabold">Budget</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl sm:text-3xl font-head font-extrabold">Budget</h1>
+            {/* Month Navigator pill */}
+            <div className="flex items-center bg-surface border border-borderc rounded-xl p-1 gap-1">
+              <button
+                type="button"
+                onClick={prevMonth}
+                aria-label="Bulan sebelumnya"
+                className="p-1 hover:bg-elevated rounded-lg text-tsecondary hover:text-tprimary transition-colors"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-xs font-semibold px-2 text-tprimary min-w-[125px] text-center">
+                {activeMonthName} {selectedYear}
+              </span>
+              <button
+                type="button"
+                onClick={nextMonth}
+                aria-label="Bulan berikutnya"
+                className="p-1 hover:bg-elevated rounded-lg text-tsecondary hover:text-tprimary transition-colors"
+              >
+                <ChevronRight size={16} />
+              </button>
+              {!isCurrentMonth && (
+                <button
+                  type="button"
+                  onClick={goToCurrentMonth}
+                  className="text-[10px] font-semibold bg-brand/10 text-brand px-2 py-0.5 rounded-md hover:bg-brand/20 transition-colors ml-1"
+                >
+                  Bulan Ini
+                </button>
+              )}
+            </div>
+          </div>
           <p className="text-tsecondary text-sm mt-1">
-            {currentMonthName} {currentYear} ·{" "}
+            {isCurrentMonth ? "Periode Berjalan" : `Arsip ${activeMonthName} ${selectedYear}`} ·{" "}
             {budget ? (budget.mode === "percentage" ? "Aturan 50/30/20" : "Limit Custom") : "Belum diatur"}
           </p>
         </div>
@@ -1069,6 +1121,7 @@ export default function Budget() {
         category={selectedCat?.category}
         initialGroup={selectedCat?.group}
         initialLimit={selectedCat?.limit}
+        month={selectedMonth}
         onUpdated={() => {
           load();
           bump();
