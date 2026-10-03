@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import * as Icons from "lucide-react";
-import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Calendar, Wallet as WalletIcon, Tag, User, Sparkles, Trash2, Pencil, Target } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Calendar, Wallet as WalletIcon, Tag, User, Sparkles, Trash2, Pencil, Target, Receipt, Search } from "lucide-react";
 import { formatRp, formatDate } from "../lib/format";
 import { catMeta } from "../lib/constants";
 import { getUserAvatar } from "../lib/avatars";
@@ -16,6 +16,8 @@ export default function TransactionDetailModal({
   onEdit,
   onDelete,
 }) {
+  const [itemSearch, setItemSearch] = useState("");
+
   if (!t) return null;
 
   const m = catMeta(t.category);
@@ -43,6 +45,27 @@ export default function TransactionDetailModal({
       default: return "Input Manual";
     }
   };
+
+  const subItems = t.items || [];
+  const subItemCategories = Object.entries(
+    subItems.reduce((acc, it) => {
+      const p = Number(it.price) || 0;
+      if (p > 0) {
+        const c = it.category || t.category || "Lainnya";
+        acc[c] = (acc[c] || 0) + p;
+      }
+      return acc;
+    }, {})
+  );
+
+  const filteredSubItems = subItems.filter((it) => {
+    if (!itemSearch.trim()) return true;
+    const q = itemSearch.toLowerCase();
+    return (
+      (it.name || "").toLowerCase().includes(q) ||
+      (it.category || "").toLowerCase().includes(q)
+    );
+  });
 
   return (
     <Modal open={open} onClose={onClose} title="Detail Transaksi" testid="transaction-detail-modal" size="md">
@@ -141,6 +164,83 @@ export default function TransactionDetailModal({
             </span>
           </div>
         </div>
+
+        {/* Sub-Items Detail Section (Rincian Barang Belanjaan) */}
+        {subItems.length > 0 && (
+          <div className="pt-2 border-t border-borderc/40 space-y-3" data-testid="txn-subitems-section">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-tprimary flex items-center gap-1.5 uppercase tracking-wider">
+                <Receipt size={14} className="text-brand" />
+                Rincian Barang ({subItems.length} Item)
+              </span>
+              <span className={`text-xs font-mono text-tmuted font-medium ${privacy ? "privacy-blur" : ""}`}>
+                Total {formatRp(subItems.reduce((s, it) => s + (Number(it.price) || 0), 0), privacy)}
+              </span>
+            </div>
+
+            {/* Category Breakdown Chips if multiple categories */}
+            {subItemCategories.length > 1 && (
+              <div className="flex flex-wrap gap-1.5 py-0.5">
+                {subItemCategories.map(([catName, amt]) => {
+                  const itemCatMeta = catMeta(catName);
+                  return (
+                    <span
+                      key={catName}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium bg-elevated border border-borderc/60 text-tsecondary"
+                    >
+                      <span>{itemCatMeta.emoji}</span>
+                      <span>{catName}:</span>
+                      <strong className={`text-tprimary font-mono ${privacy ? "privacy-blur" : ""}`}>
+                        {formatRp(amt, privacy)}
+                      </strong>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Search inside sub-items if > 5 items */}
+            {subItems.length > 5 && (
+              <div className="relative">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-tmuted" />
+                <input
+                  type="text"
+                  value={itemSearch}
+                  onChange={(e) => setItemSearch(e.target.value)}
+                  placeholder="Cari dalam daftar barang..."
+                  className="w-full bg-elevated border border-borderc rounded-xl pl-8 pr-3 py-1.5 text-xs text-tprimary placeholder:text-tmuted focus:border-brand focus:outline-none"
+                />
+              </div>
+            )}
+
+            {/* Scrollable list */}
+            <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 divide-y divide-borderc/30 rounded-xl bg-surface p-2.5 border border-borderc/60">
+              {filteredSubItems.map((it, idx) => {
+                const itMeta = catMeta(it.category || t.category);
+                return (
+                  <div key={idx} className="pt-1.5 first:pt-0 flex items-center justify-between gap-2 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-tprimary truncate">
+                        {it.name}
+                        {it.quantity && it.quantity > 1 ? ` (x${it.quantity})` : ""}
+                      </p>
+                      <span className="inline-flex items-center gap-1 text-[10px] text-tmuted">
+                        <span>{itMeta.emoji}</span>
+                        <span>{it.category || t.category}</span>
+                      </span>
+                    </div>
+                    <span className={`font-mono font-semibold text-tprimary shrink-0 ${privacy ? "privacy-blur" : ""}`}>
+                      {formatRp(it.price, privacy)}
+                    </span>
+                  </div>
+                );
+              })}
+              {filteredSubItems.length === 0 && (
+                <p className="text-center text-xs text-tmuted py-3">Tidak ada barang yang cocok</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex gap-2.5 pt-2">

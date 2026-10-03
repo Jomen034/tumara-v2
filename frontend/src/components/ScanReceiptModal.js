@@ -79,6 +79,15 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
     toast.success(`Semua item diubah ke "${cat}"`);
   };
 
+  const categoryDistribution = scannedItems.reduce((acc, it) => {
+    const p = Number(it.price) || 0;
+    if (p > 0) {
+      const c = it.category || receiptCategory || "Lainnya";
+      acc[c] = (acc[c] || 0) + p;
+    }
+    return acc;
+  }, {});
+
   const saveTxn = async () => {
     if (!walletId) return toast.error("Pilih dompet");
     setSaving(true);
@@ -108,8 +117,18 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
           note: result.merchant || "Struk Belanja",
           date: result.date || undefined,
           source: "ai_receipt",
+          items: validItems.length > 0 ? validItems.map((it) => ({
+            name: it.name,
+            price: Number(it.price),
+            category: it.category || receiptCategory || "Groceries & Kebutuhan Rumah",
+            quantity: Number(it.qty || it.quantity || 1),
+          })) : undefined,
         });
-        toast.success("Tersimpan sebagai transaksi!");
+        toast.success(
+          validItems.length > 0
+            ? `Tersimpan 1 transaksi terpadu dengan ${validItems.length} rincian item!`
+            : "Tersimpan sebagai transaksi!"
+        );
       }
       onSaved?.();
       onClose();
@@ -228,23 +247,53 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
               </div>
             </div>
 
-            {/* Itemized toggle */}
+            {/* Live Category Distribution Preview */}
+            {Object.keys(categoryDistribution).length > 0 && (
+              <div className="bg-elevated/70 rounded-2xl p-3 border border-borderc space-y-1.5" data-testid="receipt-distribution-preview">
+                <div className="flex items-center justify-between text-xs font-semibold text-tsecondary">
+                  <span>Distribusi Anggaran Belanja:</span>
+                  <span className="text-[11px] font-normal text-tmuted">
+                    {Object.keys(categoryDistribution).length} kategori
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {Object.entries(categoryDistribution).map(([catName, amt]) => {
+                    const meta = catMeta(catName);
+                    return (
+                      <span
+                        key={catName}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium bg-surface border border-borderc/80 text-tprimary"
+                      >
+                        <span>{meta.emoji}</span>
+                        <span className="text-tsecondary">{catName}:</span>
+                        <strong className="font-mono text-brand font-semibold">{formatRp(amt)}</strong>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Storage Mode Toggle */}
             {scannedItems.filter((it) => Number(it.price) > 0).length > 1 && (
               <button
                 data-testid="itemize-toggle"
                 onClick={() => setItemized((v) => !v)}
-                className="w-full flex items-center justify-between bg-elevated rounded-xl px-4 py-3 text-sm border border-borderc/60 hover:bg-elevated/80 transition-colors"
+                className="w-full flex items-center justify-between bg-elevated rounded-xl px-4 py-3 text-sm border border-borderc/60 hover:bg-elevated/80 transition-colors text-left"
               >
-                <span className="text-left">
-                  <span className="font-medium text-tprimary">Catat tiap item terpisah</span>
-                  <br />
-                  <span className="text-xs text-tmuted">
-                    Simpan {scannedItems.filter((it) => Number(it.price) > 0).length} item dengan kategorinya masing-masing
+                <div className="pr-3">
+                  <span className="font-medium text-tprimary flex items-center gap-1.5">
+                    {itemized ? "✂️ Mode: Pecah Jadi Banyak Transaksi Terpisah" : "🧾 Mode: 1 Transaksi Terpadu + Sub-Items (Rekomendasi)"}
                   </span>
-                </span>
+                  <p className="text-xs text-tmuted mt-0.5">
+                    {itemized
+                      ? `Menyimpan ${scannedItems.filter((it) => Number(it.price) > 0).length} transaksi mandiri terpisah di feed riwayat`
+                      : `1 mutasi bersih di dompet, rincian ${scannedItems.filter((it) => Number(it.price) > 0).length} barang tersimpan, budget dihitung per kategori`}
+                  </p>
+                </div>
                 <span
-                  className={`w-11 h-6 rounded-full p-0.5 transition-colors ${
-                    itemized ? "bg-brand" : "bg-borderc"
+                  className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 ${
+                    itemized ? "bg-amber-500" : "bg-brand"
                   }`}
                 >
                   <span
@@ -261,7 +310,7 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
               <div className="bg-surface rounded-2xl border border-borderc p-3 space-y-2">
                 <div className="flex items-center justify-between text-xs text-tmuted px-1">
                   <span>Daftar Item ({scannedItems.length})</span>
-                  <span>{itemized ? "Sesuaikan Kategori Per Item" : "Kategori Otomatis"}</span>
+                  <span>Sesuaikan Kategori Per Item</span>
                 </div>
                 <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 divide-y divide-borderc/30">
                   {scannedItems.map((it, i) => (
@@ -273,23 +322,17 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
                         <p className="font-medium text-tprimary truncate">{it.name}</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        {itemized ? (
-                          <select
-                            value={it.category || receiptCategory}
-                            onChange={(e) => updateItemCategory(i, e.target.value)}
-                            className="bg-elevated border border-borderc rounded-lg px-2 py-0.5 text-[11px] text-tprimary focus:border-brand focus:outline-none max-w-[150px]"
-                          >
-                            {expenseCategories.map((c) => (
-                              <option key={c.name} value={c.name}>
-                                {c.name}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span className="text-[11px] text-tmuted">
-                            {it.category || receiptCategory}
-                          </span>
-                        )}
+                        <select
+                          value={it.category || receiptCategory}
+                          onChange={(e) => updateItemCategory(i, e.target.value)}
+                          className="bg-elevated border border-borderc rounded-lg px-2 py-0.5 text-[11px] text-tprimary focus:border-brand focus:outline-none max-w-[150px]"
+                        >
+                          {expenseCategories.map((c) => (
+                            <option key={c.name} value={c.name}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
                         <span className="font-mono font-semibold text-tprimary">
                           {formatRp(it.price)}
                         </span>
@@ -327,7 +370,7 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
                   <Check size={18} />{" "}
                   {itemized
                     ? `Simpan ${scannedItems.filter((it) => Number(it.price) > 0).length} Item Terpisah`
-                    : "Simpan Transaksi"}
+                    : `Simpan 1 Transaksi Terpadu (${scannedItems.filter((it) => Number(it.price) > 0).length} Item)`}
                 </>
               )}
             </Button>

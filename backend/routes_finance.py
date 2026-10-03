@@ -23,6 +23,29 @@ def _month():
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
+def _distribute_txn_categories(t: dict) -> dict:
+    """Distributes an expense transaction's amount across categories based on sub-items if present."""
+    items = t.get("items")
+    if items and isinstance(items, list) and len(items) > 0:
+        dist = defaultdict(float)
+        item_total = 0.0
+        for it in items:
+            if isinstance(it, dict):
+                p = float(it.get("price") or 0)
+                if p > 0:
+                    c = it.get("category") or t.get("category") or "Lainnya"
+                    dist[c] += p
+                    item_total += p
+        # If there is a positive remainder (e.g. tax, tip, service charge), credit to parent category
+        remainder = float(t.get("amount", 0)) - item_total
+        if remainder > 0:
+            parent_cat = t.get("category") or "Lainnya"
+            dist[parent_cat] += remainder
+        if dist:
+            return dict(dist)
+    return {t.get("category") or "Lainnya": float(t.get("amount", 0))}
+
+
 _snapshot_networth = ledger.snapshot_networth
 
 
@@ -157,7 +180,11 @@ async def list_transactions(
     if wallet_id and wallet_id != "all":
         query["$or"] = [{"wallet_id": wallet_id}, {"to_wallet_id": wallet_id}]
     if category and category != "all":
-        query["category"] = category
+        cat_filter = {"$or": [{"category": category}, {"items.category": category}]}
+        if "$or" in query or "$and" in query:
+            query = {"$and": [query, cat_filter]}
+        else:
+            query["$or"] = [{"category": category}, {"items.category": category}]
     if type and type != "all":
         query["type"] = type
     if start_date and end_date:
@@ -170,8 +197,10 @@ async def list_transactions(
         search_filter = [
             {"note": {"$regex": q, "$options": "i"}},
             {"category": {"$regex": q, "$options": "i"}},
+            {"items.name": {"$regex": q, "$options": "i"}},
+            {"items.category": {"$regex": q, "$options": "i"}},
         ]
-        if "$or" in query:
+        if "$or" in query or "$and" in query:
             query = {"$and": [query, {"$or": search_filter}]}
         else:
             query["$or"] = search_filter
@@ -404,12 +433,15 @@ async def get_category_budget_detail(category: str, ctx: Ctx = Depends(get_ctx))
 
     txns = await db.transactions.find({
         "household_id": ctx.hid,
-        "category": category,
         "type": "expense",
-        "date": {"$regex": f"^{month}"}
+        "date": {"$regex": f"^{month}"},
+        "$or": [
+            {"category": category},
+            {"items.category": category}
+        ]
     }, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(200)
 
-    spent = sum(t.get("amount", 0) for t in txns)
+    spent = sum(_distribute_txn_categories(t).get(category, 0.0) for t in txns)
     limit = float(cat_item.get("limit", 0)) if cat_item else 0.0
     group = cat_item.get("group", "needs") if cat_item else "needs"
     remaining = max(0.0, limit - spent)
@@ -846,7 +878,8 @@ async def dashboard(ctx: Ctx = Depends(get_ctx)):
     cat = {}
     for t in month_txns:
         if t["type"] == "expense":
-            cat[t["category"]] = cat.get(t["category"], 0) + t["amount"]
+            for c_name, c_amt in _distribute_txn_categories(t).items():
+                cat[c_name] = cat.get(c_name, 0.0) + c_amt
 
     budget_status = []
     if budget:
@@ -993,7 +1026,8 @@ async def analytics(
     cat = defaultdict(float)
     for t in period_txns:
         if t["type"] == "expense":
-            cat[t.get("category", "Lainnya")] += t["amount"]
+            for c_name, c_amt in _distribute_txn_categories(t).items():
+                cat[c_name] += c_amt
 
     total_cat_amt = sum(cat.values())
     category_breakdown = [

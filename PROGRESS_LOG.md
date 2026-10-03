@@ -20,6 +20,45 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-03 23:05:00 WIB] — Full Implementation of the Hybrid Parent-Child Transaction Model ("Detail Sub-Items"): Clean Wallet Ledger with Granular Multi-Category Budget Distribution & Itemized Inspection
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Mengimplementasikan secara menyeluruh arsitektur transaksi hibrida "Parent Transaksi + Child Sub-Items" untuk hasil pemindaian struk belanja (AI Receipt Scan). Solusi ini menggabungkan keunggulan 1 mutasi bank/dompet yang rapi dan bebas banjir feed riwayat (mencegah clutter dari 39 baris belanjaan supermarket) dengan presisi pelacakan multi-kategori anggaran 50/30/20, pencarian granular nama barang di database, live breakdown preview kategori sebelum disimpan, serta modal inspeksi detail belanjaan yang interaktif dan nyaman.
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, pengguna hanya dihadapkan pada dua pilihan ekstrem:
+    1. Menyimpan struk panjang (misal: Grand Lucky 39 item) sebagai 1 transaksi gabungan, yang menyebabkan rincian nama item dan harga per barang HILANG dari database, serta seluruh belanjaan dipukul rata ke 1 kategori saja.
+    2. Menyimpan sebagai item terpisah (itemized), yang menciptakan 39 baris transaksi spam di feed riwayat, merusak rekonsiliasi mutasi rekening bank 1:1, dan memberatkan koreksi data jika ada kesalahan dompet.
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Mendefinisikan skema `SubItem(name, price, category, quantity)`.
+    - Menambahkan field `items: Optional[List[SubItem]] = None` pada `TransactionCreate`, `TransactionUpdate`, dan `Transaction`.
+  - `backend/routes_finance.py`:
+    - Menambahkan fungsi helper `_distribute_txn_categories(t)`: mendistribusikan nominal transaksi belanja secara proporsional ke kategori-kategori sub-itemnya, dan mengalokasikan sisa selisih (pajak/service/diskon) ke kategori induk.
+    - `get_transactions()`:
+      - Menambahkan pencarian berbasis sub-item: query `q` kini mencakup `items.name` dan `items.category`.
+      - Menyelaraskan filter kategori: transaksi induk akan muncul jika kategorinya cocok ATAU salah satu sub-itemnya memiliki kategori tersebut (`$or: [{"category": category}, {"items.category": category}]`).
+    - `dashboard()`: Menggunakan `_distribute_txn_categories(t)` untuk menghitung pemakaian anggaran bulanan (`cat`) sehingga alokasi budget 50/30/20 (Needs, Wants, Savings) terpotong akurat sesuai kategori barang masing-masing.
+    - `get_category_budget_detail()`: Menghitung nominal terpakai per kategori dari sub-item transaksi terkait secara presisi.
+    - `reports()`: Mengintegrasikan distribusi multi-kategori sub-item ke dalam grafik donat dan laporan pengeluaran berkala.
+  - `frontend/src/components/ScanReceiptModal.js` & `frontend/src/components/AddTransactionModal.js`:
+    - Menghadirkan Mode 1 sebagai Default Rekomendasi: `🧾 Simpan 1 Transaksi Terpadu + Sub-Items` (1 transaksi di dompet & feed, seluruh array rincian barang tersimpan utuh, budget dihitung per kategori item).
+    - Mempertahankan Mode 2 opsional: `✂️ Pecah Menjadi Banyak Transaksi Terpisah` untuk pengguna yang secara sengaja ingin setiap item berdiri sendiri.
+    - Menambahkan komponen "Live Category Distribution Preview": chip bar dinamis yang memperlihatkan bagaimana total belanja terbagi ke kategori-kategori (`🛒 Groceries`, `🍜 Makanan & Minuman`, `⚡ Tagihan`, dsb.) secara real-time.
+    - Memungkinkan pengguna mengubah kategori per item di daftar scrollable pada kedua mode sebelum disimpan.
+    - Memperbarui label tombol simpan dinamis (`Simpan 1 Transaksi Terpadu (N Item)`).
+  - `frontend/src/components/TransactionDetailModal.js`:
+    - Menambahkan seksi "Rincian Barang Belanjaan (Sub-Items)" ketika transaksi memiliki array `items`:
+      - Ringkasan distribusi kategori belanjaan dengan badge emoji dan nominal masing-masing.
+      - Kotak pencarian barang instan (jika barang > 5 item).
+      - Daftar scrollable seluruh barang belanjaan lengkap dengan nama, kuantitas (`x2`), badge kategori warna, dan harga per item dengan dukungan privacy blur mode.
+  - `frontend/src/pages/Dashboard.js` (`TxnRow`):
+    - Menambahkan badge indikator elegan `🧾 N item` di samping nama merchant transaksi yang memiliki sub-item.
+  - `frontend/src/pages/Transactions.js`:
+    - Memperbarui filter pencarian teks client-side agar memeriksa nama dan kategori di dalam array sub-items.
+    - Memperbarui filter dropdown kategori agar mencocokkan kategori transaksi induk maupun kategori di dalam sub-items.
+- **Verifikasi Hasil:**
+  - Sintaks seluruh komponen frontend tervalidasi seimbang tanpa error (0 delta kurung).
+  - Skema Pydantic backend dan file router terkompilasi 100% via `python3 -m py_compile`.
+
 ### [2026-10-03 22:50:00 WIB] — Architectural Analysis: Pros & Cons of Itemized vs Consolidated Transaction Storage for Long Supermarket Receipts (Grand Lucky Case Study)
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Mendokumentasikan analisa mendalam mengenai dampak arsitektur data, akurasi budgeting, dan user experience (UX) saat pengguna memindai struk belanja supermarket panjang (seperti Grand Lucky 39 item) dan memilih opsi "Simpan sebagai item terpisah" (Itemized) dibandingkan "Simpan sebagai satu transaksi gabungan" (Consolidated).

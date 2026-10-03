@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import api from "../lib/api";
-import { CATEGORIES } from "../lib/constants";
+import { CATEGORIES, catMeta } from "../lib/constants";
 import { formatRp } from "../lib/format";
 import { Modal, Button, Input, Select, Spinner } from "./ui";
 
@@ -64,6 +64,16 @@ export default function AddTransactionModal({
   const [itemized, setItemized] = useState(false);
   const [scanCategory, setScanCategory] = useState("Groceries & Kebutuhan Rumah");
   const [scanItems, setScanItems] = useState([]);
+  const [subItemsDraft, setSubItemsDraft] = useState(null);
+
+  const scanCategoryDistribution = scanItems.reduce((acc, it) => {
+    const p = Number(it.price) || 0;
+    if (p > 0) {
+      const c = it.category || scanCategory || "Lainnya";
+      acc[c] = (acc[c] || 0) + p;
+    }
+    return acc;
+  }, {});
 
   useEffect(() => {
     if (!open) return;
@@ -85,6 +95,7 @@ export default function AddTransactionModal({
     setCategory(initialCategory || "Groceries & Kebutuhan Rumah");
     setNote("");
     setDate(new Date().toISOString().slice(0, 10));
+    setSubItemsDraft(null);
   };
 
   const resetScan = () => {
@@ -94,6 +105,7 @@ export default function AddTransactionModal({
     setItemized(false);
     setScanCategory("Groceries & Kebutuhan Rumah");
     setScanItems([]);
+    setSubItemsDraft(null);
   };
 
   const parse = async (text) => {
@@ -181,8 +193,19 @@ export default function AddTransactionModal({
     setCategory(scanCategory || "Groceries & Kebutuhan Rumah");
     setNote(scanResult.merchant || "Struk Belanja");
     if (scanResult.date) setDate(scanResult.date);
+    const validItems = scanItems.filter((it) => Number(it.price) > 0);
+    if (validItems.length > 0) {
+      setSubItemsDraft(
+        validItems.map((it) => ({
+          name: it.name,
+          price: Number(it.price),
+          category: it.category || scanCategory || "Groceries & Kebutuhan Rumah",
+          quantity: Number(it.qty || it.quantity || 1),
+        }))
+      );
+    }
     setDraft({
-      understood: `Data struk: ${scanResult.merchant || "Pembelian"}`,
+      understood: `Data struk: ${scanResult.merchant || "Pembelian"}${validItems.length > 0 ? ` (${validItems.length} item)` : ""}`,
       confidence: 1,
       matched: true,
     });
@@ -220,8 +243,18 @@ export default function AddTransactionModal({
           note: scanResult.merchant || "Struk Belanja",
           date: scanResult.date || undefined,
           source: "ai_receipt",
+          items: items.length > 0 ? items.map((it) => ({
+            name: it.name,
+            price: Number(it.price),
+            category: it.category || scanCategory || "Groceries & Kebutuhan Rumah",
+            quantity: Number(it.qty || it.quantity || 1),
+          })) : undefined,
         });
-        toast.success("Transaksi struk tersimpan!");
+        toast.success(
+          items.length > 0
+            ? `Tersimpan 1 transaksi terpadu dengan ${items.length} rincian item!`
+            : "Transaksi struk tersimpan!"
+        );
       }
       onSaved?.();
       onClose();
@@ -255,6 +288,7 @@ export default function AddTransactionModal({
         note,
         date,
         source: draft ? (draft.source || "ai_text") : "manual",
+        items: subItemsDraft && subItemsDraft.length > 0 ? subItemsDraft : undefined,
       });
       toast.success("Transaksi tersimpan!");
       onSaved?.();
@@ -460,24 +494,54 @@ export default function AddTransactionModal({
                 </div>
               </div>
 
-              {/* Itemized toggle */}
+              {/* Live Category Distribution Preview */}
+              {Object.keys(scanCategoryDistribution).length > 0 && (
+                <div className="bg-elevated/70 rounded-2xl p-3 border border-borderc space-y-1.5" data-testid="receipt-distribution-preview">
+                  <div className="flex items-center justify-between text-xs font-semibold text-tsecondary">
+                    <span>Distribusi Anggaran Belanja:</span>
+                    <span className="text-[11px] font-normal text-tmuted">
+                      {Object.keys(scanCategoryDistribution).length} kategori
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {Object.entries(scanCategoryDistribution).map(([catName, amt]) => {
+                      const meta = catMeta(catName);
+                      return (
+                        <span
+                          key={catName}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium bg-surface border border-borderc/80 text-tprimary"
+                        >
+                          <span>{meta.emoji}</span>
+                          <span className="text-tsecondary">{catName}:</span>
+                          <strong className="font-mono text-brand font-semibold">{formatRp(amt)}</strong>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Storage Mode Toggle */}
               {scanItems.filter((it) => Number(it.price) > 0).length > 1 && (
                 <button
                   data-testid="itemize-toggle"
                   onClick={() => setItemized((v) => !v)}
-                  className="w-full flex items-center justify-between bg-elevated rounded-xl px-4 py-3 text-sm border border-borderc/60 hover:bg-elevated/80 transition-colors"
+                  className="w-full flex items-center justify-between bg-elevated rounded-xl px-4 py-3 text-sm border border-borderc/60 hover:bg-elevated/80 transition-colors text-left"
                 >
-                  <span className="text-left">
-                    <span className="font-medium text-tprimary">Catat tiap item terpisah</span>
-                    <br />
-                    <span className="text-xs text-tmuted">
-                      Simpan {scanItems.filter((it) => Number(it.price) > 0).length} item dengan kategorinya masing-masing
+                  <div className="pr-3">
+                    <span className="font-medium text-tprimary flex items-center gap-1.5">
+                      {itemized ? "✂️ Mode: Pecah Jadi Banyak Transaksi Terpisah" : "🧾 Mode: 1 Transaksi Terpadu + Sub-Items (Rekomendasi)"}
                     </span>
-                  </span>
+                    <p className="text-xs text-tmuted mt-0.5">
+                      {itemized
+                        ? `Menyimpan ${scanItems.filter((it) => Number(it.price) > 0).length} transaksi mandiri terpisah di feed riwayat`
+                        : `1 mutasi bersih di dompet, rincian ${scanItems.filter((it) => Number(it.price) > 0).length} barang tersimpan, budget dihitung per kategori`}
+                    </p>
+                  </div>
                   <span
                     className={clsx(
-                      "w-11 h-6 rounded-full p-0.5 transition-colors",
-                      itemized ? "bg-brand" : "bg-borderc"
+                      "w-11 h-6 rounded-full p-0.5 transition-colors shrink-0",
+                      itemized ? "bg-amber-500" : "bg-brand"
                     )}
                   >
                     <span
@@ -495,7 +559,7 @@ export default function AddTransactionModal({
                 <div className="bg-surface rounded-2xl border border-borderc p-3 space-y-2">
                   <div className="flex items-center justify-between text-xs text-tmuted px-1">
                     <span>Daftar Item ({scanItems.length})</span>
-                    <span>{itemized ? "Sesuaikan Kategori Per Item" : "Kategori Otomatis"}</span>
+                    <span>Sesuaikan Kategori Per Item</span>
                   </div>
                   <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 divide-y divide-borderc/30">
                     {scanItems.map((it, i) => (
@@ -507,23 +571,17 @@ export default function AddTransactionModal({
                           <p className="font-medium text-tprimary truncate">{it.name}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {itemized ? (
-                            <select
-                              value={it.category || scanCategory}
-                              onChange={(e) => updateScanItemCategory(i, e.target.value)}
-                              className="bg-elevated border border-borderc rounded-lg px-2 py-0.5 text-[11px] text-tprimary focus:border-brand focus:outline-none max-w-[150px]"
-                            >
-                              {CATEGORIES.filter((c) => !["Gaji", "Bonus"].includes(c.name)).map((c) => (
-                                <option key={c.name} value={c.name}>
-                                  {c.name}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <span className="text-[11px] text-tmuted">
-                              {it.category || scanCategory}
-                            </span>
-                          )}
+                          <select
+                            value={it.category || scanCategory}
+                            onChange={(e) => updateScanItemCategory(i, e.target.value)}
+                            className="bg-elevated border border-borderc rounded-lg px-2 py-0.5 text-[11px] text-tprimary focus:border-brand focus:outline-none max-w-[150px]"
+                          >
+                            {CATEGORIES.filter((c) => !["Gaji", "Bonus"].includes(c.name)).map((c) => (
+                              <option key={c.name} value={c.name}>
+                                {c.name}
+                              </option>
+                            ))}
+                          </select>
                           <span className="font-mono font-semibold text-tprimary">
                             {formatRp(it.price)}
                           </span>
@@ -568,7 +626,10 @@ export default function AddTransactionModal({
                     "Menyimpan..."
                   ) : (
                     <>
-                      <Check size={18} /> {itemized ? "Simpan Semua Item" : "Simpan Transaksi"}
+                      <Check size={18} />{" "}
+                      {itemized
+                        ? `Simpan ${scanItems.filter((it) => Number(it.price) > 0).length} Item Terpisah`
+                        : `Simpan 1 Transaksi Terpadu (${scanItems.filter((it) => Number(it.price) > 0).length} Item)`}
                     </>
                   )}
                 </Button>

@@ -656,6 +656,11 @@ export function TxnRow({ t, privacy, onDelete, onEdit, onSelect, memberMap, wall
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <p className="text-sm font-medium truncate">{t.note || t.category}</p>
+          {t.items && t.items.length > 0 && (
+            <span className="text-[10px] font-semibold bg-brand/15 text-brand px-1.5 py-0.5 rounded-full shrink-0 flex items-center gap-0.5" title={`${t.items.length} rincian barang`}>
+              🧾 {t.items.length} item
+            </span>
+          )}
           {t.goal_id && (
             <span className="text-[10px] font-semibold bg-brand/15 text-brand px-1.5 py-0.5 rounded-full shrink-0">
               🎯 Nabung

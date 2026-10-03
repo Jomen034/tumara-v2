@@ -165,7 +165,11 @@ export default function Transactions() {
     );
   }
   if (categoryFilter !== "all") {
-    filtered = filtered.filter((t) => t.category === categoryFilter);
+    filtered = filtered.filter(
+      (t) =>
+        t.category === categoryFilter ||
+        (t.items && t.items.some((it) => (it.category || t.category) === categoryFilter))
+    );
   }
   if (period === "this_month") {
     filtered = filtered.filter((t) => (t.date || "").startsWith(thisMonthPrefix));
@@ -188,7 +192,14 @@ export default function Transactions() {
       const wFrom = (walletMap[t.wallet_id]?.name || "").toLowerCase().includes(q);
       const wTo = (walletMap[t.to_wallet_id]?.name || "").toLowerCase().includes(q);
       const amtMatch = String(t.amount || "").includes(q);
-      return noteMatch || catMatch || wFrom || wTo || amtMatch;
+      const itemMatch =
+        t.items &&
+        t.items.some(
+          (it) =>
+            (it.name || "").toLowerCase().includes(q) ||
+            (it.category || "").toLowerCase().includes(q)
+        );
+      return noteMatch || catMatch || wFrom || wTo || amtMatch || itemMatch;
     });
   }
 

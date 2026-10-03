@@ -136,6 +136,13 @@ CATEGORIES = [
 ]
 
 
+class SubItem(BaseModel):
+    name: str
+    price: float = 0
+    category: Optional[str] = None
+    quantity: Optional[int] = 1
+
+
 class TransactionCreate(BaseModel):
     type: Literal["expense", "income", "transfer"]
     amount: float = Field(gt=0)
@@ -147,6 +154,7 @@ class TransactionCreate(BaseModel):
     source: str = "manual"  # manual | ai_receipt | goal_deposit | bill
     goal_id: Optional[str] = None
     bill_id: Optional[str] = None
+    items: Optional[List[SubItem]] = None
 
 
 class TransactionUpdate(BaseModel):
@@ -159,6 +167,7 @@ class TransactionUpdate(BaseModel):
     date: Optional[str] = None
     goal_id: Optional[str] = None
     bill_id: Optional[str] = None
+    items: Optional[List[SubItem]] = None
 
 
 class Transaction(TransactionCreate):
