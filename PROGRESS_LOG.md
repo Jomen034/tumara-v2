@@ -20,6 +20,37 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-03 22:20:00 WIB] — Financial Taxonomy Standardization: Groceries & Kebutuhan Rumah Isolation, 50/30/20 Budgeting Alignment & Smart Receipt Itemized Categorization
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menghilangkan ambiguitas taksonomi pengeluaran antara "Groceries & Kebutuhan Rumah" (bahan mentah dapur, sayur/daging, perlengkapan pembersih, tissue, sabun, belanja supermarket) vs "Makanan & Minuman" (kuliner, resto, cafe, jajan siap saji) vs "Belanja" (lifestyle, pakaian, gadget, e-commerce); menyeimbangkan formula alokasi budgeting 50/30/20 (memastikan groceries dan kesehatan berada di kategori Needs/Kebutuhan Pokok 50%); serta meningkatkan ketepatan mesin AI Scan Struk OCR agar struk supermarket panjang (seperti GrandLucky, Superindo, dsb.) secara otomatis terpetakan ke "Groceries & Kebutuhan Rumah" lengkap dengan kemampuan preview scrollable dan penyesuaian kategori per item saat dicatat terpisah.
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, tidak ada kategori khusus "Groceries & Kebutuhan Rumah". Seluruh pengeluaran supermarket terpaksa masuk ke "Makanan & Minuman" (sehingga tissue, aluminium foil, kamper ikut dicap sebagai makanan) atau masuk ke "Belanja" (yang keliru dikelompokkan sebagai Keinginan/Wants dalam anggaran 50/30/20).
+  - Saat pengguna memindai struk belanja supermarket (seperti GrandLucky BSD 39 item), fitur "Simpan secara terpisah" memotong tampilan hanya 8 item pertama dan melabeli semua item sebagai "Makanan & Minuman" tanpa opsi mengubah kategori struk atau kategori per baris item.
+- **Key Actions & Changes:**
+  - `frontend/src/lib/constants.js`:
+    - Menambahkan kategori utama `Groceries & Kebutuhan Rumah` dengan ikon `ShoppingCart` dan warna `#10B981` (emerald).
+    - Memperbarui fungsi `catMeta` dengan pencocokan cerdas alias (`grocer`, `dapur`, `rumah tangga`, `sembako`, `supermarket`, `pasar`).
+  - `backend/models.py`:
+    - Memperbarui daftar `CATEGORIES` dengan menyertakan `Groceries & Kebutuhan Rumah`.
+  - `backend/ai_service.py`:
+    - Memperbarui `RECEIPT_PROMPT` dengan panduan kategorisasi domain-aware yang ketat: membedakan tegas antara belanja supermarket/bahan dapur mentah/perlengkapan rumah (`Groceries & Kebutuhan Rumah`), kuliner siap santap/resto/cafe (`Makanan & Minuman`), dan gaya hidup/fashion/gadget (`Belanja`).
+    - Memperbarui `CATEGORY_LIST` dan aturan heuristik offline `parse_transaction_text` untuk mengenali kata kunci supermarket dan dapur.
+  - `frontend/src/pages/Budget.js` & `frontend/src/pages/Onboarding.js`:
+    - Menyelaraskan formula default 50/30/20 secara presisi:
+      - **Needs (50%):** Groceries & Kebutuhan Rumah (20%), Makanan & Minuman (10%), Tagihan & Utilitas (10%), Transportasi (5%), Kesehatan (5%).
+      - **Wants (30%):** Belanja Gaya Hidup (20%), Hiburan (10%).
+      - **Savings (20%):** Investasi & Tabungan (20%).
+  - `frontend/src/components/ScanReceiptModal.js` & `frontend/src/components/AddTransactionModal.js`:
+    - Menghadirkan selektor dropdown "Kategori Struk" yang interaktif, memungkinkan pengguna mengubah kategori utama struk atau menerapkannya ke seluruh item dalam satu klik.
+    - Menghapus pembatasan `slice(0, 8)` dan menghadirkan kontainer *scrollable* (`max-h-56`) sehingga seluruh item struk (bahkan struk panjang 39 item seperti GrandLucky) dapat ditinjau seutuhnya.
+    - Menambahkan selektor kategori individual per item saat opsi "Catat tiap item terpisah" aktif, memberikan kontrol 100% kepada pengguna sebelum menyimpan.
+  - `frontend/src/components/EditTransactionModal.js`:
+    - Menetapkan default kategori fallback ke `Groceries & Kebutuhan Rumah`.
+- **Verifikasi Hasil:**
+  - Sintaksis Python `models.py` dan `ai_service.py` tervalidasi sukses 100% (`py_compile`).
+  - Integritas kurung kurawal JSX di seluruh komponen frontend (`constants.js`, `Budget.js`, `Onboarding.js`, `ScanReceiptModal.js`, `AddTransactionModal.js`, `EditTransactionModal.js`) teruji 100% seimbang (0 delta).
+
+
 ### [2026-10-03 00:30:00 WIB] — Major Upgrades #1 & #2: Household Couple Finance Center & Profile Settings / Data Management Hub
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Mengimplementasikan dua peningkatan major strategis: (1) Mengubah Halaman Rumah Tangga (`Household.js`) dari tampilan minimalis menjadi pusat keuangan pasangan (*Couple Finance Center*) dengan fitur edit identitas rumah tangga, analitik pembagian belanja pasangan (*Partner Financial Split & Contribution*), linimasa aktivitas mutasi bersama, dan kemampuan keluar rumah tangga (*Leave Household*); serta (2) Membangun Pusat Pengaturan Profil & Manajemen Data (`SettingsModal.js`) lengkap dengan kustomisasi avatar/nama tampilan, preferensi tema & privasi, unduhan cadangan data lengkap (*Full JSON Backup*), dan zona bahaya (*Reset Data & Delete Account*).

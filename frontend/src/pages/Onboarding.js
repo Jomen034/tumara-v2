@@ -12,12 +12,13 @@ import { WALLET_PRESETS, walletMeta } from "../lib/constants";
 import { Card, Button, Input, Spinner } from "../components/ui";
 
 const DEFAULT_CATS = [
-  { category: "Makanan & Minuman", group: "needs", pct: 0.25 },
-  { category: "Transportasi", group: "needs", pct: 0.1 },
-  { category: "Tagihan & Utilitas", group: "needs", pct: 0.15 },
-  { category: "Belanja", group: "wants", pct: 0.15 },
+  { category: "Groceries & Kebutuhan Rumah", group: "needs", pct: 0.2 },
+  { category: "Makanan & Minuman", group: "needs", pct: 0.1 },
+  { category: "Tagihan & Utilitas", group: "needs", pct: 0.1 },
+  { category: "Transportasi", group: "needs", pct: 0.05 },
+  { category: "Kesehatan", group: "needs", pct: 0.05 },
+  { category: "Belanja", group: "wants", pct: 0.2 },
   { category: "Hiburan", group: "wants", pct: 0.1 },
-  { category: "Kesehatan", group: "wants", pct: 0.05 },
   { category: "Investasi", group: "savings", pct: 0.2 },
 ];
 

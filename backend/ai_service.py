@@ -207,17 +207,38 @@ def _resize_image(raw: bytes) -> bytes:
     return out.getvalue()
 
 
-CATEGORY_LIST = '["Makanan & Minuman","Transportasi","Belanja","Tagihan & Utilitas","Hiburan","Kesehatan","Pendidikan","Investasi","Gaji","Bonus","Lainnya"]'
+CATEGORY_LIST = '["Groceries & Kebutuhan Rumah","Makanan & Minuman","Transportasi","Belanja","Tagihan & Utilitas","Hiburan","Kesehatan","Pendidikan","Investasi","Gaji","Bonus","Lainnya"]'
 
 RECEIPT_PROMPT = (
-    "Kamu adalah mesin OCR struk belanja. Analisis gambar struk ini dan kembalikan HANYA JSON valid "
-    "(tanpa markdown, tanpa penjelasan) dengan skema: "
-    '{"merchant": string, "total": number, "date": "YYYY-MM-DD" | null, '
-    '"category": salah satu dari ["Makanan & Minuman","Transportasi","Belanja","Tagihan & Utilitas","Hiburan","Kesehatan","Pendidikan","Lainnya"], '
-    '"items": [{"name": string, "price": number, "category": salah satu dari kategori di atas}]}. '
-    "Untuk setiap item, tebak kategori paling sesuai (mis. minuman -> Makanan & Minuman). "
-    "Nilai uang sebagai angka tanpa titik/koma pemisah ribuan (contoh 15000). "
-    "Tebak kategori keseluruhan paling sesuai. Jika tidak terbaca, isi total 0 dan items []."
+    "Kamu adalah mesin OCR struk belanja keuangan pribadi yang cerdas dan teliti. "
+    "Analisis gambar struk ini dan kembalikan HANYA JSON valid (tanpa markdown, tanpa teks lain) dengan skema:\n"
+    "{\n"
+    '  "merchant": string,\n'
+    '  "total": number,\n'
+    '  "date": "YYYY-MM-DD" | null,\n'
+    '  "category": salah satu dari ["Groceries & Kebutuhan Rumah","Makanan & Minuman","Belanja","Transportasi","Tagihan & Utilitas","Hiburan","Kesehatan","Pendidikan","Lainnya"],\n'
+    '  "items": [\n'
+    '    {"name": string, "price": number, "category": salah satu dari kategori di atas}\n'
+    '  ]\n'
+    "}\n\n"
+    "PANDUAN KATEGORISASI (PENTING AGAR TIDAK AMBIGU):\n"
+    "1. 'Groceries & Kebutuhan Rumah':\n"
+    "   - Gunakan ini sebagai KATEGORI UTAMA untuk struk belanja dari supermarket, hypermarket, minimarket, pasar, toko sembako (seperti GrandLucky, Superindo, Hero, Ranch Market, Lotte Mart, Hypermart, Alfamart, Indomaret, dsb).\n"
+    "   - Item bahan makanan dapur & mentah: daging, ikan, ayam, sayur, buah, bumbu dapur, umbi, beras, telur, tahu, tempe, susu cair mentah/UHT, keju, roti, mi instan, minyak goreng, gula, tepung, snack/camilan belanjaan rumah.\n"
+    "   - Item kebutuhan rumah tangga & bebersih: tissue (facial tissue, toilet paper), aluminium foil, cling wrap, sabun mandi, sabun cuci piring/baju, deterjen, kamper/kapur barus (swallow napth), pembersih lantai, kantong sampah, spons, pasta gigi, sampo, pembalut.\n"
+    "2. 'Makanan & Minuman':\n"
+    "   - KHUSUS untuk makanan/minuman siap santap dari restoran, cafe, warung makan, kedai kopi, fast food, bakery siap saji, atau delivery GoFood/GrabFood (misal: McD, KFC, Starbucks, Kopi Kenangan, Resto Padang, Gacoan, dsb).\n"
+    "   - BUKAN untuk belanja bahan mentah supermarket atau kebutuhan dapur.\n"
+    "3. 'Belanja':\n"
+    "   - Belanja gaya hidup/pribadi: pakaian, baju, celana, sepatu, tas, aksesori, gadget, barang elektronik, makeup, perlengkapan hobi, belanja e-commerce (Shopee, Tokopedia, Uniqlo, dsb).\n"
+    "4. 'Kesehatan': Obat-obatan, vitamin, suplemen, masker medis, transaksi apotek/klinik.\n"
+    "5. 'Transportasi': Bensin/SPBU (Pertamina, Shell, BP), parkir, tol, tiket perjalanan, ojol.\n"
+    "6. 'Tagihan & Utilitas': Pembayaran listrik, air, internet/wifi, pulsa, IPL.\n\n"
+    "ATURAN HARGA:\n"
+    "- Harga per item (price) dan total harus berupa angka integer murni tanpa titik atau koma ribuan (contoh: 107978 bukan 107.978). "
+    "Jika ada desimal, bulatkan ke bilangan bulat terdekat.\n"
+    "- Ekstrak SEMUA item yang tertera pada struk ke dalam array 'items'. Jika ada puluhan item (misal >30 item), ekstrak semuanya secara lengkap tanpa dipotong.\n"
+    "- Jika struk berasal dari supermarket seperti GrandLucky, tetapkan kategori keseluruhan sebagai 'Groceries & Kebutuhan Rumah'."
 )
 
 
@@ -336,10 +357,14 @@ async def parse_transaction_text(text: str, wallets: list) -> dict:
         cat = "Lainnya"
         if any(k in lowered for k in ("bensin", "bbm", "bp", "shell", "pertamina", "gojek", "grab", "parkir", "tol", "transport")):
             cat = "Transportasi"
-        elif any(k in lowered for k in ("makan", "minum", "kopi", "resto", "nasi", "cafe", "snack")):
+        elif any(k in lowered for k in ("supermarket", "grand lucky", "grandlucky", "superindo", "alfamart", "indomaret", "hypermart", "pasar", "groceries", "sayur", "dapur", "daging", "beras", "minyak", "telur", "sabun", "deterjen", "tissue", "bebersih")):
+            cat = "Groceries & Kebutuhan Rumah"
+        elif any(k in lowered for k in ("makan", "minum", "kopi", "resto", "nasi", "cafe", "snack", "gofood", "grabfood", "warung", "kuliner")):
             cat = "Makanan & Minuman"
-        elif any(k in lowered for k in ("belanja", "beli", "tokopedia", "shopee", "supermarket")):
+        elif any(k in lowered for k in ("belanja", "beli baju", "baju", "sepatu", "tokopedia", "shopee", "gadget", "elektronik", "mall")):
             cat = "Belanja"
+        elif any(k in lowered for k in ("obat", "vitamin", "apotek", "dokter", "klinik", "rs", "kesehatan")):
+            cat = "Kesehatan"
         elif any(k in lowered for k in ("listrik", "pln", "wifi", "indihome", "air", "pdam", "pulsa", "tagihan", "utilitas")):
             cat = "Tagihan & Utilitas"
 

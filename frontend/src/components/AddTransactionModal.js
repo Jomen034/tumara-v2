@@ -45,7 +45,7 @@ export default function AddTransactionModal({
   const [amount, setAmount] = useState("");
   const [walletId, setWalletId] = useState("");
   const [toWalletId, setToWalletId] = useState("");
-  const [category, setCategory] = useState("Makanan & Minuman");
+  const [category, setCategory] = useState("Groceries & Kebutuhan Rumah");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
@@ -62,6 +62,8 @@ export default function AddTransactionModal({
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [itemized, setItemized] = useState(false);
+  const [scanCategory, setScanCategory] = useState("Groceries & Kebutuhan Rumah");
+  const [scanItems, setScanItems] = useState([]);
 
   useEffect(() => {
     if (!open) return;
@@ -80,7 +82,7 @@ export default function AddTransactionModal({
   const resetForm = () => {
     setType("expense");
     setAmount("");
-    setCategory(initialCategory || "Makanan & Minuman");
+    setCategory(initialCategory || "Groceries & Kebutuhan Rumah");
     setNote("");
     setDate(new Date().toISOString().slice(0, 10));
   };
@@ -90,6 +92,8 @@ export default function AddTransactionModal({
     setFile(null);
     setScanResult(null);
     setItemized(false);
+    setScanCategory("Groceries & Kebutuhan Rumah");
+    setScanItems([]);
   };
 
   const parse = async (text) => {
@@ -141,6 +145,14 @@ export default function AddTransactionModal({
       fd.append("file", file);
       const res = await api.post("/ai/scan-receipt", fd);
       setScanResult(res.data);
+      const cat = res.data.category || "Groceries & Kebutuhan Rumah";
+      setScanCategory(cat);
+      setScanItems(
+        (res.data.items || []).map((it) => ({
+          ...it,
+          category: it.category || cat,
+        }))
+      );
       toast.success("Struk berhasil dipindai!");
     } catch (e) {
       toast.error(e?.response?.data?.detail || "Gagal memindai struk");
@@ -149,13 +161,25 @@ export default function AddTransactionModal({
     }
   };
 
+  const applyScanCategoryToAll = (cat) => {
+    setScanCategory(cat);
+    setScanItems((prev) => prev.map((it) => ({ ...it, category: cat })));
+    toast.success(`Semua item diubah ke "${cat}"`);
+  };
+
+  const updateScanItemCategory = (index, newCat) => {
+    setScanItems((prev) =>
+      prev.map((it, idx) => (idx === index ? { ...it, category: newCat } : it))
+    );
+  };
+
   // Transfer scan result into manual form for fine-tuning
   const editScanInManualForm = () => {
     if (!scanResult) return;
     setType("expense");
     setAmount(String(scanResult.total || ""));
-    setCategory(scanResult.category || "Lainnya");
-    setNote(scanResult.merchant || "Struk");
+    setCategory(scanCategory || "Groceries & Kebutuhan Rumah");
+    setNote(scanResult.merchant || "Struk Belanja");
     if (scanResult.date) setDate(scanResult.date);
     setDraft({
       understood: `Data struk: ${scanResult.merchant || "Pembelian"}`,
@@ -171,7 +195,7 @@ export default function AddTransactionModal({
     if (!scanResult) return toast.error("Belum ada data struk");
     setSaving(true);
     try {
-      const items = (scanResult.items || []).filter((it) => Number(it.price) > 0);
+      const items = scanItems.filter((it) => Number(it.price) > 0);
       if (itemized && items.length > 0) {
         await Promise.all(
           items.map((it) =>
@@ -179,21 +203,21 @@ export default function AddTransactionModal({
               type: "expense",
               amount: Number(it.price),
               wallet_id: walletId,
-              category: it.category || scanResult.category || "Lainnya",
+              category: it.category || scanCategory || "Groceries & Kebutuhan Rumah",
               note: `${it.name}${scanResult.merchant ? " · " + scanResult.merchant : ""}`,
               date: scanResult.date || undefined,
               source: "ai_receipt",
             })
           )
         );
-        toast.success(`${items.length} item tersimpan!`);
+        toast.success(`${items.length} item tersimpan sesuai kategori!`);
       } else {
         await api.post("/transactions", {
           type: "expense",
           amount: scanResult.total,
           wallet_id: walletId,
-          category: scanResult.category || "Lainnya",
-          note: scanResult.merchant || "Struk",
+          category: scanCategory || "Groceries & Kebutuhan Rumah",
+          note: scanResult.merchant || "Struk Belanja",
           date: scanResult.date || undefined,
           source: "ai_receipt",
         });
@@ -401,52 +425,53 @@ export default function AddTransactionModal({
           )}
 
           {scanResult && (
-            <div className="space-y-3">
-              <div className="bg-elevated rounded-xl p-4 space-y-2">
+            <div className="space-y-3.5">
+              <div className="bg-elevated rounded-2xl p-4 space-y-2.5 border border-borderc">
                 <div className="flex justify-between text-sm">
                   <span className="text-tsecondary">Merchant</span>
-                  <span className="font-semibold">{scanResult.merchant || "-"}</span>
+                  <span className="font-semibold text-tprimary">{scanResult.merchant || "-"}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-tsecondary">Total</span>
+                  <span className="text-tsecondary">Total Belanja</span>
                   <span className="font-mono font-bold text-brand">{formatRp(scanResult.total)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-tsecondary">Kategori</span>
-                  <span className="font-semibold">{scanResult.category || "Lainnya"}</span>
                 </div>
                 {scanResult.date && (
                   <div className="flex justify-between text-sm">
                     <span className="text-tsecondary">Tanggal</span>
-                    <span>{scanResult.date}</span>
+                    <span className="text-tprimary">{scanResult.date}</span>
                   </div>
                 )}
-                {scanResult.items?.length > 0 && (
-                  <div className="pt-2 border-t border-borderc space-y-1">
-                    {scanResult.items.slice(0, 8).map((it, i) => (
-                      <div key={i} className="flex justify-between text-xs text-tsecondary">
-                        <span className="truncate mr-2">
-                          {it.name}
-                          {it.category ? ` · ${it.category}` : ""}
-                        </span>
-                        <span className="font-mono">{formatRp(it.price)}</span>
-                      </div>
+                {/* Editable overall category */}
+                <div className="pt-2 border-t border-borderc/60 flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold text-tsecondary whitespace-nowrap">
+                    Kategori Struk:
+                  </span>
+                  <select
+                    value={scanCategory}
+                    onChange={(e) => applyScanCategoryToAll(e.target.value)}
+                    className="bg-surface border border-borderc rounded-xl px-2.5 py-1.5 text-xs text-tprimary font-medium focus:border-brand focus:outline-none"
+                  >
+                    {CATEGORIES.filter((c) => !["Gaji", "Bonus"].includes(c.name)).map((c) => (
+                      <option key={c.name} value={c.name}>
+                        {c.name}
+                      </option>
                     ))}
-                  </div>
-                )}
+                  </select>
+                </div>
               </div>
 
-              {scanResult.items?.filter((it) => Number(it.price) > 0).length > 1 && (
+              {/* Itemized toggle */}
+              {scanItems.filter((it) => Number(it.price) > 0).length > 1 && (
                 <button
                   data-testid="itemize-toggle"
                   onClick={() => setItemized((v) => !v)}
-                  className="w-full flex items-center justify-between bg-elevated rounded-xl px-4 py-3 text-sm"
+                  className="w-full flex items-center justify-between bg-elevated rounded-xl px-4 py-3 text-sm border border-borderc/60 hover:bg-elevated/80 transition-colors"
                 >
                   <span className="text-left">
-                    <span className="font-medium">Catat tiap item terpisah</span>
+                    <span className="font-medium text-tprimary">Catat tiap item terpisah</span>
                     <br />
                     <span className="text-xs text-tmuted">
-                      Simpan {scanResult.items.filter((it) => Number(it.price) > 0).length} item dengan kategorinya masing-masing
+                      Simpan {scanItems.filter((it) => Number(it.price) > 0).length} item dengan kategorinya masing-masing
                     </span>
                   </span>
                   <span
@@ -463,6 +488,50 @@ export default function AddTransactionModal({
                     />
                   </span>
                 </button>
+              )}
+
+              {/* Scrollable item list showing ALL items */}
+              {scanItems.length > 0 && (
+                <div className="bg-surface rounded-2xl border border-borderc p-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs text-tmuted px-1">
+                    <span>Daftar Item ({scanItems.length})</span>
+                    <span>{itemized ? "Sesuaikan Kategori Per Item" : "Kategori Otomatis"}</span>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 divide-y divide-borderc/30">
+                    {scanItems.map((it, i) => (
+                      <div
+                        key={i}
+                        className="pt-1.5 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-tprimary truncate">{it.name}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {itemized ? (
+                            <select
+                              value={it.category || scanCategory}
+                              onChange={(e) => updateScanItemCategory(i, e.target.value)}
+                              className="bg-elevated border border-borderc rounded-lg px-2 py-0.5 text-[11px] text-tprimary focus:border-brand focus:outline-none max-w-[150px]"
+                            >
+                              {CATEGORIES.filter((c) => !["Gaji", "Bonus"].includes(c.name)).map((c) => (
+                                <option key={c.name} value={c.name}>
+                                  {c.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-[11px] text-tmuted">
+                              {it.category || scanCategory}
+                            </span>
+                          )}
+                          <span className="font-mono font-semibold text-tprimary">
+                            {formatRp(it.price)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
 
               <Select

@@ -17,7 +17,7 @@ export default function EditTransactionModal({ open, onClose, transaction: t, wa
   const [amount, setAmount] = useState("");
   const [walletId, setWalletId] = useState("");
   const [toWalletId, setToWalletId] = useState("");
-  const [category, setCategory] = useState("Makanan & Minuman");
+  const [category, setCategory] = useState("Groceries & Kebutuhan Rumah");
   const [note, setNote] = useState("");
   const [date, setDate] = useState("");
   const [saving, setSaving] = useState(false);
@@ -28,7 +28,7 @@ export default function EditTransactionModal({ open, onClose, transaction: t, wa
     setAmount(String(t.amount || ""));
     setWalletId(t.wallet_id || (wallets[0]?.id || ""));
     setToWalletId(t.to_wallet_id || (wallets[1]?.id || ""));
-    setCategory(t.category || "Makanan & Minuman");
+    setCategory(t.category || "Groceries & Kebutuhan Rumah");
     setNote(t.note || "");
     setDate(t.date || (t.created_at ? t.created_at.slice(0, 10) : new Date().toISOString().slice(0, 10)));
   }, [open, t, wallets]);

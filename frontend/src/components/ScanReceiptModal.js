@@ -1,9 +1,10 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { UploadCloud, ScanLine, Check, RotateCcw } from "lucide-react";
+import { UploadCloud, ScanLine, Check, RotateCcw, Tag } from "lucide-react";
 import api from "../lib/api";
 import { formatRp } from "../lib/format";
-import { Modal, Button, Select, Spinner } from "./ui";
+import { CATEGORIES, catMeta } from "../lib/constants";
+import { Modal, Button, Select, Spinner, Badge } from "./ui";
 
 export default function ScanReceiptModal({ open, onClose, onSaved }) {
   const fileRef = useRef();
@@ -15,8 +16,16 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
   const [walletId, setWalletId] = useState("");
   const [saving, setSaving] = useState(false);
   const [itemized, setItemized] = useState(false);
+  const [receiptCategory, setReceiptCategory] = useState("Groceries & Kebutuhan Rumah");
+  const [scannedItems, setScannedItems] = useState([]);
 
-  const reset = () => { setPreview(null); setFile(null); setResult(null); setItemized(false); };
+  const reset = () => {
+    setPreview(null);
+    setFile(null);
+    setResult(null);
+    setItemized(false);
+    setScannedItems([]);
+  };
 
   const pick = (e) => {
     const f = e.target.files?.[0];
@@ -26,6 +35,7 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
     setFile(f);
     setPreview(URL.createObjectURL(f));
     setResult(null);
+    setScannedItems([]);
   };
 
   const scan = async () => {
@@ -39,6 +49,14 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
         api.get("/wallets"),
       ]);
       setResult(res.data);
+      const cat = res.data.category || "Groceries & Kebutuhan Rumah";
+      setReceiptCategory(cat);
+      setScannedItems(
+        (res.data.items || []).map((it) => ({
+          ...it,
+          category: it.category || cat,
+        }))
+      );
       setWallets(w.data);
       if (w.data[0]) setWalletId(w.data[0].id);
       toast.success("Struk berhasil dipindai!");
@@ -49,29 +67,53 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
     }
   };
 
+  const updateItemCategory = (index, newCat) => {
+    setScannedItems((prev) =>
+      prev.map((it, idx) => (idx === index ? { ...it, category: newCat } : it))
+    );
+  };
+
+  const applyCategoryToAll = (cat) => {
+    setReceiptCategory(cat);
+    setScannedItems((prev) => prev.map((it) => ({ ...it, category: cat })));
+    toast.success(`Semua item diubah ke "${cat}"`);
+  };
+
   const saveTxn = async () => {
     if (!walletId) return toast.error("Pilih dompet");
     setSaving(true);
     try {
-      const items = (result.items || []).filter((it) => Number(it.price) > 0);
-      if (itemized && items.length > 0) {
-        await Promise.all(items.map((it) => api.post("/transactions", {
-          type: "expense", amount: Number(it.price), wallet_id: walletId,
-          category: it.category || result.category || "Lainnya",
-          note: `${it.name}${result.merchant ? " · " + result.merchant : ""}`,
-          date: result.date || undefined, source: "ai_receipt",
-        })));
-        toast.success(`${items.length} item tersimpan!`);
+      const validItems = scannedItems.filter((it) => Number(it.price) > 0);
+      if (itemized && validItems.length > 0) {
+        await Promise.all(
+          validItems.map((it) =>
+            api.post("/transactions", {
+              type: "expense",
+              amount: Number(it.price),
+              wallet_id: walletId,
+              category: it.category || receiptCategory || "Groceries & Kebutuhan Rumah",
+              note: `${it.name}${result.merchant ? " · " + result.merchant : ""}`,
+              date: result.date || undefined,
+              source: "ai_receipt",
+            })
+          )
+        );
+        toast.success(`${validItems.length} item tersimpan sesuai kategori!`);
       } else {
         await api.post("/transactions", {
-          type: "expense", amount: result.total, wallet_id: walletId,
-          category: result.category || "Lainnya", note: result.merchant || "Struk",
-          date: result.date || undefined, source: "ai_receipt",
+          type: "expense",
+          amount: result.total,
+          wallet_id: walletId,
+          category: receiptCategory || "Groceries & Kebutuhan Rumah",
+          note: result.merchant || "Struk Belanja",
+          date: result.date || undefined,
+          source: "ai_receipt",
         });
         toast.success("Tersimpan sebagai transaksi!");
       }
       onSaved?.();
-      onClose(); reset();
+      onClose();
+      reset();
     } catch {
       toast.error("Gagal menyimpan");
     } finally {
@@ -79,12 +121,28 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
     }
   };
 
+  const expenseCategories = CATEGORIES.filter(
+    (c) => !["Gaji", "Bonus"].includes(c.name)
+  );
+
   return (
-    <Modal open={open} onClose={() => { onClose(); reset(); }} title="Scan Struk dengan AI" testid="scan-receipt-modal">
+    <Modal
+      open={open}
+      onClose={() => {
+        onClose();
+        reset();
+      }}
+      title="Scan Struk dengan AI"
+      testid="scan-receipt-modal"
+      size="md"
+    >
       <div className="space-y-4">
         {!preview && (
-          <button data-testid="receipt-upload-dropzone" onClick={() => fileRef.current?.click()}
-            className="w-full border-2 border-dashed border-borderc rounded-2xl py-12 flex flex-col items-center gap-3 hover:border-brand transition-colors">
+          <button
+            data-testid="receipt-upload-dropzone"
+            onClick={() => fileRef.current?.click()}
+            className="w-full border-2 border-dashed border-borderc rounded-2xl py-12 flex flex-col items-center gap-3 hover:border-brand transition-colors bg-elevated/40"
+          >
             <div className="w-14 h-14 rounded-2xl bg-elevated flex items-center justify-center">
               <UploadCloud size={26} className="text-brand" />
             </div>
@@ -92,56 +150,186 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
             <p className="text-xs text-tmuted">JPG, PNG, atau WEBP</p>
           </button>
         )}
-        <input ref={fileRef} data-testid="receipt-file-input" type="file" accept="image/*" capture="environment" onChange={pick} className="hidden" />
+        <input
+          ref={fileRef}
+          data-testid="receipt-file-input"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={pick}
+          className="hidden"
+        />
 
         {preview && (
-          <div className="rounded-2xl overflow-hidden border border-borderc max-h-64 flex items-center justify-center bg-elevated">
-            <img src={preview} alt="struk" className="max-h-64 object-contain" />
+          <div className="rounded-2xl overflow-hidden border border-borderc max-h-56 flex items-center justify-center bg-elevated">
+            <img src={preview} alt="struk" className="max-h-56 object-contain" />
           </div>
         )}
 
         {preview && !result && (
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={reset} className="flex-1"><RotateCcw size={16} /> Ganti</Button>
-            <Button data-testid="receipt-scan-button" onClick={scan} disabled={scanning} className="flex-1">
-              {scanning ? <><Spinner size={16} /> Memindai...</> : <><ScanLine size={16} /> Pindai Struk</>}
+            <Button variant="secondary" onClick={reset} className="flex-1">
+              <RotateCcw size={16} /> Ganti
+            </Button>
+            <Button
+              data-testid="receipt-scan-button"
+              onClick={scan}
+              disabled={scanning}
+              className="flex-1"
+            >
+              {scanning ? (
+                <>
+                  <Spinner size={16} /> Memindai...
+                </>
+              ) : (
+                <>
+                  <ScanLine size={16} /> Pindai Struk
+                </>
+              )}
             </Button>
           </div>
         )}
 
         {result && (
-          <div className="space-y-3">
-            <div className="bg-elevated rounded-xl p-4 space-y-2">
-              <div className="flex justify-between text-sm"><span className="text-tsecondary">Merchant</span><span className="font-semibold">{result.merchant || "-"}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-tsecondary">Total</span><span className="font-mono font-bold text-brand">{formatRp(result.total)}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-tsecondary">Kategori</span><span className="font-semibold">{result.category}</span></div>
-              {result.date && <div className="flex justify-between text-sm"><span className="text-tsecondary">Tanggal</span><span>{result.date}</span></div>}
-              {result.items?.length > 0 && (
-                <div className="pt-2 border-t border-borderc space-y-1">
-                  {result.items.slice(0, 8).map((it, i) => (
-                    <div key={i} className="flex justify-between text-xs text-tsecondary">
-                      <span className="truncate mr-2">{it.name}{it.category ? ` · ${it.category}` : ""}</span><span className="font-mono">{formatRp(it.price)}</span>
-                    </div>
-                  ))}
+          <div className="space-y-3.5">
+            {/* Summary card */}
+            <div className="bg-elevated rounded-2xl p-4 space-y-2.5 border border-borderc">
+              <div className="flex justify-between text-sm">
+                <span className="text-tsecondary">Merchant</span>
+                <span className="font-semibold text-tprimary">{result.merchant || "-"}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-tsecondary">Total Belanja</span>
+                <span className="font-mono font-bold text-brand">{formatRp(result.total)}</span>
+              </div>
+              {result.date && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-tsecondary">Tanggal</span>
+                  <span className="text-tprimary">{result.date}</span>
                 </div>
               )}
+
+              {/* Editable overall category */}
+              <div className="pt-2 border-t border-borderc/60 flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold text-tsecondary whitespace-nowrap">
+                  Kategori Struk:
+                </span>
+                <select
+                  value={receiptCategory}
+                  onChange={(e) => applyCategoryToAll(e.target.value)}
+                  className="bg-surface border border-borderc rounded-xl px-2.5 py-1.5 text-xs text-tprimary font-medium focus:border-brand focus:outline-none"
+                >
+                  {expenseCategories.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            {result.items?.filter((it) => Number(it.price) > 0).length > 1 && (
-              <button data-testid="itemize-toggle" onClick={() => setItemized((v) => !v)}
-                className="w-full flex items-center justify-between bg-elevated rounded-xl px-4 py-3 text-sm">
-                <span className="text-left"><span className="font-medium">Catat tiap item terpisah</span><br /><span className="text-xs text-tmuted">Simpan {result.items.filter((it) => Number(it.price) > 0).length} item dengan kategorinya sendiri</span></span>
-                <span className={`w-11 h-6 rounded-full p-0.5 transition-colors ${itemized ? "bg-brand" : "bg-borderc"}`}>
-                  <span className={`block w-5 h-5 rounded-full bg-white transition-transform ${itemized ? "translate-x-5" : ""}`} />
+            {/* Itemized toggle */}
+            {scannedItems.filter((it) => Number(it.price) > 0).length > 1 && (
+              <button
+                data-testid="itemize-toggle"
+                onClick={() => setItemized((v) => !v)}
+                className="w-full flex items-center justify-between bg-elevated rounded-xl px-4 py-3 text-sm border border-borderc/60 hover:bg-elevated/80 transition-colors"
+              >
+                <span className="text-left">
+                  <span className="font-medium text-tprimary">Catat tiap item terpisah</span>
+                  <br />
+                  <span className="text-xs text-tmuted">
+                    Simpan {scannedItems.filter((it) => Number(it.price) > 0).length} item dengan kategorinya masing-masing
+                  </span>
+                </span>
+                <span
+                  className={`w-11 h-6 rounded-full p-0.5 transition-colors ${
+                    itemized ? "bg-brand" : "bg-borderc"
+                  }`}
+                >
+                  <span
+                    className={`block w-5 h-5 rounded-full bg-white transition-transform ${
+                      itemized ? "translate-x-5" : ""
+                    }`}
+                  />
                 </span>
               </button>
             )}
 
-            <Select label="Bayar dari dompet" value={walletId} onChange={(e) => setWalletId(e.target.value)} data-testid="receipt-wallet-select">
-              {wallets.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            {/* Scrollable item list showing ALL items */}
+            {scannedItems.length > 0 && (
+              <div className="bg-surface rounded-2xl border border-borderc p-3 space-y-2">
+                <div className="flex items-center justify-between text-xs text-tmuted px-1">
+                  <span>Daftar Item ({scannedItems.length})</span>
+                  <span>{itemized ? "Sesuaikan Kategori Per Item" : "Kategori Otomatis"}</span>
+                </div>
+                <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 divide-y divide-borderc/30">
+                  {scannedItems.map((it, i) => (
+                    <div
+                      key={i}
+                      className="pt-1.5 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-tprimary truncate">{it.name}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {itemized ? (
+                          <select
+                            value={it.category || receiptCategory}
+                            onChange={(e) => updateItemCategory(i, e.target.value)}
+                            className="bg-elevated border border-borderc rounded-lg px-2 py-0.5 text-[11px] text-tprimary focus:border-brand focus:outline-none max-w-[150px]"
+                          >
+                            {expenseCategories.map((c) => (
+                              <option key={c.name} value={c.name}>
+                                {c.name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-[11px] text-tmuted">
+                            {it.category || receiptCategory}
+                          </span>
+                        )}
+                        <span className="font-mono font-semibold text-tprimary">
+                          {formatRp(it.price)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <Select
+              label="Bayar dari dompet"
+              value={walletId}
+              onChange={(e) => setWalletId(e.target.value)}
+              data-testid="receipt-wallet-select"
+            >
+              {wallets.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
             </Select>
-            <Button data-testid="receipt-save-button" onClick={saveTxn} disabled={saving} className="w-full" size="lg">
-              {saving ? "Menyimpan..." : <><Check size={18} /> {itemized ? "Simpan Semua Item" : "Simpan Transaksi"}</>}
+
+            <Button
+              data-testid="receipt-save-button"
+              onClick={saveTxn}
+              disabled={saving}
+              className="w-full"
+              size="lg"
+            >
+              {saving ? (
+                "Menyimpan..."
+              ) : (
+                <>
+                  <Check size={18} />{" "}
+                  {itemized
+                    ? `Simpan ${scannedItems.filter((it) => Number(it.price) > 0).length} Item Terpisah`
+                    : "Simpan Transaksi"}
+                </>
+              )}
             </Button>
           </div>
         )}
