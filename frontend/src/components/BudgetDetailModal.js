@@ -13,6 +13,7 @@ import {
   Receipt,
   Clock,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import clsx from "clsx";
 import { toast } from "sonner";
@@ -48,7 +49,10 @@ export default function BudgetDetailModal({
   const [loading, setLoading] = useState(true);
   const [editingLimit, setEditingLimit] = useState(false);
   const [limitInput, setLimitInput] = useState("");
+  const [groupInput, setGroupInput] = useState(initialGroup);
   const [savingLimit, setSavingLimit] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const categoryName = typeof category === "string" ? category : category?.category;
 
@@ -59,6 +63,7 @@ export default function BudgetDetailModal({
       const res = await api.get(`/budget/category/${encodeURIComponent(categoryName)}`);
       setDetail(res.data);
       setLimitInput(String(res.data.limit || 0));
+      setGroupInput(res.data.group || "needs");
     } catch {
       setDetail(null);
     } finally {
@@ -69,6 +74,7 @@ export default function BudgetDetailModal({
   useEffect(() => {
     if (open && categoryName) {
       setEditingLimit(false);
+      setConfirmDelete(false);
       fetchDetail();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,6 +97,11 @@ export default function BudgetDetailModal({
   const dailySpentAvg = detail?.daily_spent_avg ?? 0;
   const txns = detail?.transactions || [];
 
+  const isEssentialNeed =
+    categoryName === "Groceries & Kebutuhan Rumah" ||
+    categoryName === "Makanan & Minuman" ||
+    categoryName === "Tagihan & Utilitas";
+
   const handleSaveLimit = async () => {
     const val = parseFloat(limitInput);
     if (isNaN(val) || val < 0) {
@@ -100,9 +111,9 @@ export default function BudgetDetailModal({
     try {
       await api.put(`/budget/category/${encodeURIComponent(categoryName)}`, {
         limit: val,
-        group,
+        group: groupInput,
       });
-      toast.success(`Limit ${categoryName} berhasil diperbarui! 🎯`);
+      toast.success(`Anggaran ${categoryName} berhasil diperbarui! 🎯`);
       setEditingLimit(false);
       fetchDetail();
       if (onUpdated) onUpdated();
@@ -110,6 +121,21 @@ export default function BudgetDetailModal({
       toast.error("Gagal memperbarui limit kategori");
     } finally {
       setSavingLimit(false);
+    }
+  };
+
+  const handleDeleteCategory = async () => {
+    setDeleting(true);
+    try {
+      await api.delete(`/budget/category/${encodeURIComponent(categoryName)}`);
+      toast.success(`Pos ${categoryName} berhasil dihapus dari anggaran`);
+      setConfirmDelete(false);
+      onClose();
+      if (onUpdated) onUpdated();
+    } catch {
+      toast.error("Gagal menghapus pos dari anggaran");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -174,12 +200,12 @@ export default function BudgetDetailModal({
           </Button>
         </div>
 
-        {/* Quick Inline Limit Editor */}
+        {/* Quick Inline Limit & Group Editor */}
         {editingLimit && (
           <div className="p-4 rounded-2xl bg-surface border border-brand/50 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-tprimary flex items-center gap-1.5">
-                <Pencil size={13} className="text-brand" /> Atur Limit Kategori Ini
+                <Pencil size={13} className="text-brand" /> Atur Limit & Alokasi Pos Ini
               </span>
               <button
                 type="button"
@@ -189,24 +215,57 @@ export default function BudgetDetailModal({
                 <X size={15} />
               </button>
             </div>
-            <div className="flex gap-2">
-              <Input
-                prefix="Rp"
-                type="number"
-                value={limitInput}
-                onChange={(e) => setLimitInput(e.target.value)}
-                placeholder="0"
-                autoFocus
-                className="font-mono text-sm"
-              />
-              <Button
-                size="md"
-                onClick={handleSaveLimit}
-                disabled={savingLimit}
-                className="shrink-0"
-              >
-                {savingLimit ? <Spinner size={14} /> : <Check size={14} />} Simpan
-              </Button>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-tmuted uppercase tracking-wider block">
+                Alokasi Kaidah 50/30/20
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { key: "needs", label: "Kebutuhan", color: "var(--brand)" },
+                  { key: "wants", label: "Keinginan", color: "var(--amber)" },
+                  { key: "savings", label: "Tabungan", color: "var(--cyan)" },
+                ].map((g) => (
+                  <button
+                    key={g.key}
+                    type="button"
+                    onClick={() => setGroupInput(g.key)}
+                    className={clsx(
+                      "py-1.5 px-2 rounded-xl text-xs font-semibold border transition-all text-center",
+                      groupInput === g.key
+                        ? "border-brand bg-brand/10 text-tprimary shadow-sm"
+                        : "border-borderc bg-elevated/40 text-tmuted hover:text-tsecondary"
+                    )}
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-tmuted uppercase tracking-wider block">
+                Batas Limit Bulanan
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  prefix="Rp"
+                  type="number"
+                  value={limitInput}
+                  onChange={(e) => setLimitInput(e.target.value)}
+                  placeholder="0"
+                  autoFocus
+                  className="font-mono text-sm"
+                />
+                <Button
+                  size="md"
+                  onClick={handleSaveLimit}
+                  disabled={savingLimit}
+                  className="shrink-0"
+                >
+                  {savingLimit ? <Spinner size={14} /> : <Check size={14} />} Simpan
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -405,6 +464,65 @@ export default function BudgetDetailModal({
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* Category Budget Management & Deletion Guardrails */}
+        <div className="pt-2 border-t border-borderc">
+          {!confirmDelete ? (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="w-full py-2.5 px-3 rounded-xl border border-borderc hover:border-rose/40 hover:bg-rose/5 text-tmuted hover:text-rose transition-all flex items-center justify-center gap-2 text-xs font-semibold"
+            >
+              <Trash2 size={14} /> Hapus Pos dari Anggaran
+            </button>
+          ) : (
+            <div className="p-4 rounded-2xl bg-rose/5 border border-rose/30 space-y-3">
+              <div className="flex items-start gap-2.5 text-rose">
+                <AlertTriangle size={17} className="shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <h5 className="font-bold text-sm text-tprimary">Hapus Pos {categoryName}?</h5>
+                  {isEssentialNeed ? (
+                    <p className="mt-1 text-rose font-medium">
+                      ⚠️ <strong>Peringatan Kebutuhan Pokok:</strong> Kategori ini merupakan pos pengeluaran primer vital. Jika dihapus, pengeluaran di pos ini tidak lagi memiliki kuota pengontrol bulanan.
+                    </p>
+                  ) : group === "savings" ? (
+                    <p className="mt-1 text-amber font-medium">
+                      ⚠️ <strong>Peringatan Tabungan:</strong> Menghapus pos tabungan dapat mengurangi alokasi proteksi masa depanmu.
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-tsecondary">
+                      Pos ini akan dinonaktifkan dari batas anggaran bulanan.
+                    </p>
+                  )}
+                  <p className="mt-1.5 text-tmuted text-[11px]">
+                    ℹ️ <strong>Transaksi tetap aman:</strong> {txns.length} riwayat transaksi bulan ini ({formatRp(spent, privacy)}) tidak akan hilang dari pembukuan, hanya kuota limit pos yang dihapus.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-1">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={deleting}
+                  className="text-xs"
+                >
+                  Batal
+                </Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={handleDeleteCategory}
+                  disabled={deleting}
+                  className="text-xs"
+                >
+                  {deleting ? <Spinner size={13} /> : <Trash2 size={13} />} Ya, Hapus dari Anggaran
+                </Button>
+              </div>
             </div>
           )}
         </div>

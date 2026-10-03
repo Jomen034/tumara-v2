@@ -20,6 +20,40 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-03 22:30:00 WIB] — Independent Budget Management & Dynamic Category Control with Smart Financial Health Guardrails
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menghadirkan kemampuan penuh bagi pengguna untuk mengelola budget secara mandiri: menambah pos kategori baru, menghapus/mengurangi pos anggaran yang tidak dibutuhkan, mengubah limit dan klasifikasi alokasi (Kebutuhan/Keinginan/Tabungan) secara fleksibel, mengedit penghasilan bulanan langsung tanpa mengulang wizard, serta menyematkan "Guardrails Finansial Pintar" untuk membimbing dan menjaga agar alokasi budgeting pengguna tidak keliru (over-allocated, defisit penghasilan, kebocoran pos keinginan, atau ketiadaan pos tabungan).
+- **Latar Belakang & Masalah:**
+  - Sebelumnya, daftar kategori budget terkunci statis pada 8 kategori default. Pengguna tidak bisa menambahkan pos pengeluaran kustom/lainnya (seperti Pendidikan, Hobi, Donasi, dsb.) dan tidak bisa menghapus kategori yang tidak relevan.
+  - Pengguna tidak bisa mengubah penghasilan bulanan tanpa mengulang seluruh wizard onboarding 3 langkah dari awal.
+  - Tidak ada sistem pengaman (guardrails) yang memandu pengguna saat mengubah struktur anggaran: tidak ada peringatan jika alokasi melebihi penghasilan (defisit), tidak ada audit kaidah 50/30/20, dan saat menghapus pos tidak ada dialog pengaman pelindung kebutuhan primer atau tabungan masa depan.
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Menambahkan model `BudgetIncomeUpdate` untuk update parsial nilai penghasilan bulanan dan mode.
+  - `backend/routes_finance.py`:
+    - Menambahkan endpoint `DELETE /budget/category/{category:path}` untuk menghapus pos kategori dari anggaran bulanan secara aman tanpa menghapus histori transaksi.
+    - Menambahkan endpoint `PUT /budget/income` untuk memperbarui penghasilan bulanan secara langsung.
+  - `frontend/src/components/AddBudgetCategoryModal.js` (Baru):
+    - Modal interaktif untuk menambahkan pos kategori anggaran (dari daftar preset pengeluaran belum terpakai atau kategori kustom).
+    - Panduan klasifikasi kaidah finansial sehat 50/30/20 (Needs, Wants, Savings) lengkap dengan rekomendasi otomatis berdasarkan nama kategori.
+    - Kalkulator dampak real-time: menampilkan total anggaran baru, sisa penghasilan belum teralokasi, serta peringatan visual jika penambahan pos menyebabkan over-allocation/defisit.
+  - `frontend/src/components/BudgetDetailModal.js`:
+    - Memperbarui editor limit inline dengan pilihan grup alokasi (Kebutuhan / Keinginan / Tabungan) untuk fleksibilitas reklasifikasi.
+    - Menambahkan fitur "Hapus Pos dari Anggaran" dengan Safety Guardrail Confirmation Dialog:
+      - Peringatan khusus jika menghapus pos Kebutuhan Pokok vital (`Groceries`, `Makanan & Minuman`, `Tagihan & Utilitas`).
+      - Peringatan jika menghapus satu-satunya pos Tabungan/Investasi.
+      - Jaminan penenang bahwa riwayat transaksi tercatat tetap aman dan utuh di database.
+  - `frontend/src/pages/Budget.js`:
+    - Menyediakan tombol cepat "+ Tambah Pos", "Edit Gaji", dan "Wizard" di header halaman.
+    - Menghadirkan komponen "Diagnosa Kesehatan & Keseimbangan Anggaran": live audit status alokasi (Zero-Based status, peringatan over-allocation, peringatan porsi Keinginan >35%, peringatan Tabungan <15%).
+    - Fitur "Seimbangkan 50/30/20 Otomatis": tombol satu-klik untuk merestrukturisasi kuota pos-pos aktif secara proporsional sesuai kaidah 50/30/20 berdasarkan penghasilan bulanan.
+    - Detektor "Pengeluaran di Luar Anggaran" (Unbudgeted Expenses): mendeteksi transaksi bulan ini di kategori yang belum memiliki kuota limit, dengan tombol cepat "+ Masukkan ke Anggaran".
+    - Meningkatkan Langkah 2 Wizard: memungkinkan pengguna menghapus atau menambahkan pos kategori langsung di dalam wizard setup.
+    - Menambahkan modal "Ubah Penghasilan Bulanan".
+- **Verifikasi Hasil:**
+  - Sintaks Python `models.py` dan `routes_finance.py` tervalidasi 100% via `py_compile`.
+  - Sintaks JSX seluruh komponen frontend teruji seimbang (0 delta tanda kurung).
+
 ### [2026-10-03 22:20:00 WIB] — Financial Taxonomy Standardization: Groceries & Kebutuhan Rumah Isolation, 50/30/20 Budgeting Alignment & Smart Receipt Itemized Categorization
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menghilangkan ambiguitas taksonomi pengeluaran antara "Groceries & Kebutuhan Rumah" (bahan mentah dapur, sayur/daging, perlengkapan pembersih, tissue, sabun, belanja supermarket) vs "Makanan & Minuman" (kuliner, resto, cafe, jajan siap saji) vs "Belanja" (lifestyle, pakaian, gadget, e-commerce); menyeimbangkan formula alokasi budgeting 50/30/20 (memastikan groceries dan kesehatan berada di kategori Needs/Kebutuhan Pokok 50%); serta meningkatkan ketepatan mesin AI Scan Struk OCR agar struk supermarket panjang (seperti GrandLucky, Superindo, dsb.) secara otomatis terpetakan ke "Groceries & Kebutuhan Rumah" lengkap dengan kemampuan preview scrollable dan penyesuaian kategori per item saat dicatat terpisah.

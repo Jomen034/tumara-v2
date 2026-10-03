@@ -12,7 +12,7 @@ from db import db
 import ledger
 from models import (
     Wallet, WalletCreate, Transaction, TransactionCreate, TransactionUpdate,
-    Budget, BudgetCreate, CategoryLimitUpdate, Goal, GoalCreate, GoalDeposit, new_id,
+    Budget, BudgetCreate, CategoryLimitUpdate, BudgetIncomeUpdate, Goal, GoalCreate, GoalDeposit, new_id,
 )
 from deps import get_ctx, Ctx, household_members
 
@@ -478,6 +478,41 @@ async def update_category_budget(category: str, body: CategoryLimitUpdate, ctx: 
     await db.budgets.update_one(
         {"household_id": ctx.hid, "month": month},
         {"$set": {"categories": categories, "updated_at": datetime.now(timezone.utc)}}
+    )
+    return await db.budgets.find_one({"household_id": ctx.hid, "month": month}, {"_id": 0})
+
+
+@router.delete("/budget/category/{category:path}")
+async def delete_category_budget(category: str, ctx: Ctx = Depends(get_ctx)):
+    month = _month()
+    budget = await db.budgets.find_one({"household_id": ctx.hid, "month": month})
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget belum diatur untuk bulan ini")
+
+    categories = budget.get("categories", [])
+    new_categories = [c for c in categories if c.get("category") != category]
+
+    await db.budgets.update_one(
+        {"household_id": ctx.hid, "month": month},
+        {"$set": {"categories": new_categories, "updated_at": datetime.now(timezone.utc)}}
+    )
+    return await db.budgets.find_one({"household_id": ctx.hid, "month": month}, {"_id": 0})
+
+
+@router.put("/budget/income")
+async def update_budget_income(body: BudgetIncomeUpdate, ctx: Ctx = Depends(get_ctx)):
+    month = _month()
+    budget = await db.budgets.find_one({"household_id": ctx.hid, "month": month})
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget belum diatur untuk bulan ini")
+
+    update_fields = {"monthly_income": body.monthly_income, "updated_at": datetime.now(timezone.utc)}
+    if body.mode:
+        update_fields["mode"] = body.mode
+
+    await db.budgets.update_one(
+        {"household_id": ctx.hid, "month": month},
+        {"$set": update_fields}
     )
     return await db.budgets.find_one({"household_id": ctx.hid, "month": month}, {"_id": 0})
 
