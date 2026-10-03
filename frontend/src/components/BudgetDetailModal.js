@@ -60,6 +60,7 @@ export default function BudgetDetailModal({
     if (!categoryName) return;
     setLoading(true);
     try {
+      await api.post("/budget/align-receipt-dates").catch(() => {});
       const res = await api.get(`/budget/category/${encodeURIComponent(categoryName)}`);
       setDetail(res.data);
       setLimitInput(String(res.data.limit || 0));

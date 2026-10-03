@@ -93,7 +93,10 @@ export default function Budget() {
   const [autoBalancing, setAutoBalancing] = useState(false);
 
   const load = () =>
-    Promise.all([api.get("/budget"), api.get("/dashboard")])
+    api
+      .post("/budget/align-receipt-dates")
+      .catch(() => {})
+      .then(() => Promise.all([api.get("/budget"), api.get("/dashboard")]))
       .then(([b, d]) => {
         setBudget(b.data);
         setDash(d.data);

@@ -60,10 +60,14 @@ export default function AddTransactionModal({
 
   // Receipt Scanner state
   const fileRef = useRef();
+  const todayDateStr = new Date().toISOString().slice(0, 10);
+  const currentMonthStr = todayDateStr.slice(0, 7);
   const [preview, setPreview] = useState(null);
   const [file, setFile] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
+  const [scanDate, setScanDate] = useState(todayDateStr);
+  const [rawScanDate, setRawScanDate] = useState("");
   const [itemized, setItemized] = useState(false);
   const [scanCategory, setScanCategory] = useState("Groceries & Kebutuhan Rumah");
   const [scanItems, setScanItems] = useState([]);
@@ -113,6 +117,8 @@ export default function AddTransactionModal({
     setScanCategory("Groceries & Kebutuhan Rumah");
     setScanItems([]);
     setSubItemsDraft(null);
+    setScanDate(todayDateStr);
+    setRawScanDate("");
   };
 
   const parse = async (text) => {
@@ -153,6 +159,8 @@ export default function AddTransactionModal({
     setFile(f);
     setPreview(URL.createObjectURL(f));
     setScanResult(null);
+    setScanDate(todayDateStr);
+    setRawScanDate("");
   };
 
   // Receipt Scan
@@ -172,6 +180,22 @@ export default function AddTransactionModal({
           category: it.category || cat,
         }))
       );
+
+      const rawDate = res.data.date;
+      setRawScanDate(rawDate || "");
+      if (rawDate) {
+        if (rawDate.slice(0, 7) !== currentMonthStr) {
+          setScanDate(todayDateStr);
+          setDate(todayDateStr);
+        } else {
+          setScanDate(rawDate);
+          setDate(rawDate);
+        }
+      } else {
+        setScanDate(todayDateStr);
+        setDate(todayDateStr);
+      }
+
       toast.success("Struk berhasil dipindai!");
     } catch (e) {
       toast.error(e?.response?.data?.detail || "Gagal memindai struk");
@@ -199,7 +223,7 @@ export default function AddTransactionModal({
     setAmount(String(scanResult.total || ""));
     setCategory(scanCategory || "Groceries & Kebutuhan Rumah");
     setNote(scanResult.merchant || "Struk Belanja");
-    if (scanResult.date) setDate(scanResult.date);
+    setDate(scanDate || todayDateStr);
     const validItems = scanItems.filter((it) => Number(it.price) > 0);
     if (validItems.length > 0) {
       setSubItemsDraft(
@@ -226,6 +250,7 @@ export default function AddTransactionModal({
     setSaving(true);
     try {
       const items = scanItems.filter((it) => Number(it.price) > 0);
+      const chosenDate = scanDate || date || todayDateStr;
       if (itemized && items.length > 0) {
         await Promise.all(
           items.map((it) =>
@@ -235,7 +260,7 @@ export default function AddTransactionModal({
               wallet_id: walletId,
               category: it.category || scanCategory || "Groceries & Kebutuhan Rumah",
               note: `${it.name}${scanResult.merchant ? " · " + scanResult.merchant : ""}`,
-              date: scanResult.date || undefined,
+              date: chosenDate,
               source: "ai_receipt",
             })
           )
@@ -248,7 +273,7 @@ export default function AddTransactionModal({
           wallet_id: walletId,
           category: scanCategory || "Groceries & Kebutuhan Rumah",
           note: scanResult.merchant || "Struk Belanja",
-          date: scanResult.date || undefined,
+          date: chosenDate,
           source: "ai_receipt",
           items: items.length > 0 ? items.map((it) => ({
             name: it.name,
@@ -483,12 +508,64 @@ export default function AddTransactionModal({
                   <span className="text-tsecondary">Total Belanja</span>
                   <span className="font-mono font-bold text-brand">{formatRp(scanResult.total)}</span>
                 </div>
-                {scanResult.date && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-tsecondary">Tanggal</span>
-                    <span className="text-tprimary">{scanResult.date}</span>
+                {/* Editable Transaction Date */}
+                <div className="pt-2 border-t border-borderc/60 flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold text-tsecondary whitespace-nowrap">
+                    Tanggal Transaksi:
+                  </span>
+                  <input
+                    type="date"
+                    value={scanDate}
+                    onChange={(e) => {
+                      setScanDate(e.target.value);
+                      setDate(e.target.value);
+                    }}
+                    className="bg-surface border border-borderc rounded-xl px-2.5 py-1.5 text-xs text-tprimary font-mono focus:border-brand focus:outline-none"
+                  />
+                </div>
+
+                {rawScanDate && rawScanDate.slice(0, 7) !== currentMonthStr && (
+                  <div className="text-[11px] bg-amber/10 border border-amber/25 text-amber rounded-xl p-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between font-medium">
+                      <span>⚠️ Struk fisik tertera tanggal:</span>
+                      <span className="font-mono font-bold">{rawScanDate}</span>
+                    </div>
+                    <p className="text-tsecondary text-[11px] leading-relaxed">
+                      Tumara mengarahkan ke tanggal <strong className="text-tprimary font-mono">{scanDate}</strong> agar transaksi ini otomatis dihitung ke anggaran bulan berjalan ({currentMonthStr}).
+                    </p>
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScanDate(todayDateStr);
+                          setDate(todayDateStr);
+                        }}
+                        className={`text-[10px] px-2.5 py-1 rounded-lg border transition-all ${
+                          scanDate === todayDateStr
+                            ? "bg-brand text-black font-semibold border-brand shadow-sm"
+                            : "bg-surface hover:bg-elevated border-borderc text-tsecondary"
+                        }`}
+                      >
+                        ✓ Pakai Hari Ini ({todayDateStr})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScanDate(rawScanDate);
+                          setDate(rawScanDate);
+                        }}
+                        className={`text-[10px] px-2.5 py-1 rounded-lg border transition-all ${
+                          scanDate === rawScanDate
+                            ? "bg-amber text-black font-semibold border-amber shadow-sm"
+                            : "bg-surface hover:bg-elevated border-borderc text-tsecondary"
+                        }`}
+                      >
+                        Pakai Tanggal Struk Asli ({rawScanDate})
+                      </button>
+                    </div>
                   </div>
                 )}
+
                 {/* Editable overall category */}
                 <div className="pt-2 border-t border-borderc/60 flex items-center justify-between gap-3">
                   <span className="text-xs font-semibold text-tsecondary whitespace-nowrap">

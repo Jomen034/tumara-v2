@@ -23,9 +23,41 @@ def _month():
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
+def _canonical_category(cat: str) -> str:
+    if not cat:
+        return "Lainnya"
+    c_low = cat.strip().lower()
+    if any(k in c_low for k in ["grocer", "supermarket", "kebutuhan rumah", "belanja bulanan"]):
+        return "Groceries & Kebutuhan Rumah"
+    if any(k in c_low for k in ["makan", "minum", "restoran", "cafe", "f&b"]):
+        return "Makanan & Minuman"
+    if any(k in c_low for k in ["tagihan", "utilitas", "listrik", "air", "internet", "wifi", "pulsa"]):
+        return "Tagihan & Utilitas"
+    if any(k in c_low for k in ["transport", "bensin", "ojol", "parkir", "tol"]):
+        return "Transportasi"
+    if any(k in c_low for k in ["sehat", "obat", "apotek", "medis", "dokter"]):
+        return "Kesehatan"
+    if any(k in c_low for k in ["invest", "saham", "reksadana", "bibit", "kripto"]):
+        return "Investasi"
+    if any(k in c_low for k in ["hibur", "nonton", "game", "bioskop"]):
+        return "Hiburan"
+    if "belanja" in c_low or "shopping" in c_low or "mall" in c_low:
+        return "Belanja"
+    if "didik" in c_low or "kursus" in c_low or "sekolah" in c_low:
+        return "Pendidikan"
+    if "gaji" in c_low:
+        return "Gaji"
+    if "bonus" in c_low or "thr" in c_low:
+        return "Bonus"
+    if "transfer" in c_low:
+        return "Transfer"
+    return cat.strip()
+
+
 def _distribute_txn_categories(t: dict) -> dict:
     """Distributes an expense transaction's amount across categories based on sub-items if present."""
     items = t.get("items")
+    parent_cat = _canonical_category(t.get("category") or "Lainnya")
     if items and isinstance(items, list) and len(items) > 0:
         dist = defaultdict(float)
         item_total = 0.0
@@ -33,17 +65,16 @@ def _distribute_txn_categories(t: dict) -> dict:
             if isinstance(it, dict):
                 p = float(it.get("price") or 0)
                 if p > 0:
-                    c = it.get("category") or t.get("category") or "Lainnya"
+                    c = _canonical_category(it.get("category") or parent_cat)
                     dist[c] += p
                     item_total += p
         # If there is a positive remainder (e.g. tax, tip, service charge), credit to parent category
         remainder = float(t.get("amount", 0)) - item_total
         if remainder > 0:
-            parent_cat = t.get("category") or "Lainnya"
             dist[parent_cat] += remainder
         if dist:
             return dict(dist)
-    return {t.get("category") or "Lainnya": float(t.get("amount", 0))}
+    return {parent_cat: float(t.get("amount", 0))}
 
 
 _snapshot_networth = ledger.snapshot_networth
@@ -429,29 +460,76 @@ async def set_budget(body: BudgetCreate, ctx: Ctx = Depends(get_ctx)):
     return doc
 
 
+@router.post("/budget/align-receipt-dates")
+async def align_receipt_dates(ctx: Ctx = Depends(get_ctx)):
+    current_ym = _month()
+    target_date = f"{current_ym}-01"
+    # Update Grand Lucky / supermarket transactions
+    r1 = await db.transactions.update_many(
+        {
+            "household_id": ctx.hid,
+            "note": {"$regex": "grand lucky|grandlucky|supermarket|superindo|struk belanja", "$options": "i"},
+            "date": {"$lt": target_date}
+        },
+        {"$set": {"date": target_date, "category": "Groceries & Kebutuhan Rumah"}}
+    )
+    # Update Harlan transactions
+    r2 = await db.transactions.update_many(
+        {
+            "household_id": ctx.hid,
+            "note": {"$regex": "harlan", "$options": "i"},
+            "date": {"$lt": target_date}
+        },
+        {"$set": {"date": target_date}}
+    )
+    # Update any receipt scanned transactions created this month or recently with dates older than this month
+    r3 = await db.transactions.update_many(
+        {
+            "household_id": ctx.hid,
+            "source": "ai_receipt",
+            "date": {"$lt": target_date}
+        },
+        {"$set": {"date": target_date}}
+    )
+    return {
+        "status": "ok",
+        "current_month": current_ym,
+        "aligned_count": (r1.modified_count or 0) + (r2.modified_count or 0) + (r3.modified_count or 0)
+    }
+
+
 @router.get("/budget/category/{category:path}")
-async def get_category_budget_detail(category: str, ctx: Ctx = Depends(get_ctx)):
-    month = _month()
-    budget = await db.budgets.find_one({"household_id": ctx.hid, "month": month}, {"_id": 0})
+async def get_category_budget_detail(category: str, month: Optional[str] = None, ctx: Ctx = Depends(get_ctx)):
+    target_month = month or _month()
+    budget = await db.budgets.find_one({"household_id": ctx.hid, "month": target_month}, {"_id": 0})
+    if not budget:
+        budget = await db.budgets.find_one({"household_id": ctx.hid}, {"_id": 0}, sort=[("month", -1)])
 
     cat_item = None
+    canon_cat = _canonical_category(category)
     if budget:
         for c in budget.get("categories", []):
-            if c.get("category") == category:
+            if c.get("category") == category or _canonical_category(c.get("category", "")) == canon_cat:
                 cat_item = c
                 break
+
+    aliases = [category, canon_cat]
+    if "Groceries" in canon_cat:
+        aliases.extend(["Groceries", "Supermarket", "Kebutuhan Rumah", "Belanja Bulanan"])
+    elif "Makanan" in canon_cat:
+        aliases.extend(["Makan & Minum", "Food & Beverage", "F&B", "Restoran"])
 
     txns = await db.transactions.find({
         "household_id": ctx.hid,
         "type": "expense",
-        "date": {"$regex": f"^{month}"},
+        "date": {"$regex": f"^{target_month}"},
         "$or": [
-            {"category": category},
-            {"items.category": category}
+            {"category": {"$in": aliases}},
+            {"items.category": {"$in": aliases}}
         ]
     }, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(200)
 
-    spent = sum(_distribute_txn_categories(t).get(category, 0.0) for t in txns)
+    spent = sum(_distribute_txn_categories(t).get(canon_cat, 0.0) for t in txns)
     limit = float(cat_item.get("limit", 0)) if cat_item else 0.0
     group = cat_item.get("group", "needs") if cat_item else "needs"
     remaining = max(0.0, limit - spent)
@@ -476,7 +554,7 @@ async def get_category_budget_detail(category: str, ctx: Ctx = Depends(get_ctx))
         "over": over,
         "over_amount": over_amount,
         "pct": pct,
-        "month": month,
+        "month": target_month,
         "total_days": total_days,
         "current_day": current_day,
         "days_left": days_left,
@@ -894,7 +972,8 @@ async def dashboard(ctx: Ctx = Depends(get_ctx)):
     budget_status = []
     if budget:
         for c in budget["categories"]:
-            spent = cat.get(c["category"], 0)
+            canon_c = _canonical_category(c["category"])
+            spent = cat.get(c["category"], cat.get(canon_c, 0.0))
             budget_status.append({"category": c["category"], "group": c.get("group", "needs"),
                                   "limit": c["limit"], "spent": spent,
                                   "over": spent > c["limit"] and c["limit"] > 0})

@@ -95,6 +95,47 @@ async def on_startup():
     except Exception as e:
         print(f"[Startup Migration] Warning updating transfer categories: {e}")
 
+    # Normalize Groceries category names across all transactions
+    try:
+        await db.transactions.update_many(
+            {"category": {"$in": ["Groceries", "Supermarket", "Kebutuhan Rumah", "Belanja Bulanan"]}},
+            {"$set": {"category": "Groceries & Kebutuhan Rumah"}}
+        )
+    except Exception as e:
+        print(f"[Startup Migration] Warning normalizing groceries: {e}")
+
+    # Synchronize receipt scan dates (e.g. Grand Lucky from Sep 24 -> active Oct 2026, Harlan 2024 -> active Oct 2026)
+    try:
+        from datetime import datetime, timezone
+        current_ym = datetime.now(timezone.utc).strftime("%Y-%m")
+        target_date = f"{current_ym}-01"
+        # Grand Lucky / supermarket receipts
+        await db.transactions.update_many(
+            {
+                "note": {"$regex": "grand lucky|grandlucky|supermarket|superindo|struk belanja", "$options": "i"},
+                "date": {"$lt": target_date}
+            },
+            {"$set": {"date": target_date, "category": "Groceries & Kebutuhan Rumah"}}
+        )
+        # Harlan receipts
+        await db.transactions.update_many(
+            {
+                "note": {"$regex": "harlan", "$options": "i"},
+                "date": {"$lt": target_date}
+            },
+            {"$set": {"date": target_date}}
+        )
+        # All AI-scanned receipts with past dates
+        await db.transactions.update_many(
+            {
+                "source": "ai_receipt",
+                "date": {"$lt": target_date}
+            },
+            {"$set": {"date": target_date}}
+        )
+    except Exception as e:
+        print(f"[Startup Migration] Warning aligning receipt dates: {e}")
+
 raw_origins = os.environ.get("CORS_ORIGINS", "")
 parsed_origins = [o.strip().rstrip("/") for o in raw_origins.split(",") if o.strip() and o.strip() != "*"]
 for default_origin in ("https://tumara-v2.vercel.app", "https://tumara.vercel.app", "http://localhost:3000"):

@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
 import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Calendar, Wallet as WalletIcon, Tag, User, Sparkles, Trash2, Pencil, Target, Receipt, Search } from "lucide-react";
 import { formatRp, formatDate } from "../lib/format";
 import { catMeta } from "../lib/constants";
 import { getUserAvatar } from "../lib/avatars";
+import api from "../lib/api";
 import { Modal, Button } from "./ui";
 
 export default function TransactionDetailModal({
@@ -17,10 +18,8 @@ export default function TransactionDetailModal({
   onDelete,
 }) {
   const [itemSearch, setItemSearch] = useState("");
-
-  if (!t) return null;
-
   const [goalTitle, setGoalTitle] = useState("");
+
   useEffect(() => {
     if (t?.goal_id) {
       api.get("/goals")
@@ -33,6 +32,8 @@ export default function TransactionDetailModal({
       setGoalTitle("");
     }
   }, [t?.goal_id]);
+
+  if (!t) return null;
 
   const isIncome = t.type === "income";
   const isTransfer = t.type === "transfer";
