@@ -207,7 +207,7 @@ def _resize_image(raw: bytes) -> bytes:
     return out.getvalue()
 
 
-CATEGORY_LIST = '["Groceries & Kebutuhan Rumah","Makanan & Minuman","Transportasi","Belanja","Tagihan & Utilitas","Hiburan","Kesehatan","Pendidikan","Investasi","Gaji","Bonus","Lainnya"]'
+CATEGORY_LIST = '["Groceries & Kebutuhan Rumah","Makanan & Minuman","Transportasi","Belanja","Tagihan & Utilitas","Hiburan","Kesehatan","Pendidikan","Investasi","Gaji","Bonus","Transfer","Lainnya"]'
 
 RECEIPT_PROMPT = (
     "Kamu adalah mesin OCR struk belanja keuangan pribadi yang cerdas dan teliti. "
@@ -357,7 +357,9 @@ async def parse_transaction_text(text: str, wallets: list) -> dict:
 
         # Detect category
         cat = "Lainnya"
-        if any(k in lowered for k in ("bensin", "bbm", "bp", "shell", "pertamina", "gojek", "grab", "parkir", "tol", "transport")):
+        if ttype == "transfer":
+            cat = "Transfer"
+        elif any(k in lowered for k in ("bensin", "bbm", "bp", "shell", "pertamina", "gojek", "grab", "parkir", "tol", "transport")):
             cat = "Transportasi"
         elif any(k in lowered for k in ("supermarket", "grand lucky", "grandlucky", "superindo", "alfamart", "indomaret", "hypermart", "pasar", "groceries", "sayur", "dapur", "daging", "beras", "minyak", "telur", "sabun", "deterjen", "tissue", "bebersih")):
             cat = "Groceries & Kebutuhan Rumah"
@@ -381,7 +383,10 @@ async def parse_transaction_text(text: str, wallets: list) -> dict:
     data = _extract_json(raw)
     data.setdefault("type", "expense")
     data.setdefault("amount", 0)
-    data.setdefault("category", "Lainnya")
+    if data.get("type") == "transfer":
+        data["category"] = "Transfer"
+    else:
+        data.setdefault("category", "Lainnya")
     data.setdefault("wallet_id", None)
     data.setdefault("wallet_name", "")
     data.setdefault("note", "")

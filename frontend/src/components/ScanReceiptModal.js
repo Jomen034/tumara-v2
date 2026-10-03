@@ -141,7 +141,7 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
   };
 
   const expenseCategories = CATEGORIES.filter(
-    (c) => !["Gaji", "Bonus"].includes(c.name)
+    (c) => !["Gaji", "Bonus", "Transfer"].includes(c.name)
   );
 
   return (

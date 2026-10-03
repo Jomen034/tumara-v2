@@ -53,7 +53,7 @@ const GROUP_LABEL = { needs: "Kebutuhan", wants: "Keinginan", savings: "Tabungan
 const GROUP_COLOR = { needs: "var(--brand)", wants: "var(--amber)", savings: "var(--cyan)" };
 
 const EXPENSE_CATEGORIES = CATEGORIES.filter(
-  (c) => c.name !== "Gaji" && c.name !== "Bonus"
+  (c) => c.name !== "Gaji" && c.name !== "Bonus" && c.name !== "Transfer"
 );
 
 export default function Budget() {
@@ -922,8 +922,8 @@ export default function Budget() {
                       }}
                       className="py-4 cursor-pointer hover:border-brand/60 hover:shadow-md transition-all active:scale-[0.995] group"
                     >
-                      <div className="flex items-center justify-between gap-3 mb-2.5">
-                        <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex items-center justify-between gap-2.5 sm:gap-3 mb-2.5">
+                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                           <div
                             className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-borderc group-hover:scale-105 transition-transform"
                             style={{
@@ -933,11 +933,11 @@ export default function Budget() {
                           >
                             <IconCat size={19} />
                           </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-tprimary text-sm sm:text-base group-hover:text-brand transition-colors truncate">
-                                {b.category}
-                              </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-tprimary text-sm sm:text-base group-hover:text-brand transition-colors truncate">
+                              {b.category}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
                               <Badge color={GROUP_COLOR[b.group] || "var(--brand)"}>
                                 {GROUP_LABEL[b.group] || "Kategori"}
                               </Badge>
@@ -951,7 +951,7 @@ export default function Budget() {
                                 </Badge>
                               ) : null}
                             </div>
-                            <p className="text-[11px] text-tmuted mt-0.5">
+                            <p className="text-[11px] text-tmuted mt-0.5 truncate">
                               {isOver ? (
                                 <span className="text-rose font-medium">
                                   Defisit {formatRp(b.spent - b.limit, privacy)}
@@ -968,25 +968,25 @@ export default function Budget() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-2 sm:gap-3 shrink-0 pl-1">
                           <div className="text-right">
                             <div
-                              className={`font-mono text-sm sm:text-base font-bold ${
+                              className={`font-mono text-xs sm:text-base font-bold ${
                                 isOver ? "text-rose" : "text-tprimary"
                               } ${privacy ? "privacy-blur" : ""}`}
                             >
                               {formatShort(b.spent, privacy)}{" "}
-                              <span className="text-tmuted font-normal text-xs">
+                              <span className="text-tmuted font-normal text-[11px] sm:text-xs">
                                 / {formatShort(b.limit, privacy)}
                               </span>
                             </div>
-                            <span className="text-[11px] text-tmuted font-mono">
+                            <span className="text-[10px] sm:text-[11px] text-tmuted font-mono">
                               {pct}%
                             </span>
                           </div>
                           <ChevronRight
-                            size={18}
-                            className="text-tmuted group-hover:text-brand group-hover:translate-x-0.5 transition-all shrink-0"
+                            size={16}
+                            className="text-tmuted group-hover:text-brand group-hover:translate-x-0.5 transition-all shrink-0 hidden sm:block"
                           />
                         </div>
                       </div>

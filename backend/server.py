@@ -85,8 +85,15 @@ app.include_router(api)
 
 @app.on_event("startup")
 async def on_startup():
-    from db import init_db_indexes
+    from db import init_db_indexes, db
     await init_db_indexes()
+    try:
+        await db.transactions.update_many(
+            {"type": "transfer", "$or": [{"category": "Lainnya"}, {"category": {"$exists": False}}, {"category": None}]},
+            {"$set": {"category": "Transfer"}}
+        )
+    except Exception as e:
+        print(f"[Startup Migration] Warning updating transfer categories: {e}")
 
 raw_origins = os.environ.get("CORS_ORIGINS", "")
 parsed_origins = [o.strip().rstrip("/") for o in raw_origins.split(",") if o.strip() and o.strip() != "*"]

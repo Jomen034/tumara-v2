@@ -18,7 +18,7 @@ import { CATEGORIES, catMeta } from "../lib/constants";
 import { Modal, Button, Input, Badge, Spinner } from "./ui";
 
 const EXPENSE_CATEGORIES = CATEGORIES.filter(
-  (c) => c.name !== "Gaji" && c.name !== "Bonus"
+  (c) => c.name !== "Gaji" && c.name !== "Bonus" && c.name !== "Transfer"
 );
 
 const GROUP_OPTIONS = [

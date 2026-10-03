@@ -334,9 +334,9 @@ export default function Dashboard() {
             {data.upcoming_bills.slice(0, 4).map((b) => (
               <div
                 key={b.id}
-                className="flex items-center justify-between gap-3 bg-elevated/70 border border-borderc/50 rounded-xl p-3 sm:px-4 sm:py-3 transition-colors hover:border-brand/40"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 bg-elevated/70 border border-borderc/50 rounded-xl p-3 sm:px-4 sm:py-3 transition-colors hover:border-brand/40"
               >
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-tprimary truncate">{b.name}</p>
                   <div className="flex items-center gap-2 mt-0.5 text-xs">
                     <span
@@ -353,7 +353,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t border-borderc/30 sm:border-0 shrink-0">
                   <span className={`font-mono text-sm sm:text-base font-bold text-tprimary ${privacy ? "privacy-blur" : ""}`}>
                     {formatRp(b.amount, privacy)}
                   </span>
@@ -623,10 +623,10 @@ function SectionHead({ title, onClick }) {
 }
 
 export function TxnRow({ t, privacy, onDelete, onEdit, onSelect, memberMap, walletMap }) {
-  const m = catMeta(t.category);
-  const Ic = Icons[m.icon] || Icons.MoreHorizontal;
   const isIncome = t.type === "income";
   const isTransfer = t.type === "transfer";
+  const m = catMeta(isTransfer ? "Transfer" : t.category, t.type);
+  const Ic = isTransfer ? Icons.ArrowLeftRight : (Icons[m.icon] || Icons.MoreHorizontal);
   const mem = memberMap?.[t.member_id];
 
   const fromWallet = walletMap?.[t.wallet_id];
@@ -639,18 +639,27 @@ export function TxnRow({ t, privacy, onDelete, onEdit, onSelect, memberMap, wall
     <div
       onClick={() => onSelect?.(t)}
       className={clsx(
-        "flex items-center gap-3 px-5 py-3.5 transition-colors group",
+        "flex items-center gap-2.5 sm:gap-3.5 px-3.5 sm:px-5 py-3 sm:py-3.5 transition-colors group",
         onSelect && "cursor-pointer hover:bg-elevated/60"
       )}
     >
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${m.color}22` }}>
-        <Ic size={18} style={{ color: m.color }} />
+      <div
+        className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0"
+        style={{ backgroundColor: isTransfer ? "rgba(0, 240, 255, 0.14)" : `${m.color}22` }}
+      >
+        <Ic size={18} style={{ color: isTransfer ? "#00F0FF" : m.color }} />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <p className="text-sm font-medium truncate">{t.note || t.category}</p>
+
+      <div className="flex-1 min-w-0 pr-1">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p className="text-xs sm:text-sm font-semibold text-tprimary truncate">
+            {t.note || (isTransfer ? "Transfer Antar Dompet" : t.category)}
+          </p>
           {t.items && t.items.length > 0 && (
-            <span className="text-[10px] font-semibold bg-brand/15 text-brand px-1.5 py-0.5 rounded-full shrink-0 flex items-center gap-0.5" title={`${t.items.length} rincian barang`}>
+            <span
+              className="text-[10px] font-semibold bg-brand/15 text-brand px-1.5 py-0.5 rounded-full shrink-0 flex items-center gap-0.5"
+              title={`${t.items.length} rincian barang`}
+            >
               🧾 {t.items.length} item
             </span>
           )}
@@ -660,21 +669,44 @@ export function TxnRow({ t, privacy, onDelete, onEdit, onSelect, memberMap, wall
             </span>
           )}
         </div>
-        <p className="text-xs text-tmuted flex items-center gap-1.5 truncate mt-0.5">
-          {mem && <img src={getUserAvatar(mem)} alt="" title={mem.name} className="w-4 h-4 rounded-full object-cover inline-block shrink-0 shadow-sm" />}
-          {walletLabel && <span className="font-semibold text-tsecondary">{walletLabel} ·</span>}
-          <span>{isTransfer ? "Transfer" : t.category}</span>
-          <span>· {formatDate(t.date) || t.date}</span>
+        <p className="text-[11px] sm:text-xs text-tmuted flex items-center gap-1 truncate mt-0.5 min-w-0">
+          {mem && (
+            <img
+              src={getUserAvatar(mem)}
+              alt=""
+              title={mem.name}
+              className="w-3.5 h-3.5 rounded-full object-cover inline-block shrink-0 shadow-sm"
+            />
+          )}
+          {walletLabel && (
+            <span className="font-medium text-tsecondary shrink-0">{walletLabel}</span>
+          )}
+          <span className="shrink-0 text-tmuted/70">·</span>
+          <span className="shrink-0 font-medium text-tmuted">{isTransfer ? "Transfer" : t.category}</span>
+          <span className="shrink-0 text-tmuted/70">·</span>
+          <span className="shrink-0 text-tmuted">{formatDate(t.date) || t.date}</span>
         </p>
       </div>
-      <span className={`font-mono text-sm font-semibold shrink-0 ${privacy ? "privacy-blur" : ""} ${isIncome ? "text-brand" : isTransfer ? "text-cyan" : "text-rose"}`}>
-        {isIncome ? "+" : isTransfer ? "" : "-"}{formatRp(t.amount, privacy)}
-      </span>
-      <div className="flex items-center gap-1 shrink-0">
+
+      <div className="text-right shrink-0 pl-1 sm:pl-2">
+        <span
+          className={`font-mono text-xs sm:text-sm font-bold block ${
+            privacy ? "privacy-blur" : ""
+          } ${isIncome ? "text-brand" : isTransfer ? "text-cyan" : "text-rose"}`}
+        >
+          {isIncome ? "+" : isTransfer ? "" : "-"}
+          {formatRp(t.amount, privacy)}
+        </span>
+      </div>
+
+      <div className="hidden sm:flex items-center gap-1 shrink-0 ml-1">
         {onEdit && (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onEdit(t); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(t);
+            }}
             data-testid={`edit-txn-${t.id}`}
             className="p-1.5 rounded-lg hover:bg-elevated text-tmuted hover:text-brand transition-colors"
             title="Edit transaksi"
@@ -685,7 +717,10 @@ export function TxnRow({ t, privacy, onDelete, onEdit, onSelect, memberMap, wall
         {onDelete && (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(t.id);
+            }}
             data-testid={`delete-txn-${t.id}`}
             className="p-1.5 rounded-lg hover:bg-elevated text-tmuted hover:text-rose transition-colors"
             title="Hapus transaksi"

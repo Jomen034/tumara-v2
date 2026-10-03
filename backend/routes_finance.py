@@ -218,6 +218,8 @@ async def get_transaction(txn_id: str, ctx: Ctx = Depends(get_ctx)):
 async def _new_txn(ctx: Ctx, data: dict) -> Transaction:
     if not data.get("date"):
         data["date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if data.get("type") == "transfer":
+        data["category"] = "Transfer"
     await _validate_wallets(ctx.hid, data.get("type"), data.get("wallet_id"), data.get("to_wallet_id"))
     t = Transaction(user_id=ctx.user.user_id, **data)
     doc = t.model_dump()
@@ -251,6 +253,9 @@ async def update_transaction(txn_id: str, body: TransactionUpdate, ctx: Ctx = De
 
     if not data.get("date"):
         data["date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    if data.get("type") == "transfer":
+        data["category"] = "Transfer"
 
     await _validate_wallets(ctx.hid, data.get("type"), data.get("wallet_id"), data.get("to_wallet_id"))
 

@@ -48,7 +48,14 @@ export default function EditTransactionModal({ open, onClose, transaction: t, wa
         amount: amt,
         wallet_id: walletId,
         to_wallet_id: type === "transfer" ? toWalletId : null,
-        category: type === "income" ? (["Gaji", "Bonus", "Investasi", "Lainnya"].includes(category) ? category : "Gaji") : category,
+        category:
+          type === "transfer"
+            ? "Transfer"
+            : type === "income"
+            ? ["Gaji", "Bonus", "Investasi", "Lainnya"].includes(category)
+              ? category
+              : "Gaji"
+            : category,
         note,
         date,
       });
@@ -137,7 +144,7 @@ export default function EditTransactionModal({ open, onClose, transaction: t, wa
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
-            {CATEGORIES.filter((c) => !["Gaji", "Bonus"].includes(c.name)).map((c) => (
+            {CATEGORIES.filter((c) => !["Gaji", "Bonus", "Transfer"].includes(c.name)).map((c) => (
               <option key={c.name} value={c.name}>
                 {c.name}
               </option>

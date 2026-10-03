@@ -20,6 +20,68 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-04 01:15:00 WIB] — Comprehensive UI/UX Proportion Overhaul: Mobile Truncation Resolution, First-Class Transfer Categorization, Balanced Financial Liquidity Cards, and Responsive Widget Harmonization
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menyelesaikan isu proporsi elemen antarmuka, pemotongan teks agresif pada orientasi layar vertikal (portrait) hp, kartu yang tidak seimbang di halaman Laporan & Dompet, serta menaikkan status transaksi jenis "Transfer" menjadi kategori kelas satu (first-class citizen) dengan aksen Cyan dan ikon `ArrowLeftRight` (menggantikan fallback kategori "Lainnya" abu-abu).
+- **Latar Belakang & Analisa Masalah:**
+  1. *Transfer Berstatus Kategori "Lainnya"*:
+     - Sebelumnya, daftar `CATEGORIES` di `constants.js` hanya berisi 12 kategori pengeluaran & pemasukan tanpa ada entri `Transfer`.
+     - Fungsi `catMeta(name)` yang tidak menemukan "Transfer" otomatis jatuh ke elemen terakhir yaitu `"Lainnya"` (`icon: MoreHorizontal`, warna `#94A3B8`). Akibatnya, setiap transaksi Transfer (seperti *Top up GoPay*) tampil dengan ikon tiga titik abu-abu `...` layaknya pos pengeluaran acak.
+  2. *Pemotongan Teks Ekstrem pada Baris Transaksi (`TxnRow`)*:
+     - Di mode layar horizontal (landscape), teks nama catatan transaksi tampak utuh, namun di mode vertikal (portrait) terpotong parah (hanya menyisakan 4–6 huruf seperti `Gr...`, `Makan...`, `Gocar ...`, `harlan...`).
+     - Penyebab utama: tombol aksi cepat (*Pencil* edit dan *Trash* hapus) mengambil ruang ~65px horizontal, nominal mengambil ~115px, padding kartu `px-5` mengambil 40px, sehingga pada layar hp 360–390px hanya tersisa ~80px untuk kolom judul! Ditambah lagi penggunaan `flex-wrap` membuat badge `🧾 N item` turun ke baris berikutnya dan bertabrakan secara visual dengan angka harga `-Rp 1.105.200`.
+  3. *Proporsi Kartu di Halaman Laporan (`/reports`)*:
+     - Kartu *"Pengeluaran per Kategori"* (Donut Chart) memiliki tinggi raksasa (~450px) karena kontainer pie chart `h-56` dan daftar bar kategori yang panjang. Sementara kartu tetangganya *"Pengeluaran Terbesar"* hanya berisi beberapa transaksi pendek, menciptakan ketimpangan visual tinggi kartu. Pada kartu pengeluaran terbesar, badge `Makanan & Minuman` terlipat patah menjadi 2 baris (`Makanan &` / `Minuman`).
+  4. *Kartu "Tagihan Jatuh Tempo" di Beranda (`Dashboard.js`)*:
+     - Semua elemen (nama tagihan, badge sisa hari, tanggal tempo, nominal, dan tombol `Bayar`) berdesakan dalam 1 baris horizontal tanpa pembagian vertikal pada layar sempit.
+  5. *Kartu "Ringkasan Likuiditas Finansial" di Halaman Dompet (`Wallets.js`)*:
+     - Penggunaan kelas CSS `divide-y sm:divide-y-0 sm:divide-x` pada `grid-cols-2` membuat garis pembatas rusak di layar hp. Item 2 memiliki `pt-3` asimetris, dan item 3 (Kas Bersih) membentang selebar 2 kolom, membuat Total Aset dan Total Tagihan tidak proporsional secara visual.
+  6. *Pemotongan Judul Kategori di Halaman Anggaran (`Budget.js`)*:
+     - Judul kategori seperti *"Groceries & Kebutuhan Rumah"* terpotong menjadi *"Groceries & K..."* karena berada dalam flex-row yang sama dengan badge grup *"Kebutuhan"*.
+- **Key Actions & Changes:**
+  - `frontend/src/lib/constants.js`:
+    - Menambahkan entri resmi kategori Transfer: `{ name: "Transfer", icon: "ArrowLeftRight", emoji: "🔄", color: "#00F0FF" }`.
+    - Mengupgrade `catMeta(name, type)` agar selalu mendeteksi `type === "transfer"`, `name === "Transfer"`, atau kata kunci `transfer`/`top up` dan mengembalikan metadata Transfer Cyan berikon `ArrowLeftRight`.
+    - Memperbarui `getCategoryEmoji(name, type)`.
+  - `backend/routes_finance.py` & `backend/ai_service.py` & `backend/server.py`:
+    - Di `routes_finance.py`: menyematkan penegasan `if data.get("type") == "transfer": data["category"] = "Transfer"` pada fungsi `_new_txn` dan `update_transaction`.
+    - Di `ai_service.py`: menambahkan `"Transfer"` ke `CATEGORY_LIST` dan memetakan deteksi tipe transfer ke kategori `"Transfer"`.
+    - Di `server.py`: menambahkan migrasi ringan pada `on_startup` untuk mengupdate transaksi transfer lama di database yang masih berkategori "Lainnya"/null menjadi "Transfer".
+  - `frontend/src/components/AddTransactionModal.js` & `EditTransactionModal.js`:
+    - Memastikan penyimpanan transaksi transfer secara eksplisit mengisi `category: "Transfer"`.
+    - Memfilter opsi dropdown kategori pengeluaran agar mengecualikan `"Transfer"` (`!["Gaji", "Bonus", "Transfer"].includes(c.name)`).
+  - `frontend/src/pages/Bills.js`, `ScanReceiptModal.js`, `AddBudgetCategoryModal.js`, `Budget.js`:
+    - Memfilter kategori pengeluaran agar mengecualikan "Transfer".
+  - `frontend/src/pages/Dashboard.js`:
+    - **Refactor `TxnRow`**:
+      - Mengubah tombol aksi cepat (*Pencil* & *Trash*) menjadi `hidden sm:flex` di mobile (pengguna di mobile dapat menyentuh seluruh baris untuk membuka `TransactionDetailModal` yang memiliki tombol aksi lengkap & nyaman). Hal ini langsung membebaskan +65px ruang horizontal!
+      - Mengatur padding responsif `px-3.5 sm:px-5 py-3 sm:py-3.5`.
+      - Menghapus `flex-wrap` liar pada judul baris dan memposisikan badge `🧾 N item` secara inline dengan `min-w-0 flex-1 truncate`, mencegah badge melompat ke bawah dan menabrak teks nominal harga.
+      - Menata subtitle dengan typography bersih `text-[11px] sm:text-xs text-tmuted` dan pemisah rapi `·`.
+      - Menghadirkan ikon `ArrowLeftRight` cyan terang dengan latar lembut untuk mutasi transfer antar-dompet.
+    - **Refactor Kartu "Tagihan Jatuh Tempo"**:
+      - Mengubah layout baris tagihan menjadi responsif (`flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4`).
+      - Pada layar mobile: nama tagihan & tenggat waktu berada di bagian atas, sedangkan nominal dan tombol `Bayar` berada di bagian bawah yang lapang dengan batas garis halus.
+  - `frontend/src/pages/Wallets.js`:
+    - Mengrombong total tata letak kartu hero *"Ringkasan Likuiditas Finansial"*:
+      - Mengganti grid lama yang asimetris menjadi `grid grid-cols-1 sm:grid-cols-3 gap-3`.
+      - Menstandarkan 3 sub-kartu stat: **Total Aset Kas** (badge `Likuid`, hijau brand), **Total Tagihan & Utang** (badge `Liabilitas`, merah rose), dan **Kas Bersih Likuid** (badge `Net`, cyan).
+      - Menghilangkan `divide-y` bermasalah; masing-masing kartu memiliki padding seragam `p-3.5 sm:p-4`, border lembut, nilai nominal font-mono tegas, dan keterangan konteks yang seimbang 1:1.
+  - `frontend/src/pages/Reports.js`:
+    - Menyelaraskan grid kartu Donut dan Pengeluaran Terbesar dengan `grid-cols-1 lg:grid-cols-2 gap-4 items-stretch`.
+    - Menyesuaikan radius dan tinggi Donut Chart (`h-44 sm:h-48`, innerRadius 50, outerRadius 78) agar tidak menggelembung raksasa di layar hp.
+    - Pada kartu *"Pengeluaran Terbesar"*, membungkus badge kategori dengan `whitespace-nowrap shrink-0` dan styling rounded pill proporsional sehingga nama kategori panjang seperti `Makanan & Minuman` tidak terbelah jelek menjadi 2 baris.
+  - `frontend/src/pages/Budget.js`:
+    - Memisahkan judul kategori dari badge alokasi: judul kategori `{b.category}` ditempatkan di baris paling atas secara mandiri (`min-w-0 flex-1 truncate`), memberikan 100% lebar kolom teks kiri sehingga *"Groceries & Kebutuhan Rumah"* tidak lagi terpotong prematur.
+    - Badge pos (`Kebutuhan`, `Over`, `Waspada`) ditempatkan rapi di baris kedua.
+    - Merapikan kolom nominal kanan dengan ukuran teks responsif dan menyembunyikan chevron di mobile agar tidak memakan ruang.
+- **Verifikasi Hasil:**
+  - Sintaks JavaScript / JSX diverifikasi via parser Node.js: seluruh berkas lolos uji keseimbangan tanda kurung (balanced brackets) 100%.
+  - Sintaks Python backend diverifikasi via `python3 -m py_compile`: semua file backend lolos tanpa peringatan atau eror.
+  - Tampilan baris transaksi tidak lagi terpotong prematur di mode vertikal hp, badge tidak bertubrukan dengan nominal harga, transfer tampil dengan identitas Cyan & `ArrowLeftRight`, kartu likuiditas aset vs tagihan berbobot seimbang sempurna, dan kartu laporan proporsional.
+
+---
+
 ### [2026-10-04 00:55:00 WIB] — Comprehensive Overhaul of Bill Payments & Goal Deposits: Mandatory Confirmation Modals, Flexible Wallet Selection, and Real-Time Transaction Ledger Recording
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Memperbaiki dan menyelaraskan alur aksi "Bayar Tagihan" (Bills) dan "Setor Tabungan" (Goals) di seluruh aplikasi: menghadirkan modal konfirmasi interaktif sebelum pembayaran dieksekusi, memungkinkan pemilihan dompet bayar secara fleksibel saat membayar (mengakomodasi pengguna yang sengaja mengosongkan dompet default karena sumber dana bulanan berubah-ubah), secara otomatis mencatat transaksi pengeluaran/transfer ke mutasi dompet dan laporan anggaran pos Tagihan & Utilitas/Investasi, serta memastikan seksi "Riwayat Bayar di Tumara" langsung terisi mutasi riil.

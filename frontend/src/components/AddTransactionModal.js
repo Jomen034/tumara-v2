@@ -280,7 +280,9 @@ export default function AddTransactionModal({
         wallet_id: walletId,
         to_wallet_id: type === "transfer" ? toWalletId : null,
         category:
-          type === "income"
+          type === "transfer"
+            ? "Transfer"
+            : type === "income"
             ? ["Gaji", "Bonus", "Investasi", "Lainnya"].includes(category)
               ? category
               : "Gaji"
@@ -485,7 +487,7 @@ export default function AddTransactionModal({
                     onChange={(e) => applyScanCategoryToAll(e.target.value)}
                     className="bg-surface border border-borderc rounded-xl px-2.5 py-1.5 text-xs text-tprimary font-medium focus:border-brand focus:outline-none"
                   >
-                    {CATEGORIES.filter((c) => !["Gaji", "Bonus"].includes(c.name)).map((c) => (
+                    {CATEGORIES.filter((c) => !["Gaji", "Bonus", "Transfer"].includes(c.name)).map((c) => (
                       <option key={c.name} value={c.name}>
                         {c.name}
                       </option>
@@ -576,7 +578,7 @@ export default function AddTransactionModal({
                             onChange={(e) => updateScanItemCategory(i, e.target.value)}
                             className="bg-elevated border border-borderc rounded-lg px-2 py-0.5 text-[11px] text-tprimary focus:border-brand focus:outline-none max-w-[150px]"
                           >
-                            {CATEGORIES.filter((c) => !["Gaji", "Bonus"].includes(c.name)).map((c) => (
+                            {CATEGORIES.filter((c) => !["Gaji", "Bonus", "Transfer"].includes(c.name)).map((c) => (
                               <option key={c.name} value={c.name}>
                                 {c.name}
                               </option>
@@ -759,7 +761,7 @@ export default function AddTransactionModal({
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
-              {CATEGORIES.filter((c) => !["Gaji", "Bonus"].includes(c.name)).map((c) => (
+              {CATEGORIES.filter((c) => !["Gaji", "Bonus", "Transfer"].includes(c.name)).map((c) => (
                 <option key={c.name} value={c.name}>
                   {c.name}
                 </option>

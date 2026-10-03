@@ -10,6 +10,7 @@ export const CATEGORIES = [
   { name: "Investasi", icon: "TrendingUp", emoji: "📈", color: "#00E676" },
   { name: "Gaji", icon: "Wallet", emoji: "💰", color: "#22D3EE" },
   { name: "Bonus", icon: "Gift", emoji: "🎁", color: "#F472B6" },
+  { name: "Transfer", icon: "ArrowLeftRight", emoji: "🔄", color: "#00F0FF" },
   { name: "Lainnya", icon: "MoreHorizontal", emoji: "📦", color: "#94A3B8" },
 ];
 
@@ -25,11 +26,36 @@ export const BUDGET_GROUPS = [
   { key: "savings", label: "Tabungan", emoji: "📈", target: "20%", color: "var(--cyan)" },
 ];
 
-export const catMeta = (name) => {
+export const catMeta = (name, type) => {
+  if (type === "transfer" || name === "Transfer") {
+    return (
+      CATEGORIES.find((c) => c.name === "Transfer") || {
+        name: "Transfer",
+        icon: "ArrowLeftRight",
+        emoji: "🔄",
+        color: "#00F0FF",
+      }
+    );
+  }
   if (!name) return CATEGORIES[CATEGORIES.length - 1];
   const exact = CATEGORIES.find((c) => c.name === name);
   if (exact) return exact;
   const lower = name.toLowerCase();
+  if (
+    lower.includes("transfer") ||
+    lower.includes("top up") ||
+    lower.includes("topup") ||
+    lower.includes("pindah dana")
+  ) {
+    return (
+      CATEGORIES.find((c) => c.name === "Transfer") || {
+        name: "Transfer",
+        icon: "ArrowLeftRight",
+        emoji: "🔄",
+        color: "#00F0FF",
+      }
+    );
+  }
   if (
     lower.includes("grocer") ||
     lower.includes("dapur") ||
@@ -52,8 +78,8 @@ export const catMeta = (name) => {
   return CATEGORIES[CATEGORIES.length - 1];
 };
 
-export const getCategoryEmoji = (name) => {
-  const meta = catMeta(name);
+export const getCategoryEmoji = (name, type) => {
+  const meta = catMeta(name, type);
   return meta?.emoji || "📦";
 };
 

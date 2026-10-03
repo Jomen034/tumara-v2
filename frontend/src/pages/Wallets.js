@@ -174,37 +174,51 @@ export default function Wallets() {
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6 divide-y sm:divide-y-0 sm:divide-x divide-borderc/40">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Total Aset */}
-          <div className="min-w-0">
-            <p className="text-[11px] sm:text-xs text-tmuted font-medium flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand shrink-0" /> Total Aset Kas
-            </p>
-            <p
-              className={`text-lg sm:text-2xl font-head font-bold font-mono text-brand mt-1 truncate ${
-                privacy ? "privacy-blur" : ""
-              }`}
-            >
-              {formatRp(totalAssets, privacy)}
-            </p>
-            <span className="text-[10px] text-tmuted block mt-0.5 truncate">
+          <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-elevated/40 border border-borderc/60 flex flex-col justify-between">
+            <div>
+              <p className="text-xs text-tmuted font-medium flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-brand shrink-0" /> Total Aset Kas
+                </span>
+                <span className="text-[10px] font-semibold bg-brand/10 text-brand px-1.5 py-0.5 rounded-full">
+                  Likuid
+                </span>
+              </p>
+              <p
+                className={`text-xl sm:text-2xl font-head font-bold font-mono text-brand mt-2 truncate ${
+                  privacy ? "privacy-blur" : ""
+                }`}
+              >
+                {formatRp(totalAssets, privacy)}
+              </p>
+            </div>
+            <span className="text-[11px] text-tmuted block mt-2 truncate">
               Rekening bank, e-wallet & tunai
             </span>
           </div>
 
           {/* Total Utang */}
-          <div className="min-w-0 pt-3 sm:pt-0 sm:pl-6">
-            <p className="text-[11px] sm:text-xs text-tmuted font-medium flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose shrink-0" /> Total Tagihan & Utang
-            </p>
-            <p
-              className={`text-lg sm:text-2xl font-head font-bold font-mono text-rose mt-1 truncate ${
-                privacy ? "privacy-blur" : ""
-              }`}
-            >
-              {formatRp(totalDebt, privacy)}
-            </p>
-            <span className="text-[10px] text-tmuted block mt-0.5 truncate">
+          <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-elevated/40 border border-borderc/60 flex flex-col justify-between">
+            <div>
+              <p className="text-xs text-tmuted font-medium flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose shrink-0" /> Total Tagihan & Utang
+                </span>
+                <span className="text-[10px] font-semibold bg-rose/10 text-rose px-1.5 py-0.5 rounded-full">
+                  Liabilitas
+                </span>
+              </p>
+              <p
+                className={`text-xl sm:text-2xl font-head font-bold font-mono text-rose mt-2 truncate ${
+                  privacy ? "privacy-blur" : ""
+                }`}
+              >
+                {formatRp(totalDebt, privacy)}
+              </p>
+            </div>
+            <span className="text-[11px] text-tmuted block mt-2 truncate">
               {debtWalletsWithLimit.length > 0
                 ? `Sisa Plafon: ${formatRp(totalAvailableCredit, privacy)}`
                 : "Kartu kredit & paylater"}
@@ -212,18 +226,25 @@ export default function Wallets() {
           </div>
 
           {/* Net Kas Likuid (Aset - Utang) */}
-          <div className="col-span-2 sm:col-span-1 min-w-0 pt-3 sm:pt-0 sm:pl-6">
-            <p className="text-[11px] sm:text-xs text-tmuted font-medium flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan shrink-0" /> Kas Bersih Likuid
-            </p>
-            <p
-              className={`text-lg sm:text-2xl font-head font-bold font-mono text-tprimary mt-1 truncate ${
-                privacy ? "privacy-blur" : ""
-              }`}
-            >
-              {formatRp(totalAssets - totalDebt, privacy)}
-            </p>
-            <span className="text-[10px] text-tmuted block mt-0.5 truncate">
+          <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-elevated/40 border border-borderc/60 flex flex-col justify-between">
+            <div>
+              <p className="text-xs text-tmuted font-medium flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-cyan shrink-0" /> Kas Bersih Likuid
+                </span>
+                <span className="text-[10px] font-semibold bg-cyan/10 text-cyan px-1.5 py-0.5 rounded-full">
+                  Net
+                </span>
+              </p>
+              <p
+                className={`text-xl sm:text-2xl font-head font-bold font-mono text-tprimary mt-2 truncate ${
+                  privacy ? "privacy-blur" : ""
+                }`}
+              >
+                {formatRp(totalAssets - totalDebt, privacy)}
+              </p>
+            </div>
+            <span className="text-[11px] text-tmuted block mt-2 truncate">
               Aset likuid dikurangi utang berjalan
             </span>
           </div>

@@ -542,7 +542,7 @@ export default function Bills() {
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
           >
-            {CATEGORIES.filter((c) => !["Gaji", "Bonus"].includes(c.name)).map((c) => (
+            {CATEGORIES.filter((c) => !["Gaji", "Bonus", "Transfer"].includes(c.name)).map((c) => (
               <option key={c.name} value={c.name}>
                 {c.name}
               </option>

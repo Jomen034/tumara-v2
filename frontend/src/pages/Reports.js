@@ -499,9 +499,9 @@ export default function Reports() {
       </Card>
 
       {/* Grid: Kategori Donut & 5 Pengeluaran Terbesar */}
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
         {/* Category Breakdown */}
-        <Card data-testid="analytics-category-chart" className="space-y-4">
+        <Card data-testid="analytics-category-chart" className="space-y-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-head font-bold text-lg text-tprimary">
@@ -518,12 +518,12 @@ export default function Reports() {
           </div>
 
           {cats.length === 0 ? (
-            <div className="py-12 text-center text-sm text-tmuted">
+            <div className="py-12 text-center text-sm text-tmuted flex-1 flex items-center justify-center">
               Belum ada transaksi pengeluaran pada periode ini.
             </div>
           ) : (
-            <>
-              <div className="h-56">
+            <div className="space-y-3 flex-1 flex flex-col justify-between">
+              <div className="h-44 sm:h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -532,8 +532,8 @@ export default function Reports() {
                       nameKey="category"
                       cx="50%"
                       cy="50%"
-                      innerRadius={65}
-                      outerRadius={95}
+                      innerRadius={50}
+                      outerRadius={78}
                       paddingAngle={3}
                     >
                       {cats.map((c, i) => (
@@ -546,7 +546,7 @@ export default function Reports() {
               </div>
 
               {/* Category bars list */}
-              <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-44 sm:max-h-52 overflow-y-auto pr-1">
                 {cats.map((c) => {
                   const pct = totalCat > 0 ? Math.round((c.amount / totalCat) * 100) : 0;
                   return (
@@ -571,12 +571,12 @@ export default function Reports() {
                   );
                 })}
               </div>
-            </>
+            </div>
           )}
         </Card>
 
         {/* Top 5 Largest Expenses */}
-        <Card className="space-y-4">
+        <Card className="space-y-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-head font-bold text-lg text-tprimary">
@@ -586,17 +586,17 @@ export default function Reports() {
                 5 transaksi pengeluaran terbesar di periode ini
               </p>
             </div>
-            <div className="w-7 h-7 rounded-lg bg-rose/10 text-rose flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-rose/10 text-rose flex items-center justify-center shrink-0">
               <Receipt size={15} />
             </div>
           </div>
 
           {topExpenses.length === 0 ? (
-            <div className="py-12 text-center text-sm text-tmuted">
+            <div className="py-12 text-center text-sm text-tmuted flex-1 flex items-center justify-center">
               Belum ada transaksi pengeluaran pada periode ini.
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="space-y-2.5 flex-1">
               {topExpenses.map((t, idx) => (
                 <div
                   key={t.id || idx}
@@ -606,16 +606,16 @@ export default function Reports() {
                     <span className="w-6 h-6 rounded-lg bg-elevated text-tmuted font-mono font-bold flex items-center justify-center shrink-0 text-xs">
                       #{idx + 1}
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="font-semibold text-tprimary truncate">
-                        {t.note}
+                        {t.note || t.category}
                       </p>
-                      <div className="flex items-center gap-2 mt-0.5 text-tmuted text-[11px]">
-                        <span>{formatDate(t.date)}</span>
-                        <span>·</span>
-                        <span className="truncate">{t.wallet_name}</span>
-                        <span>·</span>
-                        <span className="px-1.5 py-0.2 rounded bg-elevated text-[10px]">
+                      <div className="flex items-center gap-1.5 mt-0.5 text-tmuted text-[11px] min-w-0">
+                        <span className="shrink-0">{formatDate(t.date)}</span>
+                        <span className="shrink-0 text-tmuted/60">·</span>
+                        <span className="truncate max-w-[90px] sm:max-w-none">{t.wallet_name}</span>
+                        <span className="shrink-0 text-tmuted/60">·</span>
+                        <span className="px-1.5 py-0.5 rounded-full bg-elevated text-[10px] whitespace-nowrap shrink-0">
                           {t.category}
                         </span>
                       </div>
@@ -623,7 +623,7 @@ export default function Reports() {
                   </div>
                   <span
                     className={clsx(
-                      "font-mono font-bold text-rose shrink-0 text-sm",
+                      "font-mono font-bold text-rose shrink-0 text-xs sm:text-sm pl-2",
                       privacy && "privacy-blur"
                     )}
                   >
