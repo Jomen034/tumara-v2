@@ -31,6 +31,7 @@ import FinancialHealthModal from "../components/FinancialHealthModal";
 import { getUserAvatar } from "../lib/avatars";
 import TransactionDetailModal from "../components/TransactionDetailModal";
 import EditTransactionModal from "../components/EditTransactionModal";
+import PayBillModal from "../components/PayBillModal";
 
 function HealthGauge({ score }) {
   const r = 52, c = 2 * Math.PI * r;
@@ -61,7 +62,7 @@ export default function Dashboard() {
   const [healthModalOpen, setHealthModalOpen] = useState(false);
   const [selectedTxn, setSelectedTxn] = useState(null);
   const [editingTxn, setEditingTxn] = useState(null);
-  const [payingBillId, setPayingBillId] = useState(null);
+  const [payingBill, setPayingBill] = useState(null);
   const navigate = useNavigate();
 
   const handleHealthAction = (rec) => {
@@ -70,25 +71,6 @@ export default function Dashboard() {
       openAdd("manual");
     } else if (rec.target) {
       navigate(rec.target);
-    }
-  };
-
-  const handlePayBill = async (b) => {
-    if (payingBillId) return;
-    setPayingBillId(b.id);
-    try {
-      const res = await api.post(`/bills/${b.id}/pay`);
-      if (res.data.is_completed) {
-        toast.success(`🎉 Selamat! "${b.name}" telah lunas sepenuhnya!`);
-      } else {
-        toast.success(`Tagihan "${b.name}" berhasil dibayar!`);
-      }
-      fetchDashboard();
-      bump();
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || "Gagal mencatat pembayaran");
-    } finally {
-      setPayingBillId(null);
     }
   };
 
@@ -377,13 +359,12 @@ export default function Dashboard() {
                   </span>
                   <Button
                     size="sm"
-                    onClick={() => handlePayBill(b)}
-                    disabled={payingBillId === b.id}
+                    onClick={() => setPayingBill(b)}
                     className="text-xs px-3 py-1.5"
                     data-testid={`quick-pay-bill-${b.id}`}
                   >
                     <CheckCircle2 size={13} />
-                    {payingBillId === b.id ? "..." : "Bayar"}
+                    Bayar
                   </Button>
                 </div>
               </div>
@@ -568,6 +549,18 @@ export default function Dashboard() {
         transaction={editingTxn}
         wallets={data.wallets || []}
         onSaved={() => {
+          fetchDashboard();
+          bump();
+        }}
+      />
+
+      {/* Pay Bill Confirmation Modal */}
+      <PayBillModal
+        open={!!payingBill}
+        onClose={() => setPayingBill(null)}
+        bill={payingBill}
+        wallets={data.wallets || []}
+        onSuccess={() => {
           fetchDashboard();
           bump();
         }}

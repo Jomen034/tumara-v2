@@ -67,6 +67,7 @@ export default function Goals() {
   const [depositWalletId, setDepositWalletId] = useState("");
   const [toWalletId, setToWalletId] = useState("");
   const [depositNote, setDepositNote] = useState("");
+  const [recordDepositTransaction, setRecordDepositTransaction] = useState(true);
 
   // History state
   const [historyGoal, setHistoryGoal] = useState(null);
@@ -155,15 +156,19 @@ export default function Goals() {
     setDepositWalletId(wallets[0]?.id || "");
     setToWalletId("");
     setDepositNote(`Nabung ke: ${g.title}`);
+    setRecordDepositTransaction(true);
   };
 
   const deposit = async () => {
     const amt = parseFloat(depositAmt);
     if (!amt || amt <= 0) return toast.error("Jumlah setoran harus lebih dari 0");
-    if (!depositWalletId && wallets.length > 0) return toast.error("Pilih dompet sumber dana");
+    if (recordDepositTransaction && !depositWalletId && wallets.length > 0) {
+      return toast.error("Pilih dompet sumber dana");
+    }
 
     const selectedWallet = wallets.find((w) => w.id === depositWalletId);
     if (
+      recordDepositTransaction &&
       selectedWallet &&
       selectedWallet.balance < amt &&
       !["credit_card", "paylater"].includes(selectedWallet.type)
@@ -176,11 +181,15 @@ export default function Goals() {
     try {
       await api.post(`/goals/${depositId}/deposit`, {
         amount: amt,
-        wallet_id: depositWalletId || undefined,
-        to_wallet_id: toWalletId || undefined,
+        wallet_id: recordDepositTransaction ? (depositWalletId || undefined) : undefined,
+        to_wallet_id: (recordDepositTransaction && toWalletId) ? toWalletId : undefined,
         note: depositNote.trim() || `Nabung ke: ${depositGoal?.title || "Tujuan"}`,
       });
-      toast.success("Setoran berhasil & transaksi mutasi tercatat! 🎉");
+      toast.success(
+        recordDepositTransaction
+          ? "Setoran berhasil & transaksi mutasi tercatat! 🎉"
+          : "Progres tabungan berhasil ditambah! 🎉"
+      );
       setDepositId(null);
       setDepositGoal(null);
       setDepositAmt("");
@@ -616,50 +625,76 @@ export default function Goals() {
                 autoFocus
               />
 
-              <Select
-                label="Sumber Dana (Dari Dompet)"
-                value={depositWalletId}
-                onChange={(e) => setDepositWalletId(e.target.value)}
-                data-testid="deposit-wallet-select"
-              >
-                {wallets.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name} (Saldo: Rp {w.balance?.toLocaleString("id-ID")})
-                  </option>
-                ))}
-              </Select>
+              <div className="flex items-center justify-between p-3 rounded-xl bg-surface border border-borderc">
+                <div className="pr-2">
+                  <label htmlFor="goal-record-trx-toggle" className="text-xs font-semibold text-tprimary cursor-pointer block">
+                    Potong Saldo Dompet & Catat Transaksi
+                  </label>
+                  <p className="text-[11px] text-tmuted mt-0.5">
+                    Otomatis mengurangi saldo dompet dan mencatat riwayat transaksi tabungan
+                  </p>
+                </div>
+                <input
+                  id="goal-record-trx-toggle"
+                  type="checkbox"
+                  checked={recordDepositTransaction}
+                  onChange={(e) => setRecordDepositTransaction(e.target.checked)}
+                  className="w-4 h-4 text-brand bg-elevated border-borderc rounded focus:ring-brand accent-brand cursor-pointer shrink-0"
+                />
+              </div>
 
-              {wallets.length > 1 && (
-                <Select
-                  label="Pindahkan ke Dompet Lain? (Opsional)"
-                  value={toWalletId}
-                  onChange={(e) => setToWalletId(e.target.value)}
-                  data-testid="deposit-to-wallet-select"
-                >
-                  <option value="">
-                    Tetap di dompet sumber (sebagai pos komitmen nabung)
-                  </option>
-                  {wallets
-                    .filter((w) => w.id !== depositWalletId)
-                    .map((w) => (
+              {recordDepositTransaction ? (
+                <>
+                  <Select
+                    label="Sumber Dana (Dari Dompet)"
+                    value={depositWalletId}
+                    onChange={(e) => setDepositWalletId(e.target.value)}
+                    data-testid="deposit-wallet-select"
+                  >
+                    {wallets.map((w) => (
                       <option key={w.id} value={w.id}>
-                        Pindah ke: {w.name} (Saldo: Rp {w.balance?.toLocaleString("id-ID")})
+                        {w.name} (Saldo: Rp {w.balance?.toLocaleString("id-ID")})
                       </option>
                     ))}
-                </Select>
+                  </Select>
+
+                  {wallets.length > 1 && (
+                    <Select
+                      label="Pindahkan ke Dompet Lain? (Opsional)"
+                      value={toWalletId}
+                      onChange={(e) => setToWalletId(e.target.value)}
+                      data-testid="deposit-to-wallet-select"
+                    >
+                      <option value="">
+                        Tetap di dompet sumber (sebagai pos komitmen nabung)
+                      </option>
+                      {wallets
+                        .filter((w) => w.id !== depositWalletId)
+                        .map((w) => (
+                          <option key={w.id} value={w.id}>
+                            Pindah ke: {w.name} (Saldo: Rp {w.balance?.toLocaleString("id-ID")})
+                          </option>
+                        ))}
+                    </Select>
+                  )}
+
+                  <Input
+                    label="Catatan Transaksi"
+                    value={depositNote}
+                    onChange={(e) => setDepositNote(e.target.value)}
+                    placeholder="cth. Nabung gaji ke tujuan"
+                    data-testid="deposit-note-input"
+                  />
+
+                  <div className="rounded-xl bg-brand/10 border border-brand/30 p-3 text-xs text-tsecondary">
+                    💡 Setoran ini akan memotong saldo dompet dan dicatat sebagai transaksi di menu Transaksi.
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-xl bg-amber/10 border border-amber/30 p-3 text-xs text-amber">
+                  ℹ️ Progres tabungan akan bertambah tanpa memotong saldo dompet atau membuat transaksi baru.
+                </div>
               )}
-
-              <Input
-                label="Catatan Transaksi"
-                value={depositNote}
-                onChange={(e) => setDepositNote(e.target.value)}
-                placeholder="cth. Nabung gaji ke tujuan"
-                data-testid="deposit-note-input"
-              />
-
-              <div className="rounded-xl bg-brand/10 border border-brand/30 p-3 text-xs text-tsecondary">
-                💡 Setoran ini akan memotong saldo dompet dan dicatat sebagai transaksi di menu Transaksi.
-              </div>
 
               <Button
                 onClick={deposit}

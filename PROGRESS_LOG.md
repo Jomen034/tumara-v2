@@ -20,6 +20,47 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-04 00:55:00 WIB] — Comprehensive Overhaul of Bill Payments & Goal Deposits: Mandatory Confirmation Modals, Flexible Wallet Selection, and Real-Time Transaction Ledger Recording
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Memperbaiki dan menyelaraskan alur aksi "Bayar Tagihan" (Bills) dan "Setor Tabungan" (Goals) di seluruh aplikasi: menghadirkan modal konfirmasi interaktif sebelum pembayaran dieksekusi, memungkinkan pemilihan dompet bayar secara fleksibel saat membayar (mengakomodasi pengguna yang sengaja mengosongkan dompet default karena sumber dana bulanan berubah-ubah), secara otomatis mencatat transaksi pengeluaran/transfer ke mutasi dompet dan laporan anggaran pos Tagihan & Utilitas/Investasi, serta memastikan seksi "Riwayat Bayar di Tumara" langsung terisi mutasi riil.
+- **Latar Belakang & Analisa Masalah:**
+  1. *Masalah Tagihan Tanpa Transaksi & Riwayat Kosong*:
+     - Sebelumnya, jika tagihan dibuat dengan dompet kosong (`— Tidak otomatis catat —`), saat tombol "Bayar Tagihan Ini" ditekan:
+       - Sistem backend `routes_bills.py` langsung melewati blok pembuatan transaksi (`if bill.get("wallet_id"): ...`).
+       - Status tagihan langsung melonjak ke lunas / jatuh tempo bergulir ke bulan berikutnya tanpa konfirmasi apa pun.
+       - Tidak ada saldo dompet yang terpotong, tidak ada transaksi pengeluaran yang dicatat di database, dan seksi *"RIWAYAT BAYAR DI TUMARA"* menampilkan status kosong *"Belum ada riwayat pembayaran yang tercatat via Tumara"*.
+  2. *Analisa Akuntansi & UX (Tagihan vs Setor Tujuan)*:
+     - **Bayar Tagihan (Bills)**: Mutlak merupakan pengeluaran riil (cash outflow). Menekan tombol tanpa konfirmasi sangat berbahaya (accidental click, salah dompet). Maka konfirmasi wajib muncul untuk memilih dompet, tanggal bayar, dan mencatat transaksi pengeluaran, dengan opsi toggle jika hanya ingin menandai lunas tanpa memotong saldo.
+     - **Setor Tujuan (Goals)**: Merupakan alokasi kekayaan (wealth movement). Modal konfirmasi yang sudah ada disempurnakan dengan toggle identik: memungkinkan transfer antar-dompet, pengeluaran pos investasi, atau penambahan progres tabungan tanpa mutasi saldo jika uang disimpan di luar dompet Tumara.
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Menambahkan skema `BillPaymentRequest(wallet_id, paid_date, note, record_transaction)`.
+  - `backend/routes_bills.py`:
+    - Mengupgrade `POST /bills/{bill_id}/pay` untuk menerima payload `BillPaymentRequest`:
+      - Menggunakan `chosen_wallet` dari request (override) atau fallback ke default tagihan.
+      - Jika `record_transaction` bernilai `True` dan dompet dipilih: memvalidasi dompet, membuat dokumen `Transaction` bertipe `expense` dengan `bill_id`, memotong saldo dompet via `ledger.apply_transaction`, dan merefresh `snapshot_networth`.
+      - Memajukan siklus tagihan dan mengembalikan status transaksi yang tercatat.
+    - Mengurutkan `bill_history` secara konsisten kronologis descending `[("date", -1), ("created_at", -1)]`.
+  - `frontend/src/components/PayBillModal.js` (Komponen Baru):
+    - Modal konfirmasi pembayaran tagihan yang elegan dan lengkap:
+      - Ringkasan tagihan & nominal besar dengan dukungan privacy blur.
+      - Dropdown pemilihan dompet sumber pembayaran (dengan saldo saat ini dan nama dompet).
+      - Simulasi sisa saldo setelah bayar secara real-time (lengkap dengan peringatan jika saldo defisit/melebihi limit kartu).
+      - Input tanggal pembayaran (default hari ini, bisa disesuaikan).
+      - Input catatan opsional.
+      - Toggle fleksibel *"Potong Saldo & Catat Transaksi"* (default: aktif).
+  - `frontend/src/components/BillDetailModal.js`:
+    - Mengubah label dompet kosong dari *"— Tidak otomatis catat —"* menjadi *"Pilih saat membayar"* agar menenangkan pengguna.
+    - Menghubungkan tombol "Bayar Tagihan Ini" ke modal konfirmasi pembayaran `PayBillModal`.
+    - Memperbarui dependency `useEffect` agar riwayat pembayaran langsung re-fetch dan terisi seketika saat pembayaran berhasil.
+  - `frontend/src/pages/Bills.js` & `frontend/src/pages/Dashboard.js`:
+    - Menghubungkan seluruh tombol "Bayar" (pada kartu daftar tagihan maupun widget "Tagihan Mendatang" di Beranda) ke `PayBillModal`.
+  - `frontend/src/pages/Goals.js`:
+    - Menambahkan toggle *"Potong Saldo Dompet & Catat Transaksi"* pada modal Setor Tujuan untuk menjaga konsistensi arsitektur dan mental model pengguna 1:1.
+- **Verifikasi Hasil:**
+  - Sintaks seluruh komponen frontend tervalidasi seimbang tanpa error (0 delta kurung).
+  - Skema Pydantic backend dan file router terkompilasi 100% via `python3 -m py_compile`.
+
 ### [2026-10-04 00:45:00 WIB] — Enforcing Strict Transaction Date Chronological Ordering (Newest First) & Localized Date Headers with Multi-Year Visual Clarification
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menyelaraskan dan menegakkan urutan penayangan transaksi secara mutlak dari **terbaru ke terlama (descending)** di seluruh aplikasi (Halaman Transaksi, Dashboard Beranda "Transaksi Terbaru", dan Modal Detail Dompet "10 Mutasi Terakhir") berdasarkan **tanggal transaksi riil (`date` / trx date)**, dengan `created_at` sebagai tie-breaker intra-hari untuk transaksi pada tanggal yang sama. Menghilangkan ilusi tanggal terbalik antara tahun yang berbeda (misal `2026-09-24` vs `2024-09-27`) melalui header tanggal lokal Bahasa Indonesia yang ramah dan badge pembeda tahun lampau.

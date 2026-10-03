@@ -52,7 +52,7 @@ export default function BillDetailModal({
     } else {
       setHistory(null);
     }
-  }, [open, bill?.id]);
+  }, [open, bill?.id, bill?.next_due_date, bill?.paid_tenor, bill?.is_completed]);
 
   if (!bill) return null;
 
@@ -223,13 +223,13 @@ export default function BillDetailModal({
           <div className="flex items-center justify-between pt-3">
             <span className="text-tmuted flex items-center gap-2">
               <WalletIcon size={16} />
-              Bayar Otomatis Dari
+              Dompet Pembayar
             </span>
             <span className="font-medium text-tprimary">
               {wallet ? (
-                <span className="font-semibold text-brand">{wallet.name}</span>
+                <span className="font-semibold text-brand">{wallet.name} (Default)</span>
               ) : (
-                <span className="text-tmuted">— Tidak otomatis catat —</span>
+                <span className="text-tmuted">Pilih saat membayar</span>
               )}
             </span>
           </div>

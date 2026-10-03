@@ -1,9 +1,10 @@
 from datetime import datetime, timezone, date, timedelta
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 
 from db import db
 import ledger
-from models import Bill, BillCreate, Transaction, now_utc
+from models import Bill, BillCreate, BillPaymentRequest, Transaction, now_utc
 from deps import get_ctx, Ctx
 
 router = APIRouter(prefix="/bills", tags=["bills"])
@@ -93,7 +94,7 @@ async def bill_history(bill_id: str, ctx: Ctx = Depends(get_ctx)):
     txns = await db.transactions.find(
         {"household_id": ctx.hid, "bill_id": bill_id},
         {"_id": 0}
-    ).sort("created_at", -1).to_list(200)
+    ).sort([("date", -1), ("created_at", -1)]).to_list(200)
 
     total_paid_in_app = sum(t["amount"] for t in txns)
 
@@ -106,32 +107,58 @@ async def bill_history(bill_id: str, ctx: Ctx = Depends(get_ctx)):
 
 
 @router.post("/{bill_id}/pay")
-async def pay_bill(bill_id: str, ctx: Ctx = Depends(get_ctx)):
+async def pay_bill(bill_id: str, body: Optional[BillPaymentRequest] = None, ctx: Ctx = Depends(get_ctx)):
     bill = await db.bills.find_one({"id": bill_id, "household_id": ctx.hid}, {"_id": 0})
     if not bill:
         raise HTTPException(404, "Tagihan tidak ditemukan")
     if bill.get("is_completed"):
         raise HTTPException(400, "Tagihan/cicilan ini sudah lunas sepenuhnya")
 
-    # create an expense if a wallet is linked
-    if bill.get("wallet_id"):
-        note_text = f"Bayar tagihan: {bill['name']}"
-        if bill.get("bill_type") == "installment":
-            curr_inst = (bill.get("paid_tenor") or 0) + 1
-            tot = bill.get("total_tenor")
-            if tot:
-                note_text = f"Bayar cicilan ke-{curr_inst}/{tot}: {bill['name']}"
+    # Determine which wallet to use
+    chosen_wallet = (body.wallet_id if body and body.wallet_id else None) or bill.get("wallet_id")
+
+    # Determine if a transaction should be recorded
+    should_record = True
+    if body and body.record_transaction is False:
+        should_record = False
+
+    created_txn_id = None
+    if chosen_wallet and should_record:
+        # Validate that the chosen wallet exists in this household
+        wal = await db.wallets.find_one({"id": chosen_wallet, "household_id": ctx.hid})
+        if not wal:
+            raise HTTPException(400, "Dompet pembayaran tidak valid atau tidak ditemukan")
+
+        # Determine note
+        if body and body.note:
+            note_text = body.note
+        else:
+            note_text = f"Bayar tagihan: {bill['name']}"
+            if bill.get("bill_type") == "installment":
+                curr_inst = (bill.get("paid_tenor") or 0) + 1
+                tot = bill.get("total_tenor")
+                if tot:
+                    note_text = f"Bayar cicilan ke-{curr_inst}/{tot}: {bill['name']}"
+
+        paid_date = (body.paid_date if (body and body.paid_date) else None) or datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         t = Transaction(
-            user_id=ctx.user.user_id, household_id=ctx.hid, member_id=ctx.user.user_id,
-            type="expense", amount=bill["amount"], wallet_id=bill["wallet_id"],
+            user_id=ctx.user.user_id,
+            household_id=ctx.hid,
+            member_id=ctx.user.user_id,
+            type="expense",
+            amount=bill["amount"],
+            wallet_id=chosen_wallet,
             category=bill.get("category", "Tagihan & Utilitas"),
             note=note_text,
-            date=datetime.now(timezone.utc).strftime("%Y-%m-%d"), source="bill",
+            date=paid_date,
+            source="bill",
             bill_id=bill_id,
         )
         await db.transactions.insert_one(t.model_dump())
         await ledger.apply_transaction(ctx.hid, t, +1)
+        await ledger.snapshot_networth(ctx.hid)
+        created_txn_id = t.id
 
     # advance to next cycle or complete installment
     if bill.get("bill_type") == "installment":
@@ -158,4 +185,10 @@ async def pay_bill(bill_id: str, ctx: Ctx = Depends(get_ctx)):
             {"id": bill_id, "household_id": ctx.hid}, {"$set": {"next_due_date": nxt, "is_paid_current_cycle": False}}
         )
 
-    return await db.bills.find_one({"id": bill_id, "household_id": ctx.hid}, {"_id": 0})
+    updated_bill = await db.bills.find_one({"id": bill_id, "household_id": ctx.hid}, {"_id": 0})
+    return {
+        **updated_bill,
+        "transaction_recorded": bool(created_txn_id),
+        "transaction_id": created_txn_id,
+        "wallet_id_used": chosen_wallet,
+    }

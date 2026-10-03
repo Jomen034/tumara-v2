@@ -110,6 +110,13 @@ class Bill(BillCreate):
     created_at: datetime = Field(default_factory=now_utc)
 
 
+class BillPaymentRequest(BaseModel):
+    wallet_id: Optional[str] = None
+    paid_date: Optional[str] = None  # YYYY-MM-DD
+    note: Optional[str] = None
+    record_transaction: bool = True
+
+
 # ---------- Wallets ----------
 WALLET_TYPES = ["bank", "ewallet", "credit_card", "paylater", "cash", "investment"]
 

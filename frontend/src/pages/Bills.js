@@ -32,6 +32,7 @@ import {
   Progress,
 } from "../components/ui";
 import BillDetailModal from "../components/BillDetailModal";
+import PayBillModal from "../components/PayBillModal";
 import BillCalendar from "../components/BillCalendar";
 
 const RECUR = {
@@ -51,6 +52,7 @@ export default function Bills() {
   const [editing, setEditing] = useState(null);
   const [selectedBill, setSelectedBill] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [payingBill, setPayingBill] = useState(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -156,26 +158,6 @@ export default function Bills() {
     }
   };
 
-  const [payingId, setPayingId] = useState(null);
-  const pay = async (b) => {
-    if (payingId) return;
-    setPayingId(b.id);
-    try {
-      const res = await api.post(`/bills/${b.id}/pay`);
-      const updated = res.data;
-      if (updated.is_completed) {
-        toast.success(`🎉 Selamat! "${b.name}" telah lunas sepenuhnya!`);
-      } else {
-        toast.success(`"${b.name}" ditandai lunas${b.wallet_id ? " + saldo tercatat" : ""}!`);
-      }
-      await load();
-      bump();
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || "Gagal mencatat pembayaran");
-    } finally {
-      setPayingId(null);
-    }
-  };
 
   const del = async (id) => {
     if (!window.confirm("Hapus tagihan ini?")) return;
@@ -379,11 +361,10 @@ export default function Bills() {
                           {!isComp && (
                             <Button
                               size="sm"
-                              onClick={() => pay(b)}
-                              disabled={payingId === b.id}
+                              onClick={() => setPayingBill(b)}
                               data-testid={`pay-bill-${b.id}`}
                             >
-                              <CheckCircle2 size={14} /> {payingId === b.id ? "..." : "Bayar"}
+                              <CheckCircle2 size={14} /> Bayar
                             </Button>
                           )}
                           <button
@@ -419,13 +400,27 @@ export default function Bills() {
         bill={selectedBill}
         wallets={wallets}
         privacy={privacy}
-        paying={payingId === selectedBill?.id}
-        onPay={(b) => pay(b)}
+        onPay={(b) => setPayingBill(b)}
         onEdit={(b) => {
           setSelectedBill(null);
           openEdit(b);
         }}
         onDelete={(id) => del(id)}
+      />
+
+      {/* Pay Bill Confirmation Modal */}
+      <PayBillModal
+        open={!!payingBill}
+        onClose={() => setPayingBill(null)}
+        bill={payingBill}
+        wallets={wallets}
+        onSuccess={async (updated) => {
+          await load();
+          bump();
+          if (selectedBill?.id === updated.id) {
+            setSelectedBill(updated);
+          }
+        }}
       />
 
       {/* Add / Edit Bill Modal */}
