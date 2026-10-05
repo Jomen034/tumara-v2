@@ -158,24 +158,29 @@ export default function WalletDetailModal({
           )}
         </div>
 
-        {/* Mini Arus Kas Dompet Bulan Ini */}
-        <div className="rounded-2xl bg-elevated/40 border border-borderc/60 p-4">
-          <div className="flex items-center justify-between mb-2.5">
+        {/* Performa & Arus Kas Dompet Bulan Ini */}
+        <div className="rounded-2xl bg-elevated/40 border border-borderc/60 p-4 space-y-3">
+          <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-tmuted uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles size={13} className="text-brand" /> Arus Kas Rekening Bulan Ini
+              <Sparkles size={13} className="text-brand" /> Performa & Arus Kas Bulan Ini
             </span>
-            <span className="text-[11px] text-tmuted font-mono font-medium">
-              Net:{" "}
-              <strong
-                className={clsx(
-                  flow.net > 0 ? "text-brand" : flow.net < 0 ? "text-rose" : "text-tprimary",
-                  privacy && "privacy-blur"
-                )}
-              >
-                {flow.net >= 0 ? "+" : ""}
-                {formatRp(flow.net, privacy)}
-              </strong>
-            </span>
+            <Badge
+              color={
+                (flow.monthly_count || 0) >= 15
+                  ? "var(--brand)"
+                  : (flow.monthly_count || 0) >= 5
+                  ? "var(--cyan)"
+                  : "var(--tmuted)"
+              }
+            >
+              {(flow.monthly_count || 0) >= 15
+                ? "Sangat Aktif"
+                : (flow.monthly_count || 0) >= 5
+                ? "Aktif Rutin"
+                : (flow.monthly_count || 0) > 0
+                ? "Penggunaan Ringan"
+                : "Pasif"}
+            </Badge>
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-xs">
@@ -204,6 +209,49 @@ export default function WalletDetailModal({
                 -{formatRp(flow.outflow, privacy)}
               </p>
             </div>
+
+            <div className="bg-surface/80 rounded-xl p-2.5 border border-borderc/60">
+              <span className="text-tmuted text-[10px] uppercase font-semibold flex items-center gap-1">
+                <Receipt size={12} className="text-cyan" /> Frekuensi Pakai
+              </span>
+              <p className="font-mono font-bold text-sm text-tprimary mt-0.5 truncate">
+                {flow.monthly_count || 0}x <span className="text-[11px] font-normal text-tmuted">trx</span>
+              </p>
+            </div>
+
+            <div className="bg-surface/80 rounded-xl p-2.5 border border-borderc/60">
+              <span className="text-tmuted text-[10px] uppercase font-semibold flex items-center gap-1">
+                <TrendingDown size={12} className="text-amber-500" /> Rata-rata Tiket
+              </span>
+              <p
+                className={`font-mono font-bold text-sm text-tprimary mt-0.5 truncate ${
+                  privacy ? "privacy-blur" : ""
+                }`}
+              >
+                {formatRp(flow.avg_ticket || 0, privacy)}
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-borderc/40 flex items-center justify-between text-[11px] text-tmuted font-mono">
+            <span>
+              Total Volume:{" "}
+              <strong className="text-tsecondary">
+                {formatRp(flow.turnover || (flow.inflow + flow.outflow), privacy)}
+              </strong>
+            </span>
+            <span>
+              Net:{" "}
+              <strong
+                className={clsx(
+                  flow.net > 0 ? "text-brand" : flow.net < 0 ? "text-rose" : "text-tprimary",
+                  privacy && "privacy-blur"
+                )}
+              >
+                {flow.net >= 0 ? "+" : ""}
+                {formatRp(flow.net, privacy)}
+              </strong>
+            </span>
           </div>
         </div>
 

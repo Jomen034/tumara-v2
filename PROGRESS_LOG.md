@@ -20,6 +20,20 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-06 03:22:00 WIB] — Sort Wallets Alphabetically (A-Z) & Introduce Wallet Performance Metrics
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Mengurutkan daftar dompet dan rekening secara alfabetis A-Z di backend dan frontend untuk navigasi cepat, serta menyematkan metrik performa operasional dompet (frekuensi pemakaian, volume perputaran, rata-rata tiket belanja, badge tingkat keaktifan) pada modal detail dompet.
+- **Key Actions & Changes:**
+  - `backend/routes_finance.py`:
+    - Menambahkan pengurutan alfabetis `.sort("name", 1)` pada endpoint `@router.get("/wallets")` sehingga seluruh dropdown dan daftar rekening di API otomatis urut A-Z.
+    - Memperkaya endpoint `@router.get("/wallets/{wallet_id}/detail")` dengan metrik: `monthly_count` (frekuensi transaksi bulan ini), `expense_count`, `turnover` (total perputaran dana masuk + keluar), dan `avg_ticket` (rata-rata nominal per transaksi belanja).
+  - `frontend/src/pages/Wallets.js`:
+    - Mengurutkan array `wallets` secara alfabetis A-Z menggunakan `localeCompare` sebelum di-render ke kartu grid.
+  - `frontend/src/components/WalletDetailModal.js`:
+    - Mengintegrasikan panel komprehensif *"Performa & Arus Kas Bulan Ini"* mencakup badge keaktifan (*Sangat Aktif / Aktif Rutin / Penggunaan Ringan / Pasif*), Arus Masuk vs Keluar, Frekuensi Transaksi Bulanan, Rata-rata Tiket Belanja (*Avg Ticket*), Total Volume Perputaran Dana, dan Net Arus Kas.
+
+---
+
 ### [2026-10-06 03:15:00 WIB] — Fix Transaction Export CSV Route Collision, Jakarta Timezone Alignment, Money Integrity Rollback, Wallet Card Layout, & Comprehensive Test Suite
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**

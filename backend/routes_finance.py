@@ -85,7 +85,7 @@ _snapshot_networth = ledger.snapshot_networth
 # ---------------- Wallets ----------------
 @router.get("/wallets")
 async def list_wallets(ctx: Ctx = Depends(get_ctx)):
-    return await db.wallets.find({"household_id": ctx.hid}, {"_id": 0}).to_list(500)
+    return await db.wallets.find({"household_id": ctx.hid}, {"_id": 0}).sort("name", 1).to_list(500)
 
 
 @router.post("/wallets")
@@ -160,6 +160,8 @@ async def get_wallet_detail(wallet_id: str, limit: int = 10, ctx: Ctx = Depends(
                 inflow += amt
 
     total_count = await db.transactions.count_documents(txn_query)
+    expense_count = sum(1 for t in month_txns if t.get("type") in ("expense", "transfer") and t.get("wallet_id") == wallet_id)
+    avg_ticket = int(round(outflow / expense_count)) if expense_count > 0 else 0
 
     return {
         "wallet": wallet,
@@ -169,6 +171,10 @@ async def get_wallet_detail(wallet_id: str, limit: int = 10, ctx: Ctx = Depends(
             "inflow": inflow,
             "outflow": outflow,
             "net": inflow - outflow,
+            "turnover": inflow + outflow,
+            "monthly_count": len(month_txns),
+            "expense_count": expense_count,
+            "avg_ticket": avg_ticket,
         },
         "transaction_count": total_count,
     }

@@ -289,7 +289,11 @@ export default function Wallets() {
         </Card>
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
-          {wallets.map((w, i) => {
+          {[...wallets]
+            .sort((a, b) =>
+              (a.name || "").localeCompare(b.name || "", "id", { sensitivity: "base" })
+            )
+            .map((w, i) => {
             const m = walletMeta(w.type);
             const Ic = Icons[m.icon] || Icons.Wallet;
             const isDebt = ["credit_card", "paylater"].includes(w.type);
