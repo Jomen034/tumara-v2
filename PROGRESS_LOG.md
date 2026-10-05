@@ -20,6 +20,22 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-06 03:48:00 WIB] — Seamless Onboarding for Unbudgeted Expenses & Auto-Filled Limit for "Cicilan & Pinjaman"
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Mengoptimalkan alur aktivasi pos pengeluaran di luar anggaran (*unbudgeted transactions*) pada halaman Anggaran (`Budget.js`). Ketika pengguna menekan pil peringatan amber `Cicilan & Pinjaman (Rp 2.7jt) +`, modal langsung otomatis terisi dengan nama kategori, alokasi grup *Needs (Kebutuhan)*, dan plafon limit sebesar Rp 2.700.000, sehingga aktivasi menjadi kartu anggaran aktif dapat diselesaikan dalam 1 klik simpan.
+- **Key Actions & Changes:**
+  - `frontend/src/pages/Budget.js`:
+    - Menambahkan state `addCatInitialLimit`.
+    - Mengoper `ub.amount` ke `addCatInitialLimit` saat pil peringatan diklik dan menyuplai `initialLimit={addCatInitialLimit}` ke modal.
+    - Mereset `addCatInitialLimit` saat modal ditutup atau saat tombol "Tambah Pos" standar ditekan.
+  - `frontend/src/components/AddBudgetCategoryModal.js`:
+    - Menerima prop `initialLimit` dan langsung mengisi field `limit` secara otomatis.
+    - Memperbaiki urutan inisialisasi agar nama kategori kustom tidak terhapus saat modal dibuka.
+- **Verifikasi:**
+  - Seluruh unit test suite `test_money_integrity.py` (16/16) dan kompilasi backend lulus 100%.
+
+---
+
 ### [2026-10-06 03:36:00 WIB] — Fix Server Startup SyntaxError in backend/server.py
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Memperbaiki `SyntaxError: expected 'except' or 'finally' block` di `backend/server.py:114` yang menyebabkan kegagalan build/start di Render.

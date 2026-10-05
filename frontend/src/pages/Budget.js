@@ -88,6 +88,7 @@ export default function Budget() {
   // New features: Add category & Edit income states
   const [addCatOpen, setAddCatOpen] = useState(false);
   const [addCatInitial, setAddCatInitial] = useState("");
+  const [addCatInitialLimit, setAddCatInitialLimit] = useState("");
   const [editIncomeOpen, setEditIncomeOpen] = useState(false);
   const [incomeInput, setIncomeInput] = useState("");
   const [savingIncome, setSavingIncome] = useState(false);
@@ -676,6 +677,7 @@ export default function Budget() {
               size="sm"
               onClick={() => {
                 setAddCatInitial("");
+                setAddCatInitialLimit("");
                 setAddCatOpen(true);
               }}
               data-testid="add-budget-pos-button"
@@ -903,6 +905,7 @@ export default function Budget() {
                     type="button"
                     onClick={() => {
                       setAddCatInitial(ub.category);
+                      setAddCatInitialLimit(String(ub.amount || ""));
                       setAddCatOpen(true);
                     }}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface border border-borderc hover:border-brand text-xs font-medium text-tprimary hover:text-brand transition-all shadow-sm"
@@ -987,6 +990,7 @@ export default function Budget() {
                 variant="outline"
                 onClick={() => {
                   setAddCatInitial("");
+                  setAddCatInitialLimit("");
                   setAddCatOpen(true);
                 }}
                 className="shrink-0 text-xs"
@@ -1103,10 +1107,14 @@ export default function Budget() {
       {/* Add Budget Category Modal */}
       <AddBudgetCategoryModal
         open={addCatOpen}
-        onClose={() => setAddCatOpen(false)}
+        onClose={() => {
+          setAddCatOpen(false);
+          setAddCatInitialLimit("");
+        }}
         existingCategories={budget?.categories || []}
         monthlyIncome={monthlyIncome}
         initialCategory={addCatInitial}
+        initialLimit={addCatInitialLimit}
         onAdded={() => {
           load();
           bump();

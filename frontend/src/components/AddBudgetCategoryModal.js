@@ -71,6 +71,7 @@ export default function AddBudgetCategoryModal({
   existingCategories = [],
   monthlyIncome = 0,
   initialCategory = "",
+  initialLimit = "",
   onAdded,
 }) {
   const existingNames = new Set(existingCategories.map((c) => c.category));
@@ -92,9 +93,11 @@ export default function AddBudgetCategoryModal({
           setSelectedType("preset");
           setSelectedCategory(initialCategory);
           setGroup(AUTO_GROUP_MAP[initialCategory] || "needs");
+          setCustomName("");
         } else {
           setSelectedType("custom");
           setCustomName(initialCategory);
+          setSelectedCategory("");
           setGroup("needs");
         }
       } else if (availablePresets.length > 0) {
@@ -102,16 +105,17 @@ export default function AddBudgetCategoryModal({
         const defaultCat = availablePresets[0].name;
         setSelectedCategory(defaultCat);
         setGroup(AUTO_GROUP_MAP[defaultCat] || "needs");
+        setCustomName("");
       } else {
         setSelectedType("custom");
         setSelectedCategory("");
         setGroup("needs");
+        setCustomName("");
       }
-      setCustomName("");
-      setLimit("");
+      setLimit(initialLimit ? String(initialLimit) : "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initialCategory]);
+  }, [open, initialCategory, initialLimit]);
 
   const handleCategoryChange = (catName) => {
     setSelectedCategory(catName);
