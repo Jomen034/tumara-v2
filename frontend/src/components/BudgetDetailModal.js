@@ -22,6 +22,7 @@ import { formatRp, formatDate, formatShort } from "../lib/format";
 import { catMeta } from "../lib/constants";
 import { useTheme } from "../context/ThemeContext";
 import { Modal, Button, Badge, Progress, Spinner, Input } from "./ui";
+import TransactionDetailModal from "./TransactionDetailModal";
 
 const GROUP_LABEL = {
   needs: "Kebutuhan",
@@ -54,6 +55,8 @@ export default function BudgetDetailModal({
   const [savingLimit, setSavingLimit] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [selectedTxn, setSelectedTxn] = useState(null);
+  const [wallets, setWallets] = useState([]);
 
   const categoryName = typeof category === "string" ? category : category?.category;
 
@@ -62,10 +65,14 @@ export default function BudgetDetailModal({
     setLoading(true);
     try {
       const params = month ? { month } : {};
-      const res = await api.get(`/budget/category/${encodeURIComponent(categoryName)}`, { params });
+      const [res, rw] = await Promise.all([
+        api.get(`/budget/category/${encodeURIComponent(categoryName)}`, { params }),
+        api.get("/wallets").catch(() => ({ data: [] })),
+      ]);
       setDetail(res.data);
       setLimitInput(String(res.data.limit || 0));
       setGroupInput(res.data.group || "needs");
+      if (rw?.data) setWallets(rw.data);
     } catch {
       setDetail(null);
     } finally {
@@ -142,7 +149,8 @@ export default function BudgetDetailModal({
   };
 
   return (
-    <Modal
+    <>
+      <Modal
       open={open}
       onClose={onClose}
       title={categoryName}
@@ -437,35 +445,56 @@ export default function BudgetDetailModal({
             </div>
           ) : (
             <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-              {txns.map((t, idx) => (
-                <div
-                  key={t.id || idx}
-                  className="p-3 rounded-xl bg-surface border border-borderc flex items-center justify-between gap-3 text-xs hover:border-brand/30 transition-colors"
-                >
-                  <div className="min-w-0">
-                    <p className="font-semibold text-tprimary truncate">
-                      {t.note || categoryName}
-                    </p>
-                    <div className="flex items-center gap-2 mt-0.5 text-tmuted text-[11px]">
-                      <Calendar size={11} />
-                      <span>{formatDate(t.date)}</span>
-                      {t.source && t.source !== "manual" && (
-                        <span className="px-1.5 py-0.5 rounded bg-elevated text-[10px]">
-                          {t.source}
-                        </span>
+              {txns.map((t, idx) => {
+                const displayAmt = t.category_amount !== undefined ? t.category_amount : t.amount;
+                const isSplit = t.is_split || (t.amount > displayAmt && displayAmt > 0);
+
+                return (
+                  <div
+                    key={t.id || idx}
+                    onClick={() => setSelectedTxn(t)}
+                    className="p-3 rounded-xl bg-surface border border-borderc flex items-center justify-between gap-3 text-xs hover:border-brand/40 transition-all cursor-pointer group"
+                    title="Klik untuk melihat rincian transaksi & struk"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-semibold text-tprimary group-hover:text-brand transition-colors truncate">
+                          {t.note || categoryName}
+                        </p>
+                        {isSplit && (
+                          <span className="px-1.5 py-0.5 rounded bg-amber/10 text-amber text-[10px] font-medium border border-amber/20">
+                            Porsi Struk ({t.items?.length || ""} item)
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-tmuted text-[11px]">
+                        <Calendar size={11} />
+                        <span>{formatDate(t.date)}</span>
+                        {t.source && t.source !== "manual" && (
+                          <span className="px-1.5 py-0.5 rounded bg-elevated text-[10px]">
+                            {t.source}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div
+                        className={clsx(
+                          "font-mono font-bold text-rose",
+                          privacy && "privacy-blur"
+                        )}
+                      >
+                        -{formatRp(displayAmt, privacy)}
+                      </div>
+                      {isSplit && (
+                        <div className="text-[10px] text-tmuted font-mono">
+                          total struk {formatRp(t.amount, privacy)}
+                        </div>
                       )}
                     </div>
                   </div>
-                  <div
-                    className={clsx(
-                      "font-mono font-bold text-rose shrink-0 text-right",
-                      privacy && "privacy-blur"
-                    )}
-                  >
-                    -{formatRp(t.amount, privacy)}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -530,5 +559,16 @@ export default function BudgetDetailModal({
         </div>
       </div>
     </Modal>
+
+    {selectedTxn && (
+      <TransactionDetailModal
+        open={!!selectedTxn}
+        onClose={() => setSelectedTxn(null)}
+        transaction={selectedTxn}
+        wallets={wallets}
+        privacy={privacy}
+      />
+    )}
+  </>
   );
 }

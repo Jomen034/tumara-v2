@@ -20,6 +20,24 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-06 04:14:00 WIB] — Precise Category-Allocated Amounts in Budget Detail Modal for Split Receipts & No Double-Counting Guarantee
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menyelaraskan nominal transaksi di dalam modal detail anggaran per kategori (`BudgetDetailModal.js`). Ketika struk belanja dipindai dengan sub-item multi-kategori (misal: *Restoran Sederhana* Rp 209.000 dengan makanan Rp 190.000 dan pajak PB1 Rp 19.000), daftar riwayat di pos *Biaya Admin & Layanan* kini menampilkan nominal porsi yang sebenarnya (`-Rp 19.000`) dengan badge `Porsi Struk (9 item)` dan label `total struk Rp 209.000`, serta membuktikan bahwa sistem sama sekali tidak melakukan pencatatan ganda (*no double counting*).
+- **Key Actions & Changes:**
+  - `backend/routes_finance.py`:
+    - Pada `GET /budget/category/{category:path}`, menyematkan field `category_amount`, `is_split`, dan `all_categories` pada setiap transaksi di array `transactions`, serta memfilter hanya transaksi yang memiliki alokasi positif (`category_amount > 0`) pada kategori tersebut.
+  - `frontend/src/components/BudgetDetailModal.js`:
+    - Menampilkan `displayAmt = t.category_amount ?? t.amount` pada kolom nominal baris transaksi.
+    - Menambahkan badge amber `Porsi Struk (N item)` dan sub-label font mono `total struk Rp {t.amount}` saat transaksi berasal dari struk multi-kategori.
+    - Menjadikan setiap baris transaksi interaktif (*clickable*) untuk membuka `TransactionDetailModal` sehingga pengguna dapat menginspeksi seluruh rincian belanjaan dan alokasi kategori masing-masing item.
+  - `backend/tests/test_money_integrity.py`:
+    - Menambahkan test case `test_budget_category_split_no_duplication` yang menguji struk Restoran Sederhana Rp 209.000 (9 sub-item) terdistribusi tepat Rp 190.000 ke Makanan & Minuman dan Rp 19.000 ke Biaya Admin & Layanan tanpa selisih atau duplikasi. Seluruh 17/17 automated test lulus 100%.
+- **Verifikasi:**
+  - Sintaks JS dan keseimbangan kurung tervalidasi 100% seimbang.
+  - Kompilasi Python backend 100% sukses tanpa error.
+
+---
+
 ### [2026-10-06 04:08:00 WIB] — Dual Camera vs Gallery Selector with Desktop Live Webcam Viewfinder for Receipt Scanner
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menyelesaikan kendala pada pemindaian struk (*AI Receipt Scanner*): di HP sebelumnya langsung mengunci/membuka kamera fisik tanpa opsi memilih dari galeri foto (karena atribut `capture="environment"`), sedangkan di browser desktop tidak bisa mengambil foto struk secara langsung.

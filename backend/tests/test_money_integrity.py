@@ -149,6 +149,28 @@ class TestReceiptCategoryDistribution(unittest.TestCase):
         self.assertEqual(dist.get("Biaya Admin & Layanan"), 15500.0)
         self.assertEqual(sum(dist.values()), 115500.0)
 
+    def test_budget_category_split_no_duplication(self):
+        """Memastikan struk Restoran Sederhana Rp 209.000 terbagi Rp 190.000 & Rp 19.000 tanpa duplikasi."""
+        t = {
+            "amount": 209000,
+            "category": "Makanan & Minuman",
+            "items": [
+                {"name": "2 NASI", "price": 22000, "category": "Makanan & Minuman"},
+                {"name": "1 Orange juice", "price": 27000, "category": "Makanan & Minuman"},
+                {"name": "1 Nasi Tambah", "price": 9000, "category": "Makanan & Minuman"},
+                {"name": "1 Sayur Nangka/Singkong", "price": 16000, "category": "Makanan & Minuman"},
+                {"name": "1 SMBL GR UDANG/CUM", "price": 29000, "category": "Makanan & Minuman"},
+                {"name": "1 AYAM GULAI/BKR/PNS", "price": 26000, "category": "Makanan & Minuman"},
+                {"name": "1 RENDANG", "price": 27000, "category": "Makanan & Minuman"},
+                {"name": "1 TELUR DADAR", "price": 18000, "category": "Makanan & Minuman"},
+                {"name": "1 PB1 (10%)", "price": 19000, "category": "Biaya Admin & Layanan"},
+            ]
+        }
+        dist = self.distribute(t)
+        self.assertEqual(dist.get("Makanan & Minuman"), 190000.0)
+        self.assertEqual(dist.get("Biaya Admin & Layanan"), 19000.0)
+        self.assertEqual(sum(dist.values()), 209000.0)
+
     def test_receipt_remainder_retention(self):
         """Jika ada sisa pembulatan kasir (remainder), tidak boleh ada uang yang hilang."""
         t = {

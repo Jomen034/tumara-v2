@@ -550,7 +550,22 @@ async def get_category_budget_detail(category: str, month: Optional[str] = None,
         ]
     }, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(200)
 
-    spent = sum(_distribute_txn_categories(t).get(canon_cat, 0.0) for t in txns)
+    processed_txns = []
+    for t in txns:
+        dist = _distribute_txn_categories(t)
+        cat_amount = dist.get(canon_cat, 0.0)
+        if cat_amount == 0.0:
+            for al in aliases:
+                if al in dist:
+                    cat_amount += dist[al]
+        if cat_amount > 0:
+            t_copy = dict(t)
+            t_copy["category_amount"] = cat_amount
+            t_copy["is_split"] = len(dist) > 1
+            t_copy["all_categories"] = dict(dist)
+            processed_txns.append(t_copy)
+
+    spent = sum(t["category_amount"] for t in processed_txns)
     limit = float(cat_item.get("limit", 0)) if cat_item else 0.0
     group = cat_item.get("group", "needs") if cat_item else "needs"
     remaining = max(0.0, limit - spent)
@@ -581,8 +596,8 @@ async def get_category_budget_detail(category: str, month: Optional[str] = None,
         "days_left": days_left,
         "safe_daily_spend": safe_daily_spend,
         "daily_spent_avg": daily_spent_avg,
-        "transactions": txns,
-        "tx_count": len(txns),
+        "transactions": processed_txns,
+        "tx_count": len(processed_txns),
     }
 
 
