@@ -31,7 +31,7 @@ def _canonical_category(cat: str) -> str:
         return "Biaya Admin & Layanan"
     if any(k in c_low for k in ["grocer", "supermarket", "kebutuhan rumah", "belanja bulanan"]):
         return "Groceries & Kebutuhan Rumah"
-    if any(k in c_low for k in ["makan", "minum", "restoran", "cafe", "f&b"]):
+    if any(k in c_low for k in ["makan", "minum", "restoran", "cafe", "f&b", "kopi"]):
         return "Makanan & Minuman"
     if any(k in c_low for k in ["tagihan", "utilitas", "listrik", "air", "internet", "wifi", "pulsa"]):
         return "Tagihan & Utilitas"
@@ -240,6 +240,25 @@ async def list_transactions(
     return await db.transactions.find(query, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(limit)
 
 
+# ---------------- CSV Export / Import ----------------
+@router.get("/transactions/export")
+async def export_transactions(ctx: Ctx = Depends(get_ctx)):
+    txns = await db.transactions.find({"household_id": ctx.hid}, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(5000)
+    wallets = {w["id"]: w["name"] for w in await db.wallets.find({"household_id": ctx.hid}, {"_id": 0}).to_list(500)}
+    members = {m["user_id"]: m["name"] for m in await household_members(ctx.hid)}
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["date", "type", "amount", "category", "wallet", "to_wallet", "note", "member"])
+    for t in txns:
+        w.writerow([t.get("date", ""), t["type"], t["amount"], t.get("category", ""),
+                    wallets.get(t.get("wallet_id"), ""), wallets.get(t.get("to_wallet_id"), ""),
+                    t.get("note", ""), members.get(t.get("member_id"), "")])
+    buf.seek(0)
+    fname = f"tumara-transaksi-{_month()}.csv"
+    return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
+                             headers={"Content-Disposition": f"attachment; filename={fname}"})
+
+
 @router.get("/transactions/{txn_id}")
 async def get_transaction(txn_id: str, ctx: Ctx = Depends(get_ctx)):
     doc = await db.transactions.find_one({"id": txn_id, "household_id": ctx.hid}, {"_id": 0})
@@ -253,13 +272,19 @@ async def _new_txn(ctx: Ctx, data: dict) -> Transaction:
         data["date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     if data.get("type") == "transfer":
         data["category"] = "Transfer"
+    if "amount" in data and data["amount"] is not None:
+        data["amount"] = int(round(float(data["amount"])))
     await _validate_wallets(ctx.hid, data.get("type"), data.get("wallet_id"), data.get("to_wallet_id"))
     t = Transaction(user_id=ctx.user.user_id, **data)
     doc = t.model_dump()
     doc["household_id"] = ctx.hid
     doc["member_id"] = ctx.user.user_id
     await db.transactions.insert_one(doc)
-    await _apply_txn(ctx.hid, t, +1)
+    try:
+        await _apply_txn(ctx.hid, t, +1)
+    except Exception as e:
+        await db.transactions.delete_one({"id": t.id, "household_id": ctx.hid})
+        raise HTTPException(500, f"Gagal memperbarui saldo dompet: {e}")
     return t
 
 
@@ -341,25 +366,6 @@ async def delete_transaction(txn_id: str, ctx: Ctx = Depends(get_ctx)):
     await db.transactions.delete_one({"id": txn_id, "household_id": ctx.hid})
     await _snapshot_networth(ctx.hid)
     return {"ok": True}
-
-
-# ---------------- CSV Export / Import ----------------
-@router.get("/transactions/export")
-async def export_transactions(ctx: Ctx = Depends(get_ctx)):
-    txns = await db.transactions.find({"household_id": ctx.hid}, {"_id": 0}).sort([("date", -1), ("created_at", -1)]).to_list(5000)
-    wallets = {w["id"]: w["name"] for w in await db.wallets.find({"household_id": ctx.hid}, {"_id": 0}).to_list(500)}
-    members = {m["user_id"]: m["name"] for m in await household_members(ctx.hid)}
-    buf = io.StringIO()
-    w = csv.writer(buf)
-    w.writerow(["date", "type", "amount", "category", "wallet", "to_wallet", "note", "member"])
-    for t in txns:
-        w.writerow([t.get("date", ""), t["type"], t["amount"], t.get("category", ""),
-                    wallets.get(t.get("wallet_id"), ""), wallets.get(t.get("to_wallet_id"), ""),
-                    t.get("note", ""), members.get(t.get("member_id"), "")])
-    buf.seek(0)
-    fname = f"tumara-transaksi-{_month()}.csv"
-    return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
-                             headers={"Content-Disposition": f"attachment; filename={fname}"})
 
 
 TYPE_ALIASES = {
@@ -667,6 +673,8 @@ async def deposit_goal(goal_id: str, body: GoalDeposit, ctx: Ctx = Depends(get_c
     if not goal:
         raise HTTPException(404, "Goal not found")
 
+    amount_int = int(round(float(body.amount)))
+    txn = None
     if body.wallet_id:
         w_from = await ledger.get_wallet(ctx.hid, body.wallet_id)
         if not w_from:
@@ -680,7 +688,7 @@ async def deposit_goal(goal_id: str, body: GoalDeposit, ctx: Ctx = Depends(get_c
 
         txn_data = {
             "type": "transfer" if is_transfer else "expense",
-            "amount": body.amount,
+            "amount": amount_int,
             "wallet_id": body.wallet_id,
             "to_wallet_id": body.to_wallet_id if is_transfer else None,
             "category": "Investasi",
@@ -689,14 +697,22 @@ async def deposit_goal(goal_id: str, body: GoalDeposit, ctx: Ctx = Depends(get_c
             "source": "goal_deposit",
             "goal_id": goal_id,
         }
-        await _new_txn(ctx, txn_data)
+        txn = await _new_txn(ctx, txn_data)
         await _snapshot_networth(ctx.hid)
 
-    res = await db.goals.update_one(
-        {"id": goal_id, "household_id": ctx.hid}, {"$inc": {"saved_amount": body.amount}}
-    )
-    if res.matched_count == 0:
-        raise HTTPException(404, "Goal not found")
+    try:
+        res = await db.goals.update_one(
+            {"id": goal_id, "household_id": ctx.hid}, {"$inc": {"saved_amount": amount_int}}
+        )
+        if res.matched_count == 0:
+            raise HTTPException(404, "Goal not found")
+    except Exception as e:
+        if txn:
+            await _apply_txn(ctx.hid, txn, -1)
+            await db.transactions.delete_one({"id": txn.id, "household_id": ctx.hid})
+            await _snapshot_networth(ctx.hid)
+        raise HTTPException(500, f"Gagal memperbarui progres target tabungan: {e}")
+
     return await db.goals.find_one({"id": goal_id, "household_id": ctx.hid}, {"_id": 0})
 
 

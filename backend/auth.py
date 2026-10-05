@@ -600,10 +600,12 @@ async def export_all_data(user: User = Depends(get_current_user)):
     bills = await db.bills.find({"household_id": hid}, {"_id": 0}).to_list(200)
     snapshots = await db.networth_snapshots.find({"household_id": hid}, {"_id": 0}).sort("date", -1).to_list(200)
 
+    wib_now = datetime.now(timezone(timedelta(hours=7)))
     backup_data = {
         "version": "tumara-v2",
-        "exported_at": now_utc().isoformat(),
+        "exported_at": wib_now.isoformat(),
         "exported_by": user.email,
+        "timezone": "Asia/Jakarta (WIB, UTC+7)",
         "household": hh,
         "members": members,
         "wallets": wallets,

@@ -30,7 +30,7 @@ async def apply_movement(hid: str, wallet_id: str, signed_amount: float) -> bool
     w = await get_wallet(hid, wallet_id)
     if not w:
         return False
-    delta = -signed_amount if is_debt_wallet(w) else signed_amount
+    delta = int(round(-signed_amount if is_debt_wallet(w) else signed_amount))
     await db.wallets.update_one(
         {"id": wallet_id, "household_id": hid}, {"$inc": {"balance": delta}}
     )
@@ -42,7 +42,7 @@ async def apply_transaction(hid: str, txn, sign: int = 1) -> None:
 
     sign = +1 saat transaksi dibuat, -1 saat transaksi dihapus (reversal).
     """
-    amount = txn.amount * sign
+    amount = int(round(txn.amount * sign))
     if txn.type == "income":
         await apply_movement(hid, txn.wallet_id, amount)
     elif txn.type == "expense":

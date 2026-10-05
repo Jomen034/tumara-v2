@@ -147,7 +147,7 @@ async def pay_bill(bill_id: str, body: Optional[BillPaymentRequest] = None, ctx:
             household_id=ctx.hid,
             member_id=ctx.user.user_id,
             type="expense",
-            amount=bill["amount"],
+            amount=int(round(float(bill["amount"]))),
             wallet_id=chosen_wallet,
             category=bill.get("category", "Tagihan & Utilitas"),
             note=note_text,
@@ -158,32 +158,39 @@ async def pay_bill(bill_id: str, body: Optional[BillPaymentRequest] = None, ctx:
         await db.transactions.insert_one(t.model_dump())
         await ledger.apply_transaction(ctx.hid, t, +1)
         await ledger.snapshot_networth(ctx.hid)
-        created_txn_id = t.id
+        created_txn = t
 
-    # advance to next cycle or complete installment
-    if bill.get("bill_type") == "installment":
-        new_paid = (bill.get("paid_tenor") or 0) + 1
-        total_tenor = bill.get("total_tenor") or 0
-        is_completed = total_tenor > 0 and new_paid >= total_tenor
+    try:
+        # advance to next cycle or complete installment
+        if bill.get("bill_type") == "installment":
+            new_paid = (bill.get("paid_tenor") or 0) + 1
+            total_tenor = bill.get("total_tenor") or 0
+            is_completed = total_tenor > 0 and new_paid >= total_tenor
 
-        if is_completed:
-            await db.bills.update_one(
-                {"id": bill_id, "household_id": ctx.hid},
-                {"$set": {"paid_tenor": new_paid, "is_completed": True, "is_paid_current_cycle": True}}
-            )
+            if is_completed:
+                await db.bills.update_one(
+                    {"id": bill_id, "household_id": ctx.hid},
+                    {"$set": {"paid_tenor": new_paid, "is_completed": True, "is_paid_current_cycle": True}}
+                )
+            else:
+                nxt = _advance(bill["next_due_date"], bill.get("recurrence", "monthly"))
+                await db.bills.update_one(
+                    {"id": bill_id, "household_id": ctx.hid},
+                    {"$set": {"paid_tenor": new_paid, "next_due_date": nxt, "is_paid_current_cycle": False}}
+                )
+        elif bill.get("recurrence") == "once":
+            await db.bills.update_one({"id": bill_id, "household_id": ctx.hid}, {"$set": {"is_paid_current_cycle": True, "is_completed": True}})
         else:
-            nxt = _advance(bill["next_due_date"], bill.get("recurrence", "monthly"))
+            nxt = _advance(bill["next_due_date"], bill["recurrence"])
             await db.bills.update_one(
-                {"id": bill_id, "household_id": ctx.hid},
-                {"$set": {"paid_tenor": new_paid, "next_due_date": nxt, "is_paid_current_cycle": False}}
+                {"id": bill_id, "household_id": ctx.hid}, {"$set": {"next_due_date": nxt, "is_paid_current_cycle": False}}
             )
-    elif bill.get("recurrence") == "once":
-        await db.bills.update_one({"id": bill_id, "household_id": ctx.hid}, {"$set": {"is_paid_current_cycle": True, "is_completed": True}})
-    else:
-        nxt = _advance(bill["next_due_date"], bill["recurrence"])
-        await db.bills.update_one(
-            {"id": bill_id, "household_id": ctx.hid}, {"$set": {"next_due_date": nxt, "is_paid_current_cycle": False}}
-        )
+    except Exception as e:
+        if created_txn:
+            await ledger.apply_transaction(ctx.hid, created_txn, -1)
+            await db.transactions.delete_one({"id": created_txn.id, "household_id": ctx.hid})
+            await ledger.snapshot_networth(ctx.hid)
+        raise HTTPException(500, f"Gagal memperbarui status tagihan: {e}")
 
     updated_bill = await db.bills.find_one({"id": bill_id, "household_id": ctx.hid}, {"_id": 0})
     return {

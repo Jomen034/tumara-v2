@@ -80,7 +80,7 @@ export default function SettingsModal({ open, onClose }) {
       const blob = new Blob([jsonStr], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      const dateStr = new Date().toISOString().slice(0, 10);
+      const dateStr = new Date().toLocaleDateString("sv-SE");
       a.href = url;
       a.download = `tumara-backup-${dateStr}.json`;
       a.click();

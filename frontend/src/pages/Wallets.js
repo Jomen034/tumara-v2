@@ -311,11 +311,12 @@ export default function Wallets() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
+                className="h-full flex flex-col"
               >
                 <Card
                   hover
                   onClick={() => setSelectedWallet(w)}
-                  className="p-4 sm:p-5 flex flex-col justify-between gap-3.5 cursor-pointer hover:border-brand/50 hover:shadow-md transition-all group"
+                  className="h-full p-4 sm:p-5 flex flex-col justify-between gap-4 cursor-pointer hover:border-brand/50 hover:shadow-md transition-all group min-h-[185px]"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
@@ -361,7 +362,7 @@ export default function Wallets() {
                   </div>
 
                   {isDebt ? (
-                    <div className="space-y-2 pt-2 border-t border-borderc/40">
+                    <div className="space-y-2 pt-2.5 border-t border-borderc/40 mt-auto">
                       <div className="flex items-baseline justify-between gap-2">
                         <div>
                           <span className="text-[11px] text-tmuted uppercase font-semibold tracking-wider block">
@@ -424,17 +425,56 @@ export default function Wallets() {
                       )}
                     </div>
                   ) : (
-                    <div className="pt-2 border-t border-borderc/40">
-                      <span className="text-[11px] text-tmuted uppercase font-semibold tracking-wider block">
-                        Saldo Saat Ini
-                      </span>
-                      <p
-                        className={`font-mono font-bold text-lg sm:text-xl text-tprimary ${
-                          privacy ? "privacy-blur" : ""
-                        }`}
-                      >
-                        {formatRp(w.balance, privacy)}
-                      </p>
+                    <div className="space-y-2 pt-2.5 border-t border-borderc/40 mt-auto">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <div>
+                          <span className="text-[11px] text-tmuted uppercase font-semibold tracking-wider block">
+                            Saldo Saat Ini
+                          </span>
+                          <p
+                            className={`font-mono font-bold text-lg sm:text-xl ${
+                              w.balance < 0 ? "text-rose" : "text-tprimary"
+                            } ${privacy ? "privacy-blur" : ""}`}
+                          >
+                            {formatRp(w.balance, privacy)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[11px] text-tmuted uppercase font-semibold tracking-wider block">
+                            Status Akun
+                          </span>
+                          <p className="font-medium text-xs sm:text-sm text-tsecondary">
+                            {w.balance < 0 ? "Defisit" : "Aset Lancar"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex justify-between items-center text-[11px] text-tmuted">
+                          <span className="flex items-center gap-1.5">
+                            <span
+                              className={`w-2 h-2 rounded-full ${
+                                w.balance < 0
+                                  ? "bg-rose animate-pulse"
+                                  : "bg-emerald-500"
+                              }`}
+                            />
+                            {w.balance < 0
+                              ? "Perlu top-up / rekonsiliasi"
+                              : "Saldo aktif siap pakai"}
+                          </span>
+                          <span className="text-tmuted/70 text-[10px] uppercase font-mono">
+                            {m.label}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-borderc/30 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              w.balance < 0 ? "bg-rose/40 w-full" : "bg-emerald-500/30 w-full"
+                            }`}
+                          />
+                        </div>
+                      </div>
                     </div>
                   )}
                 </Card>

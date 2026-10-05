@@ -93,15 +93,17 @@ export default function Transactions() {
   const exportCsv = async () => {
     try {
       const res = await api.get("/transactions/export", { responseType: "blob" });
-      const url = URL.createObjectURL(res.data);
+      const blob = new Blob([res.data], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
+      const dateStr = new Date().toLocaleDateString("sv-SE");
       a.href = url;
-      a.download = "tumara-transaksi.csv";
+      a.download = `tumara-transaksi-${dateStr}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("CSV diunduh!");
-    } catch {
-      toast.error("Gagal export");
+      toast.success("CSV transaksi berhasil diunduh! 📊");
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Gagal mengunduh CSV transaksi");
     }
   };
 
@@ -274,16 +276,18 @@ export default function Transactions() {
             size="sm"
             onClick={exportCsv}
             data-testid="export-csv-button"
+            title="Ekspor daftar transaksi format CSV untuk Excel / Spreadsheet"
           >
-            <Download size={16} /> Export
+            <Download size={16} /> Export CSV
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => fileRef.current?.click()}
             data-testid="import-csv-button"
+            title="Impor riwayat transaksi dari format CSV"
           >
-            <Upload size={16} /> Import
+            <Upload size={16} /> Import CSV
           </Button>
           <input
             ref={fileRef}

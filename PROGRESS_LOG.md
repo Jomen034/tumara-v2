@@ -20,6 +20,39 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-06 03:15:00 WIB] — Fix Transaction Export CSV Route Collision, Jakarta Timezone Alignment, Money Integrity Rollback, Wallet Card Layout, & Comprehensive Test Suite
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Memperbaiki error *"Gagal export"* pada halaman Transaksi yang disebabkan oleh parameter shadowing di FastAPI route matching.
+  2. Menyelaraskan zona waktu cadangan JSON (`exported_at`) ke waktu lokal Indonesia (`Asia/Jakarta`, UTC+7) dan tanggal lokal pada penamaan file export.
+  3. Memastikan demarkasi peran yang tegas agar fitur **Export CSV** di Transaksi tidak redundan dengan **Cadangan Mandiri (JSON)** di Pengaturan.
+  4. Merapikan ukuran kartu dompet di `Wallets.js` agar tinggi dan ritme vertikal kartu aset (debit/ewallet) sejajar simetris dengan kartu kredit/utang.
+  5. Menjamin integritas data keuangan melalui normalisasi integer IDR dan penerapan pola Compensating Rollback (Saga) pada transaksi, goal, dan tagihan.
+  6. Menyediakan automated test suite komprehensif (`backend/tests/test_money_integrity.py`) yang menguji seluruh jalur yang menyentuh uang (*money paths*).
+- **Key Actions & Changes:**
+  - `backend/routes_finance.py`:
+    - Memindahkan route `@router.get("/transactions/export")` ke sebelum `@router.get("/transactions/{txn_id}")`. Sebelumnya, request `/transactions/export` tertangkap oleh path parameter `{txn_id}` dengan ID `"export"`, menyebabkan return 404 *"Transaksi tidak ditemukan"*.
+    - Menerapkan integer coercion (`int(round(float(amount)))`) pada `_new_txn` dan `deposit_goal`.
+    - Menambahkan mekanisme *Compensating Rollback* pada `_new_txn` dan `deposit_goal` jika langkah mutasi dompet/goal gagal di tengah jalan.
+  - `backend/routes_bills.py`:
+    - Mengintegrasikan integer coercion dan *Compensating Rollback* pada pembayaran tagihan (`pay_bill`) sehingga jika update siklus tagihan gagal, pencatatan transaksi dan mutasi saldo otomatis ditarik kembali (*rollback*).
+  - `backend/ledger.py`:
+    - Memastikan mutasi delta saldo dompet selalu dihitung dan disimpan dalam integer bulat IDR (`int(round(...))`), mengeliminasi potensi desimal ganjil IEEE 754.
+  - `backend/auth.py`:
+    - Menyelaraskan timestamp backup `exported_at` menjadi format ISO 8601 ber-offset WIB (`+07:00`), serta menambahkan metadata `"timezone": "Asia/Jakarta (WIB, UTC+7)"`.
+  - `frontend/src/pages/Transactions.js`:
+    - Memperbarui `exportCsv` untuk mengunduh response sebagai Blob CSV dengan penamaan tanggal lokal (`tumara-transaksi-YYYY-MM-DD.csv`).
+    - Memperjelas label tombol menjadi *"Export CSV"* dan *"Import CSV"* dengan tooltip penjelasan agar pengguna tidak bingung membedakannya dari cadangan sistem JSON.
+  - `frontend/src/components/SettingsModal.js`:
+    - Menggunakan tanggal lokal browser (`toLocaleDateString("sv-SE")`) untuk penamaan file unduhan cadangan data (`tumara-backup-YYYY-MM-DD.json`).
+  - `frontend/src/pages/Wallets.js`:
+    - Memberikan `className="h-full flex flex-col"` pada `<motion.div>` wrapper dan `min-h-[185px]` dengan `flex flex-col justify-between` pada `<Card>`.
+    - Merancang bagian bawah kartu aset agar memiliki 3 baris simetris (Saldo Saat Ini & Status Akun, Indikator Saldo Aktif / Defisit, dan subtle bar baseline) yang sejajar presisi dengan progress bar kartu kredit/utang di baris grid yang sama.
+  - `backend/tests/test_money_integrity.py`:
+    - Menulis 16 automated unit test cases mencakup: ledger balance logic, debt wallet inversion, net worth invariance, bill recurrence & installment tenor completion, goal deposit math, receipt category distribution, transfer admin fee flow, dan integer precision. Seluruh 16 tes lulus 100%.
+
+---
+
 ### [2026-10-06 03:00:00 WIB] — Fix Proportional Math in handleAutoBalance (Budget 50/30/20 Rebalancer)
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Memperbaiki bug kalkulasi pada fitur *"Seimbangkan 50/30/20"* di halaman Budget yang menyebabkan defisit alokasi palsu (misal: Total Anggaran Rp 15.708.333 padahal Penghasilan Rp 14.500.000 dengan defisit Rp 1.208.333).
