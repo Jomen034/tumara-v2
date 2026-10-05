@@ -20,6 +20,24 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-06 04:08:00 WIB] — Dual Camera vs Gallery Selector with Desktop Live Webcam Viewfinder for Receipt Scanner
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menyelesaikan kendala pada pemindaian struk (*AI Receipt Scanner*): di HP sebelumnya langsung mengunci/membuka kamera fisik tanpa opsi memilih dari galeri foto (karena atribut `capture="environment"`), sedangkan di browser desktop tidak bisa mengambil foto struk secara langsung.
+- **Key Actions & Changes:**
+  - `frontend/src/components/AddTransactionModal.js` & `frontend/src/components/ScanReceiptModal.js`:
+    - Memisahkan input berkas menjadi dua jalur independen:
+      1. `cameraInputRef`: Input dengan `capture="environment"` untuk akses kamera HP langsung.
+      2. `galleryInputRef`: Input standar tanpa atribut `capture` yang memicu pemilih sistem asli (*Photo Library / Files* di iOS & Android, atau Finder/Explorer di desktop).
+    - Menghadirkan dua tombol aksi yang jelas dan elegan di bawah area dropzone:
+      - 📸 **Ambil Foto (Kamera)**: Di HP langsung membuka kamera native dengan resolusi tinggi; di desktop langsung membuka **Live Webcam Viewfinder** dengan streaming video real-time, kotak panduan framing struk, dan tombol jepret (*shutter*).
+      - 🖼️ **Pilih dari Galeri**: Di HP membuka Galeri Foto / Media Picker; di desktop membuka Finder/Explorer untuk memilih berkas gambar atau drag & drop.
+    - Menambahkan siklus hidup kamera yang bersih (*stopWebcam* saat modal ditutup, saat berganti tab, atau saat komponen unmount) untuk mencegah kebocoran resource media stream.
+- **Verifikasi:**
+  - Validasi keseimbangan kurung & sintaks JS 100% lulus (0 delta error).
+  - 16/16 automated test suites backend lulus 100%.
+
+---
+
 ### [2026-10-06 03:48:00 WIB] — Seamless Onboarding for Unbudgeted Expenses & Auto-Filled Limit for "Cicilan & Pinjaman"
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Mengoptimalkan alur aktivasi pos pengeluaran di luar anggaran (*unbudgeted transactions*) pada halaman Anggaran (`Budget.js`). Ketika pengguna menekan pil peringatan amber `Cicilan & Pinjaman (Rp 2.7jt) +`, modal langsung otomatis terisi dengan nama kategori, alokasi grup *Needs (Kebutuhan)*, dan plafon limit sebesar Rp 2.700.000, sehingga aktivasi menjadi kartu anggaran aktif dapat diselesaikan dalam 1 klik simpan.
