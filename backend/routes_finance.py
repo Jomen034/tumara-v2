@@ -27,6 +27,8 @@ def _canonical_category(cat: str) -> str:
     if not cat:
         return "Lainnya"
     c_low = cat.strip().lower()
+    if any(k in c_low for k in ["admin", "service", "layanan", "fee", "biaya admin", "biaya layanan", "pajak", "ppn", "pb1"]):
+        return "Biaya Admin & Layanan"
     if any(k in c_low for k in ["grocer", "supermarket", "kebutuhan rumah", "belanja bulanan"]):
         return "Groceries & Kebutuhan Rumah"
     if any(k in c_low for k in ["makan", "minum", "restoran", "cafe", "f&b"]):
@@ -521,6 +523,8 @@ async def get_category_budget_detail(category: str, month: Optional[str] = None,
         aliases.extend(["Groceries", "Supermarket", "Kebutuhan Rumah", "Belanja Bulanan"])
     elif "Makanan" in canon_cat:
         aliases.extend(["Makan & Minum", "Food & Beverage", "F&B", "Restoran"])
+    elif "Biaya Admin" in canon_cat or "Layanan" in canon_cat:
+        aliases.extend(["Biaya Admin & Layanan", "Biaya Admin", "Biaya Layanan", "Service Charge", "Admin Fee", "Pajak", "PPN", "PB1"])
 
     txns = await db.transactions.find({
         "household_id": ctx.hid,

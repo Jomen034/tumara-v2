@@ -14,6 +14,7 @@ import {
   ScanLine,
   RotateCcw,
   Target,
+  Receipt,
 } from "lucide-react";
 import clsx from "clsx";
 import api from "../lib/api";
@@ -52,6 +53,8 @@ export default function AddTransactionModal({
   const [note, setNote] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
+  const [adminFee, setAdminFee] = useState("0");
+  const [adminFeeOption, setAdminFeeOption] = useState("0"); // 0 | 2500 | 6500 | custom
 
   // AI free-text state
   const [aiText, setAiText] = useState("");
@@ -107,6 +110,8 @@ export default function AddTransactionModal({
     setNote("");
     setDate(new Date().toISOString().slice(0, 10));
     setSubItemsDraft(null);
+    setAdminFee("0");
+    setAdminFeeOption("0");
   };
 
   const resetScan = () => {
@@ -295,6 +300,7 @@ export default function AddTransactionModal({
     if (!walletId) return toast.error("Pilih dompet dulu");
     if (type === "transfer" && (!toWalletId || toWalletId === walletId))
       return toast.error("Pilih dompet tujuan yang berbeda");
+    const feeNum = type === "transfer" ? (parseFloat(adminFee) || 0) : 0;
     setSaving(true);
     try {
       await api.post("/transactions", {
@@ -316,8 +322,25 @@ export default function AddTransactionModal({
         goal_id: (type === "expense" || type === "transfer") && goalId ? goalId : undefined,
         items: subItemsDraft && subItemsDraft.length > 0 ? subItemsDraft : undefined,
       });
+
+      if (type === "transfer" && feeNum > 0) {
+        const fromWallet = wallets.find((w) => w.id === walletId)?.name || "Dompet Asal";
+        const toWallet = wallets.find((w) => w.id === toWalletId)?.name || "Dompet Tujuan";
+        await api.post("/transactions", {
+          type: "expense",
+          amount: feeNum,
+          wallet_id: walletId,
+          category: "Biaya Admin & Layanan",
+          note: `Biaya transfer (${fromWallet} ➔ ${toWallet})${note ? ` · ${note}` : ""}`,
+          date,
+          source: "transfer_admin_fee",
+        });
+      }
+
       toast.success(
-        goalId
+        type === "transfer" && feeNum > 0
+          ? `Transfer ${formatRp(amt)} + Biaya Admin ${formatRp(feeNum)} berhasil dicatat!`
+          : goalId
           ? "Transaksi tersimpan & progres tabungan bertambah! 🎯"
           : "Transaksi tersimpan!"
       );
@@ -499,6 +522,18 @@ export default function AddTransactionModal({
                   <span className="text-tsecondary">Total Belanja</span>
                   <span className="font-mono font-bold text-brand">{formatRp(scanResult.total)}</span>
                 </div>
+                {Number(scanResult.tax_included) > 0 && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-brand bg-brand/10 border border-brand/25 rounded-xl px-2.5 py-1.5 font-medium">
+                    <span>✓</span>
+                    <span>{scanResult.tax_label || "Harga sudah termasuk Pajak/PB1"} {formatRp(scanResult.tax_included)} (tidak digandakan ke total)</span>
+                  </div>
+                )}
+                {Number(scanResult.discount_total) > 0 && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-amber bg-amber/10 border border-amber/25 rounded-xl px-2.5 py-1.5 font-medium">
+                    <span>🏷️</span>
+                    <span>Diskon terdeteksi: {formatRp(scanResult.discount_total)} (total sudah neto)</span>
+                  </div>
+                )}
                 {/* Editable Transaction Date */}
                 <div className="pt-2 border-t border-borderc/60 flex items-center justify-between gap-3">
                   <span className="text-xs font-semibold text-tsecondary whitespace-nowrap">
@@ -820,18 +855,78 @@ export default function AddTransactionModal({
           </Select>
 
           {type === "transfer" && (
-            <Select
-              data-testid="txn-to-wallet-select"
-              label="Ke Dompet"
-              value={toWalletId}
-              onChange={(e) => setToWalletId(e.target.value)}
-            >
-              {wallets.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </Select>
+            <>
+              <Select
+                data-testid="txn-to-wallet-select"
+                label="Ke Dompet"
+                value={toWalletId}
+                onChange={(e) => setToWalletId(e.target.value)}
+              >
+                {wallets.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </Select>
+
+              {/* Biaya Admin Transfer */}
+              <div className="space-y-2 p-3 rounded-2xl bg-surface border border-borderc">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-tprimary flex items-center gap-1.5">
+                    <Receipt size={14} className="text-brand" />
+                    Biaya Admin Transfer
+                    <span className="text-[10px] text-tmuted font-normal">(Opsional)</span>
+                  </label>
+                  {parseFloat(adminFee) > 0 && (
+                    <span className="text-xs font-mono font-bold text-brand">
+                      +{formatRp(parseFloat(adminFee))}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                  {[
+                    { label: "Gratis", value: "0" },
+                    { label: "BI-Fast (2.5k)", value: "2500" },
+                    { label: "Online (6.5k)", value: "6500" },
+                    { label: "Kustom", value: "custom" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setAdminFeeOption(opt.value);
+                        if (opt.value !== "custom") setAdminFee(opt.value);
+                      }}
+                      className={clsx(
+                        "py-1.5 px-1 rounded-xl text-[11px] font-medium border text-center transition-all truncate",
+                        adminFeeOption === opt.value
+                          ? "bg-brand/15 border-brand text-brand font-semibold shadow-sm"
+                          : "bg-elevated/60 border-borderc/80 text-tsecondary hover:bg-elevated"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {adminFeeOption === "custom" && (
+                  <div className="pt-1">
+                    <Input
+                      prefix="Rp"
+                      type="number"
+                      inputMode="numeric"
+                      placeholder="Biaya admin (cth. 1000)"
+                      value={adminFee}
+                      onChange={(e) => setAdminFee(e.target.value)}
+                    />
+                  </div>
+                )}
+                {parseFloat(adminFee) > 0 && (
+                  <p className="text-[11px] text-tmuted pt-0.5 leading-tight">
+                    💡 Biaya admin dicatat otomatis di kategori <strong className="text-tprimary">Biaya Admin & Layanan</strong> agar mutasi rekening asal pas.
+                  </p>
+                )}
+              </div>
+            </>
           )}
 
           {type === "expense" && (

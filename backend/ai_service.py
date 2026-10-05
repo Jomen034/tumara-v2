@@ -207,7 +207,7 @@ def _resize_image(raw: bytes) -> bytes:
     return out.getvalue()
 
 
-CATEGORY_LIST = '["Groceries & Kebutuhan Rumah","Makanan & Minuman","Transportasi","Belanja","Tagihan & Utilitas","Hiburan","Kesehatan","Pendidikan","Investasi","Gaji","Bonus","Transfer","Lainnya"]'
+CATEGORY_LIST = '["Groceries & Kebutuhan Rumah","Makanan & Minuman","Transportasi","Belanja","Tagihan & Utilitas","Biaya Admin & Layanan","Hiburan","Kesehatan","Pendidikan","Investasi","Gaji","Bonus","Transfer","Lainnya"]'
 
 RECEIPT_PROMPT = (
     "Kamu adalah mesin OCR struk belanja keuangan pribadi yang cerdas dan teliti. "
@@ -216,7 +216,10 @@ RECEIPT_PROMPT = (
     '  "merchant": string,\n'
     '  "total": number,\n'
     '  "date": "YYYY-MM-DD" | null,\n'
-    '  "category": salah satu dari ["Groceries & Kebutuhan Rumah","Makanan & Minuman","Belanja","Transportasi","Tagihan & Utilitas","Hiburan","Kesehatan","Pendidikan","Lainnya"],\n'
+    '  "category": salah satu dari ["Groceries & Kebutuhan Rumah","Makanan & Minuman","Belanja","Transportasi","Tagihan & Utilitas","Biaya Admin & Layanan","Hiburan","Kesehatan","Pendidikan","Lainnya"],\n'
+    '  "tax_included": number,\n'
+    '  "tax_label": string,\n'
+    '  "discount_total": number,\n'
     '  "items": [\n'
     '    {"name": string, "price": number, "category": salah satu dari kategori di atas}\n'
     '  ]\n'
@@ -227,18 +230,26 @@ RECEIPT_PROMPT = (
     "   - Item bahan makanan dapur & mentah: daging, ikan, ayam, sayur, buah, bumbu dapur, umbi, beras, telur, tahu, tempe, susu cair mentah/UHT, keju, roti, mi instan, minyak goreng, gula, tepung, snack/camilan belanjaan rumah.\n"
     "   - Item kebutuhan rumah tangga & bebersih: tissue (facial tissue, toilet paper), aluminium foil, cling wrap, sabun mandi, sabun cuci piring/baju, deterjen, kamper/kapur barus (swallow napth), pembersih lantai, kantong sampah, spons, pasta gigi, sampo, pembalut.\n"
     "2. 'Makanan & Minuman':\n"
-    "   - KHUSUS untuk makanan/minuman siap santap dari restoran, cafe, warung makan, kedai kopi, fast food, bakery siap saji, atau delivery GoFood/GrabFood (misal: McD, KFC, Starbucks, Kopi Kenangan, Resto Padang, Gacoan, dsb).\n"
+    "   - KHUSUS untuk makanan/minuman siap santap dari restoran, cafe, warung makan, kedai kopi, fast food, bakery siap saji, atau delivery GoFood/GrabFood (misal: McD, KFC, Starbucks, Kopi Kenangan, Tuku, Resto Padang, Gacoan, dsb).\n"
     "   - BUKAN untuk belanja bahan mentah supermarket atau kebutuhan dapur.\n"
-    "3. 'Belanja':\n"
-    "   - Belanja gaya hidup/pribadi: pakaian, baju, celana, sepatu, tas, aksesori, gadget, barang elektronik, makeup, perlengkapan hobi, belanja e-commerce (Shopee, Tokopedia, Uniqlo, dsb).\n"
-    "4. 'Kesehatan': Obat-obatan, vitamin, suplemen, masker medis, transaksi apotek/klinik.\n"
-    "5. 'Transportasi': Bensin/SPBU (Pertamina, Shell, BP), parkir, tol, tiket perjalanan, ojol.\n"
-    "6. 'Tagihan & Utilitas': Pembayaran listrik, air, internet/wifi, pulsa, IPL.\n\n"
+    "3. 'Biaya Admin & Layanan':\n"
+    "   - BIAYA EKSKLUSIF (DITAMBAHKAN KE SUBTOTAL): Service charge resto/cafe (misal Service 5%), pajak PB1/PPN yang ditambahkan ke subtotal, biaya admin kantong/takeaway, atau fee layanan lainnya. Ekstrak baris ini sebagai item di dalam 'items' dengan kategori 'Biaya Admin & Layanan'.\n"
+    "4. 'Belanja': Belanja gaya hidup/pribadi (pakaian, sepatu, tas, aksesoris, gadget, makeup, hobi, mall/e-commerce).\n"
+    "5. 'Kesehatan': Obat-obatan, vitamin, apotek, klinik.\n"
+    "6. 'Transportasi': Bensin/SPBU (Pertamina, Shell, BP), parkir, tol, tiket perjalanan, ojol.\n"
+    "7. 'Tagihan & Utilitas': Listrik, air, internet/wifi, pulsa, IPL.\n\n"
+    "ATURAN PAJAK & BIAYA LAYANAN (SANGAT PENTING - HINDARI DOUBLE COUNTING):\n"
+    "- PAJAK INKLUSIF (SUDAH TERMASUK HARGA, contoh: 'Harga Sudah Termasuk Pajak PB1', 'Tax Inclusive', 'PPN Termasuk'):\n"
+    "  JANGAN masukkan pajak inklusif ini sebagai item baru di daftar 'items' (karena harga barang sudah mencakupnya; jika ditambahkan akan membuat total melonjak keliru).\n"
+    "  TETAPI catat informasinya di 'tax_included' (nilai nominal pajak) dan 'tax_label' (misal: 'PB1 10% (Termasuk)'). Jika tidak ada atau bukan inklusif, isi tax_included: 0 dan tax_label: ''.\n"
+    "- PAJAK & SERVICE EKSKLUSIF (DITAMBAHKAN DI BAWAH SUBTOTAL):\n"
+    "  Jika subtotal Rp 100.000 lalu ada Service Rp 5.000 dan PB1 Rp 10.500 sehingga Total Bayar Rp 115.500, MAKA Service dan PB1 WAJIB diekstrak sebagai item di dalam 'items' dengan category 'Biaya Admin & Layanan' agar jumlah total semua item pas dengan total pembayaran.\n"
+    "- DISKON / POTONGAN:\n"
+    "  Jika ada diskon, catat nominal diskon di 'discount_total'. Pastikan nilai 'total' yang dicatat adalah TOTAL AKHIR RIIL yang dibayarkan konsumen setelah diskon.\n\n"
     "ATURAN TANGGAL:\n"
     "- Ekstrak tanggal transaksi struk secara akurat dalam format 'YYYY-MM-DD'. Perhatikan penulisan tahun (misal: 24-Sep-2026 atau 27/09/24 -> 2024-09-27 atau 2026-09-24). Jika tahun ditulis 2 digit (misal '26' atau '24'), konversikan ke 4 digit tahun 2000-an ('2026' atau '2024'). Jika tanggal tidak tertera pada struk, kembalikan null.\n\n"
     "ATURAN HARGA:\n"
-    "- Harga per item (price) dan total harus berupa angka integer murni tanpa titik atau koma ribuan (contoh: 107978 bukan 107.978). "
-    "Jika ada desimal, bulatkan ke bilangan bulat terdekat.\n"
+    "- Harga per item (price) dan total harus berupa angka integer murni tanpa titik atau koma ribuan (contoh: 107978 bukan 107.978). Jika ada desimal, bulatkan ke bilangan bulat terdekat.\n"
     "- Ekstrak SEMUA item yang tertera pada struk ke dalam array 'items'. Jika ada puluhan item (misal >30 item), ekstrak semuanya secara lengkap tanpa dipotong.\n"
     "- Jika struk berasal dari supermarket seperti GrandLucky, tetapkan kategori keseluruhan sebagai 'Groceries & Kebutuhan Rumah'."
 )
@@ -371,6 +382,8 @@ async def parse_transaction_text(text: str, wallets: list) -> dict:
             cat = "Kesehatan"
         elif any(k in lowered for k in ("listrik", "pln", "wifi", "indihome", "air", "pdam", "pulsa", "tagihan", "utilitas")):
             cat = "Tagihan & Utilitas"
+        elif any(k in lowered for k in ("admin", "layanan", "biaya admin", "biaya bulanan", "service fee", "biaya transfer", "admin fee", "pajak", "fee")):
+            cat = "Biaya Admin & Layanan"
 
         raw = json.dumps({
             "type": ttype, "amount": amount, "category": cat,
@@ -538,6 +551,9 @@ async def scan_receipt(raw: bytes) -> dict:
     data.setdefault("total", 0)
     data.setdefault("date", None)
     data.setdefault("category", "Lainnya")
+    data.setdefault("tax_included", 0)
+    data.setdefault("tax_label", "")
+    data.setdefault("discount_total", 0)
     data.setdefault("items", [])
     for it in data["items"]:
         it.setdefault("category", data.get("category", "Lainnya"))

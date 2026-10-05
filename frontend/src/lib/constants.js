@@ -4,6 +4,7 @@ export const CATEGORIES = [
   { name: "Transportasi", icon: "Car", emoji: "🚗", color: "#38BDF8" },
   { name: "Belanja", icon: "ShoppingBag", emoji: "🛍️", color: "#E879F9" },
   { name: "Tagihan & Utilitas", icon: "ReceiptText", emoji: "⚡", color: "#FBBF24" },
+  { name: "Biaya Admin & Layanan", icon: "Receipt", emoji: "🏷️", color: "#6366F1" },
   { name: "Hiburan", icon: "Gamepad2", emoji: "🎮", color: "#A78BFA" },
   { name: "Kesehatan", icon: "HeartPulse", emoji: "💊", color: "#FB7185" },
   { name: "Pendidikan", icon: "GraduationCap", emoji: "🎓", color: "#34D399" },
@@ -53,6 +54,24 @@ export const catMeta = (name, type) => {
         icon: "ArrowLeftRight",
         emoji: "🔄",
         color: "#00F0FF",
+      }
+    );
+  }
+  if (
+    lower.includes("admin") ||
+    lower.includes("layanan") ||
+    lower.includes("service") ||
+    lower.includes("pajak") ||
+    lower.includes("ppn") ||
+    lower.includes("pb1") ||
+    lower.includes("fee")
+  ) {
+    return (
+      CATEGORIES.find((c) => c.name === "Biaya Admin & Layanan") || {
+        name: "Biaya Admin & Layanan",
+        icon: "Receipt",
+        emoji: "🏷️",
+        color: "#6366F1",
       }
     );
   }

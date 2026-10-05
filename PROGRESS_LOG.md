@@ -20,6 +20,41 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-06 02:08:00 WIB] — Added "Biaya Admin & Layanan" Category, Smart Exclusive/Inclusive Receipt OCR Extraction, and Transfer Admin Fee Flow
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menghadirkan kategori standar resmi **"Biaya Admin & Layanan"** untuk melacak akumulasi biaya tersembunyi (*the silent leak* seperti biaya admin transfer, admin bulanan bank, topup e-wallet, dan service charge resto), memperbarui model ekstraksi OCR AI pada struk belanja agar mampu membedakan pajak/service inklusif vs eksklusif tanpa pembengkakan ganda, serta menyediakan input biaya admin praktis pada form transfer antar dompet.
+- **Latar Belakang & Analisa Solusi:**
+  1. *Struk Belanja & OCR:* Struk di Indonesia memiliki 2 jenis pungutan:
+     - **Eksklusif (ditambahkan ke subtotal):** Service charge (5%) dan PB1/PPN restoran (10%) ditambahkan di bawah subtotal. Baris ini wajib diekstrak sebagai sub-item tersendiri dengan kategori `"Biaya Admin & Layanan"` agar total penjumlahan item sama persis dengan total bayar kasir.
+     - **Inklusif (sudah tercakup harga, e.g. Toko Kopi Tuku "Harga Sudah Termasuk Pajak PB1"):** Harga per item sudah mencakup PB1. Jika nominal pajak tersebut ditambahkan lagi sebagai item, total belanja akan terhitung ganda (*double counted*). Sistem sekarang mengekstraknya sebagai metadata informatif (`tax_included` dan `tax_label`) dan menampilkan lencana edukatif di UI tanpa mengubah total riil.
+  2. *Biaya Admin Transfer & Bank:* Biaya transfer (BI-Fast Rp 2.500, Online Rp 6.500) kerap tidak tercatat sehingga saldo dompet asal selisih dengan saldo m-banking. Fitur transfer kini menyediakan input opsi biaya admin dengan chip instan (Gratis, BI-Fast, Online, Kustom). Saat disimpan, sistem membuat mutasi transfer bersih antar dompet sekaligus mencatat pengeluaran otomatis sebesar nominal admin fee di kategori `"Biaya Admin & Layanan"`.
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Menambahkan `"Biaya Admin & Layanan"` ke daftar resmi `CATEGORIES`.
+  - `backend/routes_finance.py`:
+    - Memperbarui `_canonical_category`: memetakan kata kunci `admin`, `service`, `layanan`, `fee`, `biaya admin`, `biaya layanan`, `pajak`, `ppn`, `pb1` ke kategori resmi `"Biaya Admin & Layanan"`.
+    - Memperbarui `get_category_budget_detail`: menambahkan alias komprehensif untuk pelacakan budget kategori biaya admin.
+  - `backend/ai_service.py`:
+    - Memperbarui `CATEGORY_LIST` dan `RECEIPT_PROMPT`: menginstruksikan AI membedakan pajak/service inklusif vs eksklusif, menangkap `tax_included`, `tax_label`, dan `discount_total`.
+    - Memperbarui `scan_receipt`: menyediakan fallback default untuk `tax_included`, `tax_label`, dan `discount_total`.
+    - Memperbarui parser teks offline (`parse_transaction_text`): mendeteksi kata kunci biaya admin/layanan.
+  - `frontend/src/lib/constants.js`:
+    - Menambahkan `{ name: "Biaya Admin & Layanan", icon: "Receipt", emoji: "🏷️", color: "#6366F1" }` ke `CATEGORIES`.
+    - Menambahkan normalisasi deteksi kata kunci admin/layanan/pajak di `catMeta`.
+  - `frontend/src/components/AddBudgetCategoryModal.js`:
+    - Mendaftarkan `"Biaya Admin & Layanan"` ke grup `"needs"` (50/30/20 rule) di `AUTO_GROUP_MAP`.
+  - `frontend/src/components/AddTransactionModal.js`:
+    - Menambahkan state `adminFee` & `adminFeeOption` untuk transfer beserta selector cepat (Gratis, BI-Fast 2.5k, Online 6.5k, Kustom).
+    - Memperbarui `save()`: secara otomatis membukukan transaksi pengeluaran pendamping di bawah kategori `"Biaya Admin & Layanan"` pada dompet asal bila biaya admin > 0.
+    - Menambahkan badge informatif pada pratinjau scan struk untuk `tax_included` dan `discount_total`.
+  - `frontend/src/components/ScanReceiptModal.js`:
+    - Menampilkan lencana informatif di kartu ringkasan untuk pajak inklusif (`tax_included`) dan potongan harga (`discount_total`).
+- **Verifikasi:**
+  - Sintaksis Python backend tervalidasi via `py_compile`.
+  - Diff frontend tervalidasi bersih tanpa syntax/variable error.
+
+---
+
 ### [2026-10-04 01:48:00 WIB] — Hotfix ESLint Build Errors in Budget.js (Restore autoBalancing State and currentMonthName Alias)
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menyelesaikan error kompilasi ESLint pada Vercel build (`setAutoBalancing`, `autoBalancing`, dan `currentMonthName` reported as undefined in `Budget.js`).

@@ -139,7 +139,7 @@ class Wallet(WalletCreate):
 # ---------- Transactions ----------
 CATEGORIES = [
     "Groceries & Kebutuhan Rumah", "Makanan & Minuman", "Transportasi", "Belanja", "Tagihan & Utilitas",
-    "Hiburan", "Kesehatan", "Pendidikan", "Investasi", "Gaji", "Bonus", "Lainnya",
+    "Biaya Admin & Layanan", "Hiburan", "Kesehatan", "Pendidikan", "Investasi", "Gaji", "Bonus", "Lainnya",
 ]
 
 

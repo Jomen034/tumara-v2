@@ -234,6 +234,18 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
                 <span className="text-tsecondary">Total Belanja</span>
                 <span className="font-mono font-bold text-brand">{formatRp(result.total)}</span>
               </div>
+              {Number(result.tax_included) > 0 && (
+                <div className="flex items-center gap-1.5 text-[11px] text-brand bg-brand/10 border border-brand/25 rounded-xl px-2.5 py-1.5 font-medium">
+                  <span>✓</span>
+                  <span>{result.tax_label || "Harga sudah termasuk Pajak/PB1"} {formatRp(result.tax_included)} (tidak digandakan ke total)</span>
+                </div>
+              )}
+              {Number(result.discount_total) > 0 && (
+                <div className="flex items-center gap-1.5 text-[11px] text-amber bg-amber/10 border border-amber/25 rounded-xl px-2.5 py-1.5 font-medium">
+                  <span>🏷️</span>
+                  <span>Diskon terdeteksi: {formatRp(result.discount_total)} (total sudah neto)</span>
+                </div>
+              )}
               {/* Editable Transaction Date */}
               <div className="pt-2 border-t border-borderc/60 flex items-center justify-between gap-3">
                 <span className="text-xs font-semibold text-tsecondary whitespace-nowrap">
