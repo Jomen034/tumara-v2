@@ -219,27 +219,64 @@ export default function Budget() {
       const wantsPool = inc * 0.3;
       const savingsPool = inc * 0.2;
 
-      const balancedCats = activeCats.map((c) => {
-        const grp = c.group || "needs";
-        if (grp === "needs") {
-          if (c.category === "Groceries & Kebutuhan Rumah") return { ...c, limit: Math.round(inc * 0.2) };
-          if (c.category === "Makanan & Minuman") return { ...c, limit: Math.round(inc * 0.1) };
-          if (c.category === "Tagihan & Utilitas") return { ...c, limit: Math.round(inc * 0.1) };
-          if (c.category === "Transportasi") return { ...c, limit: Math.round(inc * 0.05) };
-          if (c.category === "Kesehatan") return { ...c, limit: Math.round(inc * 0.05) };
-          return { ...c, limit: Math.round(needsPool / Math.max(1, needs.length)) };
+      // Bobot alokasi referensi 50/30/20 untuk setiap kategori
+      const DEFAULT_WEIGHTS = {
+        // Kebutuhan (Needs) - total bobot ~50
+        "Groceries & Kebutuhan Rumah": 20,
+        "Makanan & Minuman": 10,
+        "Tagihan & Utilitas": 10,
+        "Transportasi": 5,
+        "Kesehatan": 5,
+        "Pendidikan": 5,
+        "Biaya Admin & Layanan": 0.35,
+
+        // Keinginan (Wants) - total bobot ~30
+        "Belanja": 20,
+        "Hiburan": 10,
+
+        // Tabungan (Savings) - total bobot ~20
+        "Investasi": 20,
+      };
+
+      const balanceGroup = (items, targetPool) => {
+        if (!items || items.length === 0) return [];
+        if (items.length === 1) {
+          return [{ ...items[0], limit: Math.round(targetPool) }];
         }
-        if (grp === "wants") {
-          if (c.category === "Belanja") return { ...c, limit: Math.round(inc * 0.2) };
-          if (c.category === "Hiburan") return { ...c, limit: Math.round(inc * 0.1) };
-          return { ...c, limit: Math.round(wantsPool / Math.max(1, wants.length)) };
+
+        const weights = items.map((it) => DEFAULT_WEIGHTS[it.category] || 5);
+        const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+        let maxIdx = 0;
+        let maxWeight = -1;
+        let allocatedSum = 0;
+
+        const updated = items.map((it, idx) => {
+          const w = weights[idx];
+          if (w > maxWeight) {
+            maxWeight = w;
+            maxIdx = idx;
+          }
+          const raw = (w / totalWeight) * targetPool;
+          const rounded = Math.round(raw / 1000) * 1000;
+          allocatedSum += rounded;
+          return { ...it, limit: Math.max(0, rounded) };
+        });
+
+        // Exact compensation to largest category to guarantee sum === targetPool
+        const diff = Math.round(targetPool - allocatedSum);
+        if (diff !== 0 && updated[maxIdx]) {
+          updated[maxIdx].limit = Math.max(0, updated[maxIdx].limit + diff);
         }
-        if (grp === "savings") {
-          if (c.category === "Investasi") return { ...c, limit: Math.round(inc * 0.2) };
-          return { ...c, limit: Math.round(savingsPool / Math.max(1, savings.length)) };
-        }
-        return c;
-      });
+
+        return updated;
+      };
+
+      const balancedNeeds = balanceGroup(needs, needsPool);
+      const balancedWants = balanceGroup(wants, wantsPool);
+      const balancedSavings = balanceGroup(savings, savingsPool);
+
+      const balancedCats = [...balancedNeeds, ...balancedWants, ...balancedSavings];
 
       await api.post("/budget", {
         monthly_income: inc,

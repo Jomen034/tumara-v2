@@ -20,6 +20,21 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-06 03:00:00 WIB] — Fix Proportional Math in handleAutoBalance (Budget 50/30/20 Rebalancer)
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Memperbaiki bug kalkulasi pada fitur *"Seimbangkan 50/30/20"* di halaman Budget yang menyebabkan defisit alokasi palsu (misal: Total Anggaran Rp 15.708.333 padahal Penghasilan Rp 14.500.000 dengan defisit Rp 1.208.333).
+- **Latar Belakang & Analisa Bug:**
+  - Sebelumnya, `handleAutoBalance` di `Budget.js` mengalokasikan persentase tetap (0.2, 0.1, 0.1, 0.05, 0.05) pada 5 kategori standar `needs` yang sudah pas 50%.
+  - Ketika pengguna menambahkan kategori ke-6 seperti *"Biaya Admin & Layanan"*, kode lama melakukan `return { ...c, limit: Math.round(needsPool / needs.length) }`. Hal ini menambahkan `Rp 7.250.000 / 6 = Rp 1.208.333` **di atas** 50% yang sudah penuh, sehingga total anggaran melonjak menjadi Rp 15.708.333 dan memicu peringatan defisit Rp 1.208.333.
+- **Solusi & Key Actions:**
+  - `frontend/src/pages/Budget.js`:
+    - Mengganti logika hardcoded dengan fungsi `balanceGroup` berbasis bobot relatif dinamis (`DEFAULT_WEIGHTS`).
+    - Menetapkan bobot realistis untuk *"Biaya Admin & Layanan"* sebesar `0.35` (setara ~Rp 50.000 pada penghasilan Rp 14.5M).
+    - Memastikan total alokasi per grup (`needs`, `wants`, `savings`) **100% tepat** sama dengan target pool (50%, 30%, 20%) dengan kompensasi selisih pembulatan rupiah ke kategori terbesar.
+    - Menjamin total anggaran hasil seimbang selalu 100% pas dengan penghasilan bulanan (defisit = Rp 0).
+
+---
+
 ### [2026-10-06 02:08:00 WIB] — Added "Biaya Admin & Layanan" Category, Smart Exclusive/Inclusive Receipt OCR Extraction, and Transfer Admin Fee Flow
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menghadirkan kategori standar resmi **"Biaya Admin & Layanan"** untuk melacak akumulasi biaya tersembunyi (*the silent leak* seperti biaya admin transfer, admin bulanan bank, topup e-wallet, dan service charge resto), memperbarui model ekstraksi OCR AI pada struk belanja agar mampu membedakan pajak/service inklusif vs eksklusif tanpa pembengkakan ganda, serta menyediakan input biaya admin praktis pada form transfer antar dompet.
