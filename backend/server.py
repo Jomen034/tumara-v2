@@ -110,8 +110,19 @@ async def on_startup():
             {"note": {"$regex": "grand lucky|grandlucky", "$options": "i"}, "date": "2026-10-01"},
             {"$set": {"date": "2026-09-24"}}
         )
+    # Re-categorize Car Loan & installments from Transportasi to "Cicilan & Pinjaman"
+    try:
+        await db.transactions.update_many(
+            {"note": {"$regex": "car loan|cicilan mobil|kredit mobil|leasing|kpr", "$options": "i"},
+             "category": {"$in": ["Transportasi", "Lainnya", "Tagihan & Utilitas"]}},
+            {"$set": {"category": "Cicilan & Pinjaman"}}
+        )
+        await db.bills.update_many(
+            {"name": {"$regex": "car loan|cicilan mobil|kredit mobil|leasing|kpr", "$options": "i"}},
+            {"$set": {"category": "Cicilan & Pinjaman"}}
+        )
     except Exception as e:
-        print(f"[Startup Migration] Warning restoring Grand Lucky date: {e}")
+        print(f"[Startup Migration] Warning updating car loan categories: {e}")
 
 raw_origins = os.environ.get("CORS_ORIGINS", "")
 parsed_origins = [o.strip().rstrip("/") for o in raw_origins.split(",") if o.strip() and o.strip() != "*"]

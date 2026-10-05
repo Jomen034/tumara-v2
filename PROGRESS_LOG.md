@@ -20,6 +20,31 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-06 03:34:00 WIB] — Added "Cicilan & Pinjaman" Category, Auto Re-categorization for Car Loan, & Macro Wallet Performance in Reports
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Menghadirkan kategori standar resmi **"Cicilan & Pinjaman"** (🏛️) agar pembayaran angsuran liabilitas (Car Loan, KPR, leasing, pinjaman bank) terisolasi rapi dan tidak mengotori pos anggaran operasional harian seperti *Transportasi* (bensin, tol, parkir).
+  2. Menerapkan migrasi otomatis untuk mengalihkan transaksi dan tagihan *Car Loan* yang sebelumnya keliru masuk ke *Transportasi* menjadi *Cicilan & Pinjaman*.
+  3. Menambahkan visualisasi **Performa & Distribusi Beban Rekening/Dompet** di Halaman Laporan (`Reports.js`) mencakup porsi beban pengeluaran keluarga per dompet (*spending share %*), leaderboard keaktifan pemakaian, rata-rata tiket belanja, dan volume perputaran kas.
+- **Key Actions & Changes:**
+  - `frontend/src/lib/constants.js`:
+    - Menambahkan `{ name: "Cicilan & Pinjaman", icon: "Landmark", emoji: "🏛️", color: "#EC4899" }` ke `CATEGORIES`.
+    - Menambahkan pendeteksian otomatis keyword `cicilan`, `pinjaman`, `kpr`, `kkb`, `loan`, `leasing`, `angsuran`, `car loan` ke fungsi `catMeta`.
+  - `frontend/src/components/AddBudgetCategoryModal.js` & `frontend/src/pages/Budget.js`:
+    - Memetakan kategori *"Cicilan & Pinjaman"* secara default ke grup **Needs (Kebutuhan Pokok 50%)**.
+    - Memberikan bobot acuan proporsional `15` pada kalkulator *Auto-Balance 50/30/20*.
+  - `backend/routes_finance.py`:
+    - Memetakan variasi penamaan cicilan/pinjaman/loan secara kanonikal ke *"Cicilan & Pinjaman"* di `_canonical_category`.
+    - Memperkaya endpoint `GET /analytics` dengan data agregasi `wallet_performance` (inflow, outflow, turnover, share_pct, tx_count, avg_ticket, dan net per dompet).
+  - `backend/server.py`:
+    - Menambahkan startup migration query untuk otomatis mengalihkan transaksi dan tagihan dengan nama/catatan `car loan`, `cicilan mobil`, `kredit mobil`, `leasing`, atau `kpr` ke kategori *"Cicilan & Pinjaman"*.
+  - `frontend/src/pages/Reports.js`:
+    - Menambahkan komponen kartu visual *"Performa & Beban Rekening/Dompet"* dengan diagram batang porsi beban pengeluaran keluarga dan leaderboard keaktifan transaksi per rekening.
+  - `backend/tests/test_money_integrity.py`:
+    - Menambahkan test case normalisasi kanonikal untuk *"Cicilan & Pinjaman"*, seluruh 16 unit test lulus 100%.
+
+---
+
 ### [2026-10-06 03:22:00 WIB] — Sort Wallets Alphabetically (A-Z) & Introduce Wallet Performance Metrics
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Mengurutkan daftar dompet dan rekening secara alfabetis A-Z di backend dan frontend untuk navigasi cepat, serta menyematkan metrik performa operasional dompet (frekuensi pemakaian, volume perputaran, rata-rata tiket belanja, badge tingkat keaktifan) pada modal detail dompet.

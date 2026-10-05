@@ -4,6 +4,7 @@ export const CATEGORIES = [
   { name: "Transportasi", icon: "Car", emoji: "🚗", color: "#38BDF8" },
   { name: "Belanja", icon: "ShoppingBag", emoji: "🛍️", color: "#E879F9" },
   { name: "Tagihan & Utilitas", icon: "ReceiptText", emoji: "⚡", color: "#FBBF24" },
+  { name: "Cicilan & Pinjaman", icon: "Landmark", emoji: "🏛️", color: "#EC4899" },
   { name: "Biaya Admin & Layanan", icon: "Receipt", emoji: "🏷️", color: "#6366F1" },
   { name: "Hiburan", icon: "Gamepad2", emoji: "🎮", color: "#A78BFA" },
   { name: "Kesehatan", icon: "HeartPulse", emoji: "💊", color: "#FB7185" },
@@ -72,6 +73,25 @@ export const catMeta = (name, type) => {
         icon: "Receipt",
         emoji: "🏷️",
         color: "#6366F1",
+      }
+    );
+  }
+  if (
+    lower.includes("cicilan") ||
+    lower.includes("pinjaman") ||
+    lower.includes("kpr") ||
+    lower.includes("kkb") ||
+    lower.includes("loan") ||
+    lower.includes("leasing") ||
+    lower.includes("angsuran") ||
+    lower.includes("car loan")
+  ) {
+    return (
+      CATEGORIES.find((c) => c.name === "Cicilan & Pinjaman") || {
+        name: "Cicilan & Pinjaman",
+        icon: "Landmark",
+        emoji: "🏛️",
+        color: "#EC4899",
       }
     );
   }

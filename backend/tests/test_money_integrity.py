@@ -108,6 +108,9 @@ class TestReceiptCategoryDistribution(unittest.TestCase):
         self.assertEqual(self.canonical("Supermarket GrandLucky"), "Groceries & Kebutuhan Rumah")
         self.assertEqual(self.canonical("Kopi Kenangan"), "Makanan & Minuman")
         self.assertEqual(self.canonical("Bensin BP"), "Transportasi")
+        self.assertEqual(self.canonical("Car Loan BCA Finance"), "Cicilan & Pinjaman")
+        self.assertEqual(self.canonical("Cicilan Mobil"), "Cicilan & Pinjaman")
+        self.assertEqual(self.canonical("Angsuran KPR BTN"), "Cicilan & Pinjaman")
 
     def test_single_item_expense_distribution(self):
         """Transaksi biasa tanpa sub-item 100% masuk ke kategori utama."""

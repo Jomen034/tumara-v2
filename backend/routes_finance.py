@@ -35,6 +35,8 @@ def _canonical_category(cat: str) -> str:
         return "Makanan & Minuman"
     if any(k in c_low for k in ["tagihan", "utilitas", "listrik", "air", "internet", "wifi", "pulsa"]):
         return "Tagihan & Utilitas"
+    if any(k in c_low for k in ["cicilan", "pinjaman", "kpr", "kkb", "loan", "leasing", "angsuran"]):
+        return "Cicilan & Pinjaman"
     if any(k in c_low for k in ["transport", "bensin", "ojol", "parkir", "tol"]):
         return "Transportasi"
     if any(k in c_low for k in ["sehat", "obat", "apotek", "medis", "dokter"]):
@@ -1218,6 +1220,58 @@ async def analytics(
 
     monthly_table_reversed = list(reversed(monthly_table))
 
+    # Calculate wallet performance and spending share for the period
+    wallet_perf_map = defaultdict(lambda: {"inflow": 0.0, "outflow": 0.0, "tx_count": 0, "expense_count": 0})
+    for t in period_txns:
+        wid = t.get("wallet_id")
+        to_wid = t.get("to_wallet_id")
+        amt = float(t.get("amount", 0))
+        ttype = t.get("type")
+
+        if wid:
+            wallet_perf_map[wid]["tx_count"] += 1
+            if ttype == "expense":
+                wallet_perf_map[wid]["outflow"] += amt
+                wallet_perf_map[wid]["expense_count"] += 1
+            elif ttype == "income":
+                wallet_perf_map[wid]["inflow"] += amt
+            elif ttype == "transfer":
+                wallet_perf_map[wid]["outflow"] += amt
+                wallet_perf_map[wid]["expense_count"] += 1
+
+        if to_wid and ttype == "transfer":
+            wallet_perf_map[to_wid]["tx_count"] += 1
+            wallet_perf_map[to_wid]["inflow"] += amt
+
+    wallet_performance = []
+    total_period_outflow = sum(v["outflow"] for v in wallet_perf_map.values())
+    for w in sorted(wallets, key=lambda x: (x.get("name") or "").lower()):
+        wid = w["id"]
+        stats = wallet_perf_map[wid]
+        outflow = stats["outflow"]
+        inflow = stats["inflow"]
+        tx_count = stats["tx_count"]
+        share_pct = round((outflow / total_period_outflow * 100), 1) if total_period_outflow > 0 else 0.0
+        avg_ticket = int(round(outflow / stats["expense_count"])) if stats["expense_count"] > 0 else 0
+
+        wallet_performance.append({
+            "wallet_id": wid,
+            "name": w.get("name", "Dompet"),
+            "type": w.get("type", "bank"),
+            "color": w.get("color", "#00E676"),
+            "balance": w.get("balance", 0),
+            "inflow": inflow,
+            "outflow": outflow,
+            "turnover": inflow + outflow,
+            "net": inflow - outflow,
+            "tx_count": tx_count,
+            "share_pct": share_pct,
+            "avg_ticket": avg_ticket,
+            "is_debt": ledger.is_debt_wallet(w),
+        })
+
+    wallet_performance.sort(key=lambda x: -x["outflow"])
+
     return {
         "kpi": {
             "current_net_worth": current_net_worth,
@@ -1239,6 +1293,7 @@ async def analytics(
         "category_breakdown": category_breakdown,
         "top_expenses": top_expenses,
         "monthly_table": monthly_table_reversed,
+        "wallet_performance": wallet_performance,
     }
 
 

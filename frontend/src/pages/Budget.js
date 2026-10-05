@@ -225,6 +225,7 @@ export default function Budget() {
         "Groceries & Kebutuhan Rumah": 20,
         "Makanan & Minuman": 10,
         "Tagihan & Utilitas": 10,
+        "Cicilan & Pinjaman": 15,
         "Transportasi": 5,
         "Kesehatan": 5,
         "Pendidikan": 5,

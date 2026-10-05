@@ -136,6 +136,7 @@ export default function Reports() {
 
   const topExpenses = data?.top_expenses || [];
   const monthlyTable = data?.monthly_table || [];
+  const walletPerformance = data?.wallet_performance || [];
 
   const tip = (props) => {
     const { active, payload, label } = props;
@@ -635,6 +636,116 @@ export default function Reports() {
           )}
         </Card>
       </div>
+
+      {/* Performa & Distribusi Beban Dompet */}
+      <Card data-testid="wallet-performance-card" className="space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h2 className="font-head font-bold text-lg text-tprimary flex items-center gap-2">
+              <Wallet size={18} className="text-brand" /> Performa & Beban Rekening/Dompet
+            </h2>
+            <p className="text-xs text-tmuted mt-0.5">
+              Porsi beban pengeluaran, frekuensi transaksi, dan perputaran kas per rekening di periode ini
+            </p>
+          </div>
+          <span className="text-xs text-tmuted font-mono">
+            {walletPerformance.length} Rekening Aktif
+          </span>
+        </div>
+
+        {walletPerformance.length === 0 ? (
+          <div className="py-8 text-center text-sm text-tmuted">
+            Belum ada transaksi pada dompet di periode ini.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start pt-1">
+            {/* Left: Porsi Beban Pengeluaran per Dompet */}
+            <div className="space-y-3 p-3.5 rounded-xl bg-elevated/40 border border-borderc/60">
+              <span className="text-xs font-bold text-tmuted uppercase tracking-wider block">
+                Porsi Pengeluaran Keluarga ({formatShort(kpi.period_expense, privacy)})
+              </span>
+              <div className="space-y-3">
+                {walletPerformance
+                  .filter((w) => w.outflow > 0 || w.tx_count > 0)
+                  .map((w, idx) => (
+                    <div key={w.wallet_id} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-2 font-medium text-tprimary truncate">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: w.color }}
+                          />
+                          <span className="truncate">{w.name}</span>
+                          {idx === 0 && w.outflow > 0 && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-rose/10 text-rose text-[10px] font-semibold shrink-0">
+                              Beban Terbesar
+                            </span>
+                          )}
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0 font-mono">
+                          <span className="text-tmuted text-[11px]">{w.share_pct}%</span>
+                          <span className={clsx("font-bold text-tprimary", privacy && "privacy-blur")}>
+                            {formatShort(w.outflow, privacy)}
+                          </span>
+                        </div>
+                      </div>
+                      <Progress
+                        value={w.share_pct}
+                        color={w.color || "var(--brand)"}
+                        className="h-1.5"
+                      />
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* Right: Leaderboard Keaktifan & Detail Tiket */}
+            <div className="space-y-2.5">
+              <span className="text-xs font-bold text-tmuted uppercase tracking-wider block">
+                Statistik Keaktifan & Tiket Belanja
+              </span>
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {walletPerformance.map((w, idx) => (
+                  <div
+                    key={w.wallet_id}
+                    className="p-3 rounded-xl bg-surface border border-borderc/80 flex items-center justify-between gap-3 text-xs hover:border-brand/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-bold font-mono text-xs"
+                        style={{ backgroundColor: `${w.color}22`, color: w.color }}
+                      >
+                        #{idx + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-tprimary truncate">{w.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-tmuted font-mono">
+                          <span>{w.tx_count}x trx</span>
+                          <span>·</span>
+                          <span>Avg: {formatShort(w.avg_ticket, privacy)}/trx</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-[10px] text-tmuted uppercase font-semibold block">
+                        Volume
+                      </span>
+                      <span
+                        className={clsx(
+                          "font-mono font-bold text-xs text-tprimary",
+                          privacy && "privacy-blur"
+                        )}
+                      >
+                        {formatShort(w.turnover, privacy)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* Monthly Performance Breakdown Table */}
       <Card className="space-y-4">

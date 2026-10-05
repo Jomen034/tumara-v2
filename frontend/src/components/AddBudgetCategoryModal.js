@@ -56,6 +56,7 @@ const AUTO_GROUP_MAP = {
   "Makanan & Minuman": "needs",
   "Transportasi": "needs",
   "Tagihan & Utilitas": "needs",
+  "Cicilan & Pinjaman": "needs",
   "Biaya Admin & Layanan": "needs",
   "Kesehatan": "needs",
   "Pendidikan": "needs",
