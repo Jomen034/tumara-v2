@@ -20,6 +20,22 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-06 04:18:00 WIB] — Streamline Receipt Scanner to Universal Native Sheet Picker (Photo Library, Camera, & Files)
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menyederhanakan dan menyatukan antarmuka pemindai struk belanja (*Receipt Scanner*). Karena input berkas standar tanpa atribut `capture` secara bawaan memunculkan menu sistem native di perangkat mobile (iOS & Android) yang mencakup *Photo Library (Galeri)*, *Take Photo (Kamera)*, dan *Choose File (Berkas)*, sistem dirombak menjadi satu kartu dropzone yang elegan dan intuitif, serta menghilangkan opsi kamera webcam desktop yang tidak diperlukan.
+- **Key Actions & Changes:**
+  - `frontend/src/components/AddTransactionModal.js` & `frontend/src/components/ScanReceiptModal.js`:
+    - Mengeliminasi kode webcam dan tombol kamera ganda yang redundan.
+    - Menghadirkan area dropzone tunggal yang bersih dengan label *"Ambil Foto atau Upload Struk"* dan tombol *"Pilih dari Galeri / Kamera"*.
+    - Menghubungkan dropzone langsung ke input berkas standar `<input type="file" accept="image/*">`:
+      - Di perangkat HP (iOS/Android): Ketukan langsung memicu *bottom sheet* OS native dengan pilihan lengkap (*Photo Library*, *Take Photo*, *Choose File*).
+      - Di desktop web: Klik membuka pemilih berkas Finder/Explorer serta mendukung *Drag & Drop* gambar tanpa kerumitan izin webcam.
+- **Verifikasi:**
+  - Keseimbangan kurung dan sintaks JS 100% seimbang (0 delta error).
+  - 17/17 automated test suites backend lulus 100%.
+
+---
+
 ### [2026-10-06 04:14:00 WIB] — Precise Category-Allocated Amounts in Budget Detail Modal for Split Receipts & No Double-Counting Guarantee
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menyelaraskan nominal transaksi di dalam modal detail anggaran per kategori (`BudgetDetailModal.js`). Ketika struk belanja dipindai dengan sub-item multi-kategori (misal: *Restoran Sederhana* Rp 209.000 dengan makanan Rp 190.000 dan pajak PB1 Rp 19.000), daftar riwayat di pos *Biaya Admin & Layanan* kini menampilkan nominal porsi yang sebenarnya (`-Rp 19.000`) dengan badge `Porsi Struk (9 item)` dan label `total struk Rp 209.000`, serta membuktikan bahwa sistem sama sekali tidak melakukan pencatatan ganda (*no double counting*).

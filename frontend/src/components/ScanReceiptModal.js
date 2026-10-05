@@ -16,12 +16,7 @@ import { CATEGORIES, catMeta } from "../lib/constants";
 import { Modal, Button, Select, Spinner, Badge } from "./ui";
 
 export default function ScanReceiptModal({ open, onClose, onSaved }) {
-  const cameraInputRef = useRef();
-  const galleryInputRef = useRef();
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const [webcamActive, setWebcamActive] = useState(false);
-  const [webcamStarting, setWebcamStarting] = useState(false);
+  const fileRef = useRef();
 
   const [preview, setPreview] = useState(null);
   const [file, setFile] = useState(null);
@@ -38,83 +33,7 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
   const [receiptCategory, setReceiptCategory] = useState("Groceries & Kebutuhan Rumah");
   const [scannedItems, setScannedItems] = useState([]);
 
-  const isMobile = () => {
-    if (typeof window === "undefined" || typeof navigator === "undefined") return false;
-    return (
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-      (navigator.maxTouchPoints && navigator.maxTouchPoints > 2)
-    );
-  };
-
-  const stopWebcam = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setWebcamActive(false);
-    setWebcamStarting(false);
-  };
-
-  const startWebcam = async () => {
-    if (!navigator?.mediaDevices?.getUserMedia) {
-      toast.error("Browser Anda tidak mendukung kamera langsung. Silakan pilih file.");
-      galleryInputRef.current?.click();
-      return;
-    }
-    setWebcamStarting(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment",
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: false,
-      });
-      streamRef.current = stream;
-      setWebcamActive(true);
-    } catch (err) {
-      console.error("Webcam error:", err);
-      toast.error("Tidak dapat mengakses kamera. Silakan pilih dari galeri atau file.");
-      galleryInputRef.current?.click();
-    } finally {
-      setWebcamStarting(false);
-    }
-  };
-
-  const captureWebcam = () => {
-    if (!videoRef.current) return;
-    const video = videoRef.current;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) return toast.error("Gagal mengambil foto dari kamera");
-        const f = new File([blob], `struk_${Date.now()}.jpg`, { type: "image/jpeg" });
-        stopWebcam();
-        processFile(f);
-        toast.success("Foto struk berhasil diambil!");
-      },
-      "image/jpeg",
-      0.92
-    );
-  };
-
-  useEffect(() => {
-    if (!open) {
-      stopWebcam();
-    }
-  }, [open]);
-
-  useEffect(() => {
-    return () => stopWebcam();
-  }, []);
-
   const reset = () => {
-    stopWebcam();
     setPreview(null);
     setFile(null);
     setResult(null);
@@ -265,113 +184,43 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
       size="md"
     >
       <div className="space-y-4">
-        {!preview && webcamActive && (
-          <div className="relative rounded-2xl overflow-hidden border border-borderc bg-black flex flex-col items-center justify-center min-h-[260px]">
-            <video
-              ref={(el) => {
-                videoRef.current = el;
-                if (el && streamRef.current && el.srcObject !== streamRef.current) {
-                  el.srcObject = streamRef.current;
-                }
-              }}
-              autoPlay
-              playsInline
-              muted
-              className="w-full max-h-72 object-contain bg-black"
-            />
-            <div className="absolute inset-4 border-2 border-dashed border-white/40 rounded-xl pointer-events-none flex items-center justify-center">
-              <span className="text-[11px] text-white/80 bg-black/60 px-2.5 py-1 rounded-md backdrop-blur-sm shadow">
-                Posisikan struk belanja di dalam kotak
-              </span>
+        {!preview && (
+          <button
+            type="button"
+            data-testid="receipt-upload-dropzone"
+            onClick={() => fileRef.current?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const f = e.dataTransfer.files?.[0];
+              if (f) processFile(f);
+            }}
+            className="w-full border-2 border-dashed border-borderc rounded-2xl py-12 px-4 flex flex-col items-center text-center gap-3 hover:border-brand transition-colors bg-elevated/40 cursor-pointer group"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-elevated flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
+              <UploadCloud size={26} className="text-brand" />
             </div>
-            <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-2.5 px-3">
-              <button
-                type="button"
-                onClick={stopWebcam}
-                className="px-3.5 py-1.5 rounded-full bg-black/70 hover:bg-black text-white text-xs font-medium border border-white/20 transition-all flex items-center gap-1.5 backdrop-blur-sm"
-              >
-                <X size={14} /> Batal
-              </button>
-              <button
-                type="button"
-                onClick={captureWebcam}
-                className="px-4 py-2 rounded-full bg-brand hover:bg-brand/90 text-surface font-bold text-xs shadow-lg transition-all flex items-center gap-1.5 active:scale-95"
-              >
-                <Camera size={15} /> Jepret Foto Struk
-              </button>
+            <div>
+              <p className="font-semibold text-sm text-tprimary">Ambil Foto atau Upload Struk</p>
+              <p className="text-xs text-tmuted mt-0.5">
+                Kamera HP, Galeri Foto, JPG, PNG, atau WEBP
+              </p>
             </div>
-          </div>
-        )}
-
-        {!preview && !webcamActive && (
-          <div className="space-y-3">
-            <div
-              data-testid="receipt-upload-dropzone"
-              onClick={() => galleryInputRef.current?.click()}
-              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const f = e.dataTransfer.files?.[0];
-                if (f) processFile(f);
-              }}
-              className="w-full border-2 border-dashed border-borderc rounded-2xl py-8 px-4 flex flex-col items-center text-center gap-2.5 hover:border-brand transition-colors bg-elevated/40 cursor-pointer group"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-elevated flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
-                <UploadCloud size={24} className="text-brand" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm text-tprimary">Pilih atau Tarik Foto Struk ke Sini</p>
-                <p className="text-xs text-tmuted mt-0.5">Mendukung format JPG, PNG, atau WEBP</p>
-              </div>
-              <span className="text-[11px] text-brand font-medium">
-                {isMobile() ? "Ketuk untuk memilih dari Galeri atau File" : "Klik untuk memilih file dari komputer"}
-              </span>
-            </div>
-
-            {/* Tombol aksi eksplisit: Kamera vs Galeri */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  if (isMobile()) {
-                    cameraInputRef.current?.click();
-                  } else {
-                    startWebcam();
-                  }
-                }}
-                disabled={webcamStarting}
-                className="flex items-center justify-center gap-2 p-3 rounded-xl bg-surface border border-borderc hover:border-brand hover:text-brand text-xs font-semibold text-tprimary transition-all shadow-sm active:scale-98"
-              >
-                {webcamStarting ? <Spinner size={14} /> : <Camera size={16} className="text-brand" />}
-                <span>{isMobile() ? "Ambil Foto (Kamera)" : "Buka Kamera Webcam"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => galleryInputRef.current?.click()}
-                className="flex items-center justify-center gap-2 p-3 rounded-xl bg-surface border border-borderc hover:border-brand hover:text-brand text-xs font-semibold text-tprimary transition-all shadow-sm active:scale-98"
-              >
-                <ImageIcon size={16} className="text-cyan" />
-                <span>Pilih dari Galeri</span>
-              </button>
-            </div>
-          </div>
+            <span className="text-xs text-brand font-medium px-3.5 py-1.5 rounded-xl bg-brand/10 border border-brand/20 group-hover:bg-brand group-hover:text-surface transition-all">
+              Pilih dari Galeri / Kamera
+            </span>
+          </button>
         )}
 
         <input
-          ref={galleryInputRef}
+          ref={fileRef}
           data-testid="receipt-file-input"
           type="file"
           accept="image/*"
-          onChange={pick}
-          className="hidden"
-        />
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
           onChange={pick}
           className="hidden"
         />
