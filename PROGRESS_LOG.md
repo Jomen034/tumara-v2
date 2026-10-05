@@ -20,6 +20,15 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-06 03:36:00 WIB] — Fix Server Startup SyntaxError in backend/server.py
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Memperbaiki `SyntaxError: expected 'except' or 'finally' block` di `backend/server.py:114` yang menyebabkan kegagalan build/start di Render.
+- **Root Cause & Fix:**
+  - Blok migrasi startup sebelumnya tidak sengaja menghapus klausa `except Exception as e:` pada blok `Grand Lucky` sebelum blok migrasi `Car Loan`.
+  - Mengembalikan klausa `except` yang hilang dan memverifikasi seluruh modul Python backend dengan `python3 -m py_compile backend/*.py` (100% valid tanpa syntax error).
+
+---
+
 ### [2026-10-06 03:34:00 WIB] — Added "Cicilan & Pinjaman" Category, Auto Re-categorization for Car Loan, & Macro Wallet Performance in Reports
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**

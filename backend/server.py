@@ -110,6 +110,9 @@ async def on_startup():
             {"note": {"$regex": "grand lucky|grandlucky", "$options": "i"}, "date": "2026-10-01"},
             {"$set": {"date": "2026-09-24"}}
         )
+    except Exception as e:
+        print(f"[Startup Migration] Warning restoring Grand Lucky date: {e}")
+
     # Re-categorize Car Loan & installments from Transportasi to "Cicilan & Pinjaman"
     try:
         await db.transactions.update_many(
