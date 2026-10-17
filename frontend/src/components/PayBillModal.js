@@ -24,6 +24,8 @@ export default function PayBillModal({
   onSuccess,
 }) {
   const { privacy } = useTheme();
+  const [amount, setAmount] = useState("");
+  const [updateMaster, setUpdateMaster] = useState(false);
   const [walletId, setWalletId] = useState("");
   const [paidDate, setPaidDate] = useState("");
   const [note, setNote] = useState("");
@@ -32,6 +34,9 @@ export default function PayBillModal({
 
   useEffect(() => {
     if (open && bill) {
+      setAmount(bill.amount != null ? String(bill.amount) : "");
+      setUpdateMaster(false);
+
       // Pick initial wallet
       if (bill.wallet_id && wallets.some((w) => w.id === bill.wallet_id)) {
         setWalletId(bill.wallet_id);
@@ -69,13 +74,15 @@ export default function PayBillModal({
   const selectedWallet = wallets.find((w) => w.id === walletId);
   const isDebtWallet = selectedWallet && ["credit_card", "paylater"].includes(selectedWallet.type);
 
+  const effectiveAmount = parseFloat(amount) > 0 ? parseFloat(amount) : (Number(bill.amount) || 0);
+
   // Compute balance preview
   let balancePreview = null;
   if (selectedWallet && recordTransaction) {
     const curBal = Number(selectedWallet.balance) || 0;
     if (isDebtWallet) {
       // Debt increases when charged
-      const nextDebt = curBal + bill.amount;
+      const nextDebt = curBal + effectiveAmount;
       balancePreview = {
         label: "Total tagihan kartu bertambah:",
         before: curBal,
@@ -84,7 +91,7 @@ export default function PayBillModal({
       };
     } else {
       // Asset decreases
-      const nextBal = curBal - bill.amount;
+      const nextBal = curBal - effectiveAmount;
       balancePreview = {
         label: "Sisa saldo setelah bayar:",
         before: curBal,
@@ -107,6 +114,8 @@ export default function PayBillModal({
         paid_date: paidDate || new Date().toISOString().slice(0, 10),
         note: note.trim() || undefined,
         record_transaction: recordTransaction,
+        amount: effectiveAmount,
+        update_master_amount: updateMaster,
       };
 
       const res = await api.post(`/bills/${bill.id}/pay`, payload);
@@ -116,7 +125,7 @@ export default function PayBillModal({
         toast.success(`🎉 Luar biasa! "${bill.name}" telah lunas sepenuhnya!`);
       } else if (recordTransaction && selectedWallet) {
         toast.success(
-          `Pembayaran "${bill.name}" sebesar ${formatRp(bill.amount, privacy)} berhasil dicatat dari ${selectedWallet.name}!`
+          `Pembayaran "${bill.name}" sebesar ${formatRp(effectiveAmount, privacy)} berhasil dicatat dari ${selectedWallet.name}!`
         );
       } else {
         toast.success(`Tagihan "${bill.name}" berhasil ditandai lunas untuk siklus ini!`);
@@ -163,14 +172,64 @@ export default function PayBillModal({
           </div>
 
           <div className="text-right shrink-0">
-            <span className="text-[10px] text-tmuted uppercase block font-semibold">Nominal</span>
+            <span className="text-[10px] text-tmuted uppercase block font-semibold">Estimasi Master</span>
             <span
-              className={`font-mono text-base font-bold text-brand ${
+              className={`font-mono text-sm font-semibold text-tsecondary ${
                 privacy ? "privacy-blur" : ""
               }`}
             >
               {formatRp(bill.amount, privacy)}
             </span>
+          </div>
+        </div>
+
+        {/* Flexible Amount Input Card */}
+        <div className="p-3.5 rounded-2xl bg-elevated/40 border border-borderc space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-tprimary">
+              Nominal Pembayaran Bulan Ini
+            </label>
+            {bill.amount && Number(amount) !== Number(bill.amount) && (
+              <button
+                type="button"
+                onClick={() => setAmount(String(bill.amount))}
+                className="text-[11px] text-brand hover:underline font-medium"
+              >
+                Reset ke patokan
+              </button>
+            )}
+          </div>
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-tmuted font-mono">
+              Rp
+            </span>
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0"
+              className="w-full bg-surface border border-borderc rounded-xl pl-11 pr-4 py-2 text-base font-mono font-bold text-brand focus:border-brand focus:outline-none"
+              data-testid="pay-bill-amount-input"
+              required
+            />
+          </div>
+          <div className="flex items-center justify-between pt-0.5">
+            <p className="text-[11px] text-tmuted">
+              {Number(amount) !== Number(bill.amount)
+                ? "Bisa disesuaikan bila pemakaian aktual berbeda."
+                : `Patokan: ${formatRp(bill.amount, privacy)}/bln`}
+            </p>
+            {Number(amount) > 0 && Number(amount) !== Number(bill.amount) && (
+              <label className="flex items-center gap-1.5 text-[11px] text-tsecondary cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={updateMaster}
+                  onChange={(e) => setUpdateMaster(e.target.checked)}
+                  className="w-3.5 h-3.5 text-brand bg-elevated border-borderc rounded focus:ring-brand accent-brand cursor-pointer"
+                />
+                Update patokan kartu
+              </label>
+            )}
           </div>
         </div>
 

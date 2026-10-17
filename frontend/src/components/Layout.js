@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { NavLink } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -56,8 +56,22 @@ function Logo({ small }) {
 export default function Layout({ children, onAdd, onScan }) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme, privacy, togglePrivacy } = useTheme();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Auto scroll to top on page / route transition
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [location.pathname]);
+
+  const handleNavClick = (to) => {
+    if (location.pathname === to) {
+      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    } else {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
+  };
 
   const topActions = (
     <div className="flex items-center gap-1.5">
@@ -98,6 +112,7 @@ export default function Layout({ children, onAdd, onScan }) {
             <NavLink
               key={n.to}
               to={n.to}
+              onClick={() => handleNavClick(n.to)}
               data-testid={`nav-${n.to.slice(1)}`}
               className={({ isActive }) =>
                 clsx(
@@ -257,6 +272,7 @@ export default function Layout({ children, onAdd, onScan }) {
           <NavLink
             key={n.to}
             to={n.to}
+            onClick={() => handleNavClick(n.to)}
             data-testid={`bottomnav-${n.to.slice(1)}`}
             className={({ isActive }) =>
               clsx(

@@ -84,33 +84,65 @@ export default function BillCalendar({
     let billCountThisMonth = 0;
 
     bills.forEach((b) => {
-      let billDay = null;
-      let isProjected = false;
+      const paidInViewedMonth = Boolean(b.last_paid_date && b.last_paid_date.startsWith(monthPrefix));
 
-      // Direct match with next_due_date in current viewed month
-      if (b.next_due_date && b.next_due_date.startsWith(monthPrefix)) {
-        billDay = parseInt(b.next_due_date.slice(8, 10), 10);
-      } else if (b.recurrence === "monthly" && b.next_due_date && !b.is_completed) {
-        // Project monthly bills if viewing next month or past month
-        const origDay = parseInt(b.next_due_date.slice(8, 10), 10);
-        if (!isNaN(origDay)) {
-          billDay = Math.min(origDay, daysInMonth);
-          isProjected = true;
+      if (paidInViewedMonth) {
+        // Bill was paid in the currently viewed month!
+        const billDay = parseInt(b.last_paid_date.slice(8, 10), 10);
+        if (billDay >= 1 && billDay <= daysInMonth) {
+          const dateKey = `${monthPrefix}-${String(billDay).padStart(2, "0")}`;
+          if (!map[dateKey]) map[dateKey] = [];
+          const effectiveAmt = Number(b.last_paid_amount || b.amount) || 0;
+          map[dateKey].push({
+            ...b,
+            isPaidThisCycle: true,
+            isPaid: true,
+            paidDate: b.last_paid_date,
+            displayAmount: effectiveAmt,
+          });
+
+          totalMonthlyAmount += effectiveAmt;
+          paidMonthlyAmount += effectiveAmt;
+          billCountThisMonth += 1;
         }
-      }
+      } else {
+        // Not paid in viewed month
+        let billDay = null;
+        let isProjected = false;
 
-      if (billDay && billDay >= 1 && billDay <= daysInMonth) {
-        const dateKey = `${monthPrefix}-${String(billDay).padStart(2, "0")}`;
-        if (!map[dateKey]) map[dateKey] = [];
-        map[dateKey].push({ ...b, isProjected });
-
-        totalMonthlyAmount += Number(b.amount) || 0;
-        if (b.is_completed) {
-          paidMonthlyAmount += Number(b.amount) || 0;
-        } else {
-          unpaidMonthlyAmount += Number(b.amount) || 0;
+        if (b.next_due_date && b.next_due_date.startsWith(monthPrefix)) {
+          billDay = parseInt(b.next_due_date.slice(8, 10), 10);
+        } else if (b.recurrence === "monthly" && b.next_due_date && !b.is_completed) {
+          // Project monthly bills if viewing next month or future month
+          const origDay = parseInt(b.next_due_date.slice(8, 10), 10);
+          if (!isNaN(origDay)) {
+            billDay = Math.min(origDay, daysInMonth);
+            isProjected = true;
+          }
         }
-        billCountThisMonth += 1;
+
+        if (billDay && billDay >= 1 && billDay <= daysInMonth) {
+          const dateKey = `${monthPrefix}-${String(billDay).padStart(2, "0")}`;
+          if (!map[dateKey]) map[dateKey] = [];
+          const billAmt = Number(b.amount) || 0;
+          const isComp = Boolean(b.is_completed);
+
+          map[dateKey].push({
+            ...b,
+            isProjected,
+            isPaidThisCycle: isComp,
+            isPaid: isComp,
+            displayAmount: billAmt,
+          });
+
+          totalMonthlyAmount += billAmt;
+          if (isComp) {
+            paidMonthlyAmount += billAmt;
+          } else {
+            unpaidMonthlyAmount += billAmt;
+          }
+          billCountThisMonth += 1;
+        }
       }
     });
 
@@ -135,14 +167,15 @@ export default function BillCalendar({
     let allCompleted = true;
 
     billsOnDay.forEach((b) => {
-      if (!b.is_completed) {
+      const isPaid = b.is_completed || b.isPaidThisCycle || b.isPaid;
+      if (!isPaid) {
         allCompleted = false;
         if (b.days_until < 0) hasOverdue = true;
         else if (b.days_until <= 3) hasUrgent = true;
       }
     });
 
-    if (allCompleted) return { label: "Lunas", color: "var(--cyan)", tone: "cyan" };
+    if (allCompleted) return { label: "Lunas", color: "var(--brand)", tone: "brand" };
     if (hasOverdue) return { label: "Telat", color: "var(--rose)", tone: "rose" };
     if (hasUrgent) return { label: "Mendesak", color: "var(--amber)", tone: "amber" };
     return { label: "Aman", color: "var(--brand)", tone: "brand" };
@@ -393,8 +426,9 @@ export default function BillCalendar({
                       {/* Colored Dots per bill (up to 3 dots) */}
                       <div className="flex items-center gap-1 flex-wrap">
                         {billsOnDay.slice(0, 3).map((b, bi) => {
-                          const dotColor = b.is_completed
-                            ? "bg-cyan"
+                          const isPaid = Boolean(b.is_completed || b.isPaidThisCycle || b.isPaid);
+                          const dotColor = isPaid
+                            ? "bg-brand"
                             : b.days_until < 0
                             ? "bg-rose"
                             : b.days_until <= 3

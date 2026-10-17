@@ -67,22 +67,51 @@ export default function Bills() {
     note: "",
   });
 
+  const [sortBy, setSortBy] = useState("alpha"); // "alpha" (A-Z default), "due" (Jatuh Tempo), "status" (Belum Bayar)
+
+  const todayMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
+
+  const isPaidThisMonth = (b) => {
+    if (b.is_completed) return true;
+    if (b.last_paid_date && b.last_paid_date.startsWith(todayMonth)) return true;
+    if (b.recurrence === "monthly" && b.next_due_date && b.next_due_date.slice(0, 7) > todayMonth && b.last_paid_date) return true;
+    return false;
+  };
+
   const walletMap = useMemo(() => {
     return Object.fromEntries(wallets.map((w) => [w.id, w]));
   }, [wallets]);
 
   const displayedBills = useMemo(() => {
-    if (!selectedDate) return bills;
-    return bills.filter((b) => {
-      if (b.next_due_date === selectedDate) return true;
-      if (b.recurrence === "monthly" && b.next_due_date) {
-        const selDay = parseInt(selectedDate.slice(8, 10), 10);
-        const billDay = parseInt(b.next_due_date.slice(8, 10), 10);
-        return selDay === billDay;
-      }
-      return false;
-    });
-  }, [bills, selectedDate]);
+    let list = bills;
+    if (selectedDate) {
+      list = bills.filter((b) => {
+        if (b.next_due_date === selectedDate) return true;
+        if (b.last_paid_date === selectedDate) return true;
+        if (b.recurrence === "monthly" && b.next_due_date) {
+          const selDay = parseInt(selectedDate.slice(8, 10), 10);
+          const billDay = parseInt(b.next_due_date.slice(8, 10), 10);
+          return selDay === billDay;
+        }
+        return false;
+      });
+    }
+
+    const sorted = [...list];
+    if (sortBy === "alpha") {
+      sorted.sort((a, b) => (a.name || "").localeCompare(b.name || "", "id", { sensitivity: "base" }));
+    } else if (sortBy === "due") {
+      sorted.sort((a, b) => (a.next_due_date || "").localeCompare(b.next_due_date || ""));
+    } else if (sortBy === "status") {
+      sorted.sort((a, b) => {
+        const pa = isPaidThisMonth(a) ? 1 : 0;
+        const pb = isPaidThisMonth(b) ? 1 : 0;
+        if (pa !== pb) return pa - pb;
+        return (a.name || "").localeCompare(b.name || "", "id", { sensitivity: "base" });
+      });
+    }
+    return sorted;
+  }, [bills, selectedDate, sortBy, todayMonth]);
 
   const load = () =>
     Promise.all([api.get("/bills"), api.get("/wallets")])
@@ -171,13 +200,14 @@ export default function Bills() {
     }
   };
 
-  const dueColor = (d, isComp) => {
-    if (isComp) return "var(--brand)";
+  const dueColor = (d, isComp, isPaidCycle) => {
+    if (isComp || isPaidCycle) return "var(--brand)";
     return d < 0 ? "var(--rose)" : d <= 3 ? "var(--amber)" : "var(--brand)";
   };
 
-  const dueLabel = (d, isComp) => {
+  const dueLabel = (d, isComp, isPaidCycle) => {
     if (isComp) return "Lunas";
+    if (isPaidCycle) return "Lunas Siklus Ini";
     return d < 0 ? `Telat ${Math.abs(d)} hari` : d === 0 ? "Hari ini" : `${d} hari lagi`;
   };
 
@@ -221,8 +251,8 @@ export default function Bills() {
             walletMap={walletMap}
           />
 
-          {/* Section Header */}
-          <div className="flex items-center justify-between pt-1">
+          {/* Section Header & Sorting Controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
             <h3 className="font-head font-bold text-base sm:text-lg text-tprimary flex items-center gap-2">
               <ReceiptText size={18} className="text-brand" />
               {selectedDate ? (
@@ -231,14 +261,60 @@ export default function Bills() {
                 <>Daftar Tagihan ({bills.length})</>
               )}
             </h3>
-            {selectedDate && (
-              <button
-                onClick={() => setSelectedDate(null)}
-                className="text-xs text-brand font-semibold hover:underline bg-brand/10 hover:bg-brand/20 px-2.5 py-1 rounded-lg transition-colors"
-              >
-                Reset Filter
-              </button>
-            )}
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Sort pills */}
+              <div className="flex items-center bg-elevated border border-borderc rounded-xl p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setSortBy("alpha")}
+                  className={clsx(
+                    "px-2.5 py-1 rounded-lg font-medium transition-colors",
+                    sortBy === "alpha"
+                      ? "bg-surface text-brand font-bold shadow-xs"
+                      : "text-tmuted hover:text-tprimary"
+                  )}
+                  title="Urutkan berdasarkan abjad A-Z"
+                >
+                  Abjad (A–Z)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortBy("due")}
+                  className={clsx(
+                    "px-2.5 py-1 rounded-lg font-medium transition-colors",
+                    sortBy === "due"
+                      ? "bg-surface text-brand font-bold shadow-xs"
+                      : "text-tmuted hover:text-tprimary"
+                  )}
+                  title="Urutkan berdasarkan tanggal jatuh tempo terdekat"
+                >
+                  Jatuh Tempo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortBy("status")}
+                  className={clsx(
+                    "px-2.5 py-1 rounded-lg font-medium transition-colors",
+                    sortBy === "status"
+                      ? "bg-surface text-brand font-bold shadow-xs"
+                      : "text-tmuted hover:text-tprimary"
+                  )}
+                  title="Prioritaskan tagihan yang belum dibayar di atas"
+                >
+                  Belum Lunas
+                </button>
+              </div>
+
+              {selectedDate && (
+                <button
+                  onClick={() => setSelectedDate(null)}
+                  className="text-xs text-brand font-semibold hover:underline bg-brand/10 hover:bg-brand/20 px-2.5 py-1 rounded-lg transition-colors"
+                >
+                  Reset Filter
+                </button>
+              )}
+            </div>
           </div>
 
           {displayedBills.length === 0 ? (
@@ -259,7 +335,8 @@ export default function Bills() {
               {displayedBills.map((b, i) => {
                 const isInstallment = b.bill_type === "installment";
                 const isComp = b.is_completed;
-                const cardColor = dueColor(b.days_until, isComp);
+                const isPaidCycle = isPaidThisMonth(b);
+                const cardColor = dueColor(b.days_until, isComp, isPaidCycle);
 
                 return (
                   <motion.div
@@ -289,8 +366,9 @@ export default function Bills() {
                             </p>
                             <div className="flex items-center gap-1.5 flex-wrap mt-1">
                               <Badge color={cardColor}>
-                                {!isComp && b.days_until <= 3 && <AlertTriangle size={11} />}
-                                {dueLabel(b.days_until, isComp)}
+                                {!isComp && !isPaidCycle && b.days_until <= 3 && <AlertTriangle size={11} />}
+                                {isPaidCycle && !isComp && <CheckCircle2 size={11} />}
+                                {dueLabel(b.days_until, isComp, isPaidCycle)}
                               </Badge>
 
                               {isInstallment ? (
@@ -312,7 +390,7 @@ export default function Bills() {
                         <div className="text-right shrink-0">
                           <p
                             className={`font-mono font-bold text-base sm:text-lg ${
-                              b.days_until < 0 && !isComp ? "text-rose" : "text-tprimary"
+                              b.days_until < 0 && !isComp && !isPaidCycle ? "text-rose" : "text-tprimary"
                             } ${privacy ? "privacy-blur" : ""}`}
                           >
                             {formatRp(b.amount, privacy)}
@@ -351,14 +429,16 @@ export default function Bills() {
                           ) : (
                             <span className="text-tmuted">Manual</span>
                           )}
-                          <span>· Tempo {b.next_due_date}</span>
+                          <span>
+                            · {isPaidCycle && !isComp ? `Jatuh tempo berikutnya ${b.next_due_date}` : `Tempo ${b.next_due_date}`}
+                          </span>
                         </div>
 
                         <div
-                          className="flex items-center gap-1 shrink-0"
+                          className="flex items-center gap-1.5 shrink-0"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          {!isComp && (
+                          {!isComp && !isPaidCycle && (
                             <Button
                               size="sm"
                               onClick={() => setPayingBill(b)}
@@ -366,6 +446,21 @@ export default function Bills() {
                             >
                               <CheckCircle2 size={14} /> Bayar
                             </Button>
+                          )}
+                          {!isComp && isPaidCycle && (
+                            <div className="flex items-center gap-1">
+                              <span className="inline-flex items-center gap-1 text-xs text-brand font-semibold px-2.5 py-1 rounded-lg bg-brand/10 border border-brand/20">
+                                <CheckCircle2 size={13} /> Lunas
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setPayingBill(b)}
+                                className="text-[11px] text-tmuted hover:text-brand hover:underline px-1 py-1 transition-colors"
+                                title="Bayar lagi untuk siklus berikutnya lebih awal"
+                              >
+                                Bayar Lagi
+                              </button>
+                            </div>
                           )}
                           <button
                             onClick={() => openEdit(b)}

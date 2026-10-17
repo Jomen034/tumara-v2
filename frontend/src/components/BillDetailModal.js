@@ -58,17 +58,25 @@ export default function BillDetailModal({
 
   const isInstallment = bill.bill_type === "installment";
   const isCompleted = bill.is_completed || (isInstallment && bill.total_tenor > 0 && bill.paid_tenor >= bill.total_tenor);
+  const todayMonth = new Date().toISOString().slice(0, 7);
+  const isPaidThisMonth = Boolean(
+    isCompleted ||
+    (bill.last_paid_date && bill.last_paid_date.startsWith(todayMonth)) ||
+    (bill.recurrence === "monthly" && bill.next_due_date && bill.next_due_date.slice(0, 7) > todayMonth && bill.last_paid_date)
+  );
+
   const wallet = wallets.find((w) => w.id === bill.wallet_id);
   const m = catMeta(bill.category);
   const Ic = Icons[m.icon] || ReceiptText;
 
   const dueColor = (d) => {
-    if (isCompleted) return "var(--brand)";
+    if (isCompleted || isPaidThisMonth) return "var(--brand)";
     return d < 0 ? "var(--rose)" : d <= 3 ? "var(--amber)" : "var(--brand)";
   };
 
   const dueLabel = (d) => {
     if (isCompleted) return "Lunas Sepenuhnya 🎉";
+    if (isPaidThisMonth) return "Lunas Siklus Ini ✓";
     return d < 0
       ? `Telat ${Math.abs(d)} hari`
       : d === 0
@@ -131,6 +139,15 @@ export default function BillDetailModal({
             <p className="text-xs text-tsecondary mt-2 max-w-md mx-auto italic">
               "{bill.note}"
             </p>
+          )}
+
+          {isPaidThisMonth && !isCompleted && (
+            <div className="mt-3 p-2.5 rounded-xl bg-brand/10 border border-brand/20 text-xs text-brand font-medium flex items-center justify-center gap-2">
+              <CheckCircle2 size={14} className="shrink-0" />
+              <span>
+                Tagihan siklus bulan ini telah lunas {bill.last_paid_date ? `(${formatDate(bill.last_paid_date)})` : ""}. Jatuh tempo berikutnya {formatDate(bill.next_due_date)}.
+              </span>
+            </div>
           )}
         </div>
 
@@ -290,7 +307,11 @@ export default function BillDetailModal({
                 size="md"
               >
                 <CheckCircle2 size={16} />
-                {paying ? "Mencatat Pembayaran..." : "Bayar Tagihan Ini"}
+                {paying
+                  ? "Mencatat Pembayaran..."
+                  : isPaidThisMonth
+                  ? "Bayar Siklus Berikutnya Lebih Awal"
+                  : "Bayar Tagihan Ini"}
               </Button>
             )}
 

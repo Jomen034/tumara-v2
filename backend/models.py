@@ -107,6 +107,8 @@ class Bill(BillCreate):
     member_id: str
     is_paid_current_cycle: bool = False
     is_completed: bool = False
+    last_paid_date: Optional[str] = None
+    last_paid_amount: Optional[float] = None
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -115,6 +117,8 @@ class BillPaymentRequest(BaseModel):
     paid_date: Optional[str] = None  # YYYY-MM-DD
     note: Optional[str] = None
     record_transaction: bool = True
+    amount: Optional[float] = None
+    update_master_amount: bool = False
 
 
 # ---------- Wallets ----------

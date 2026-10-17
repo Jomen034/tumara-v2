@@ -29,7 +29,28 @@ def _advance(d: str, recurrence: str) -> str:
 async def list_bills(ctx: Ctx = Depends(get_ctx)):
     bills = await db.bills.find({"household_id": ctx.hid}, {"_id": 0}).sort("next_due_date", 1).to_list(200)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # Fetch latest payment transactions for all bills in this household
+    bill_ids = [b["id"] for b in bills if "id" in b]
+    latest_txns = {}
+    if bill_ids:
+        txns = await db.transactions.find(
+            {"household_id": ctx.hid, "bill_id": {"$in": bill_ids}},
+            {"_id": 0, "bill_id": 1, "date": 1, "amount": 1}
+        ).sort("date", -1).to_list(500)
+        for t in txns:
+            bid = t.get("bill_id")
+            if bid and bid not in latest_txns:
+                latest_txns[bid] = t
+
     for b in bills:
+        # Populate last_paid_date from transactions if missing or if txn is newer
+        if b.get("id") in latest_txns:
+            lt = latest_txns[b["id"]]
+            if not b.get("last_paid_date") or lt.get("date", "") >= b.get("last_paid_date", ""):
+                b["last_paid_date"] = lt.get("date")
+                b["last_paid_amount"] = lt.get("amount")
+
         try:
             b["days_until"] = (datetime.strptime(b["next_due_date"], "%Y-%m-%d").date()
                                - datetime.strptime(today, "%Y-%m-%d").date()).days
@@ -114,6 +135,13 @@ async def pay_bill(bill_id: str, body: Optional[BillPaymentRequest] = None, ctx:
     if bill.get("is_completed"):
         raise HTTPException(400, "Tagihan/cicilan ini sudah lunas sepenuhnya")
 
+    # Determine payment amount (use custom amount if provided, otherwise default to master bill amount)
+    custom_amount = getattr(body, "amount", None) if body else None
+    if custom_amount is not None and custom_amount > 0:
+        payment_amount = int(round(float(custom_amount)))
+    else:
+        payment_amount = int(round(float(bill["amount"])))
+
     # Determine which wallet to use
     chosen_wallet = (body.wallet_id if body and body.wallet_id else None) or bill.get("wallet_id")
 
@@ -122,7 +150,10 @@ async def pay_bill(bill_id: str, body: Optional[BillPaymentRequest] = None, ctx:
     if body and body.record_transaction is False:
         should_record = False
 
+    created_txn = None
     created_txn_id = None
+    paid_date = (body.paid_date if (body and body.paid_date) else None) or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
     if chosen_wallet and should_record:
         # Validate that the chosen wallet exists in this household
         wal = await db.wallets.find_one({"id": chosen_wallet, "household_id": ctx.hid})
@@ -140,14 +171,12 @@ async def pay_bill(bill_id: str, body: Optional[BillPaymentRequest] = None, ctx:
                 if tot:
                     note_text = f"Bayar cicilan ke-{curr_inst}/{tot}: {bill['name']}"
 
-        paid_date = (body.paid_date if (body and body.paid_date) else None) or datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
         t = Transaction(
             user_id=ctx.user.user_id,
             household_id=ctx.hid,
             member_id=ctx.user.user_id,
             type="expense",
-            amount=int(round(float(bill["amount"]))),
+            amount=payment_amount,
             wallet_id=chosen_wallet,
             category=bill.get("category", "Tagihan & Utilitas"),
             note=note_text,
@@ -159,8 +188,16 @@ async def pay_bill(bill_id: str, body: Optional[BillPaymentRequest] = None, ctx:
         await ledger.apply_transaction(ctx.hid, t, +1)
         await ledger.snapshot_networth(ctx.hid)
         created_txn = t
+        created_txn_id = t.id
 
     try:
+        update_fields = {
+            "last_paid_date": paid_date,
+            "last_paid_amount": payment_amount,
+        }
+        if body and getattr(body, "update_master_amount", False) and custom_amount and custom_amount > 0:
+            update_fields["amount"] = payment_amount
+
         # advance to next cycle or complete installment
         if bill.get("bill_type") == "installment":
             new_paid = (bill.get("paid_tenor") or 0) + 1
@@ -168,23 +205,20 @@ async def pay_bill(bill_id: str, body: Optional[BillPaymentRequest] = None, ctx:
             is_completed = total_tenor > 0 and new_paid >= total_tenor
 
             if is_completed:
-                await db.bills.update_one(
-                    {"id": bill_id, "household_id": ctx.hid},
-                    {"$set": {"paid_tenor": new_paid, "is_completed": True, "is_paid_current_cycle": True}}
-                )
+                update_fields.update({"paid_tenor": new_paid, "is_completed": True, "is_paid_current_cycle": True})
             else:
                 nxt = _advance(bill["next_due_date"], bill.get("recurrence", "monthly"))
-                await db.bills.update_one(
-                    {"id": bill_id, "household_id": ctx.hid},
-                    {"$set": {"paid_tenor": new_paid, "next_due_date": nxt, "is_paid_current_cycle": False}}
-                )
+                update_fields.update({"paid_tenor": new_paid, "next_due_date": nxt, "is_paid_current_cycle": False})
         elif bill.get("recurrence") == "once":
-            await db.bills.update_one({"id": bill_id, "household_id": ctx.hid}, {"$set": {"is_paid_current_cycle": True, "is_completed": True}})
+            update_fields.update({"is_paid_current_cycle": True, "is_completed": True})
         else:
             nxt = _advance(bill["next_due_date"], bill["recurrence"])
-            await db.bills.update_one(
-                {"id": bill_id, "household_id": ctx.hid}, {"$set": {"next_due_date": nxt, "is_paid_current_cycle": False}}
-            )
+            update_fields.update({"next_due_date": nxt, "is_paid_current_cycle": False})
+
+        await db.bills.update_one(
+            {"id": bill_id, "household_id": ctx.hid},
+            {"$set": update_fields}
+        )
     except Exception as e:
         if created_txn:
             await ledger.apply_transaction(ctx.hid, created_txn, -1)
