@@ -5,13 +5,13 @@ import base64
 from datetime import datetime, timezone
 
 import re
-from PIL import Image
+from PIL import Image, ImageOps
 from db import db
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "").strip()
-MODEL_NAME = "gemini-3.8-flash"  # Current Google GenAI recommended model (gemini-2.5-flash deprecated for new users)
-LEGACY_MODEL_NAME = "gemini-3.8-flash"  # legacy google.generativeai SDK fallback
+MODEL_NAME = "gemini-2.5-flash"  # Current Google GenAI recommended model
+LEGACY_MODEL_NAME = "gemini-1.5-flash"  # legacy google.generativeai SDK fallback
 
 # Initialize Google GenAI client (modern SDK) or fallback to legacy google.generativeai
 genai_modern_client = None
@@ -198,12 +198,18 @@ async def advisor_stream(user_id: str, session_id: str, message: str, history: l
 
 def _resize_image(raw: bytes) -> bytes:
     img = Image.open(io.BytesIO(raw))
+    # Otomatis koreksi orientasi foto smartphone berdasarkan tag EXIF (portrait vs landscape)
+    try:
+        img = ImageOps.exif_transpose(img)
+    except Exception as e:
+        print(f"[AI Service] exif_transpose warning: {e}")
     if getattr(img, "is_animated", False):
         img.seek(0)
     img = img.convert("RGB")
-    img.thumbnail((1600, 1600))
+    # Thumbnail 2400px agar struk belanja panjang tetap tajam font kecilnya saat dibaca OCR
+    img.thumbnail((2400, 2400), Image.Resampling.LANCZOS)
     out = io.BytesIO()
-    img.save(out, format="JPEG", quality=85)
+    img.save(out, format="JPEG", quality=90)
     return out.getvalue()
 
 
@@ -487,31 +493,42 @@ async def generate_weekly_recap(user_id: str) -> str:
 async def scan_receipt(raw: bytes) -> dict:
     resized = _resize_image(raw)
     text = None
+    last_error = None
     
     # 1. Modern google.genai
     if GEMINI_API_KEY and genai_modern_client:
-        try:
-            from google.genai import types
-            resp = await genai_modern_client.aio.models.generate_content(
-                model=MODEL_NAME,
-                contents=[
-                    types.Part.from_bytes(data=resized, mime_type="image/jpeg"),
-                    RECEIPT_PROMPT,
-                ]
-            )
-            text = resp.text
-        except Exception as e:
-            print(f"[AI Service] google.genai scan_receipt error: {e}")
+        from google.genai import types
+        candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        for mod in candidate_models:
+            try:
+                resp = await genai_modern_client.aio.models.generate_content(
+                    model=mod,
+                    contents=[
+                        types.Part.from_bytes(data=resized, mime_type="image/jpeg"),
+                        RECEIPT_PROMPT,
+                    ]
+                )
+                if resp and resp.text:
+                    text = resp.text
+                    break
+            except Exception as e:
+                last_error = e
+                print(f"[AI Service] google.genai scan_receipt error ({mod}): {e}")
 
     # 2. Legacy google.generativeai
     if not text and GEMINI_API_KEY and genai_legacy_client:
-        try:
-            model = genai_legacy_client.GenerativeModel(model_name="gemini-1.5-flash")
-            img = Image.open(io.BytesIO(resized))
-            resp = await model.generate_content_async([RECEIPT_PROMPT, img])
-            text = resp.text
-        except Exception as e:
-            print(f"[AI Service] google.generativeai scan_receipt error: {e}")
+        legacy_candidates = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash"]
+        for mod in legacy_candidates:
+            try:
+                model = genai_legacy_client.GenerativeModel(model_name=mod)
+                img = Image.open(io.BytesIO(resized))
+                resp = await model.generate_content_async([RECEIPT_PROMPT, img])
+                if resp and resp.text:
+                    text = resp.text
+                    break
+            except Exception as e:
+                last_error = e
+                print(f"[AI Service] google.generativeai scan_receipt error ({mod}): {e}")
 
     # 3. Emergent fallback
     if not text and EMERGENT_LLM_KEY:
@@ -521,19 +538,22 @@ async def scan_receipt(raw: bytes) -> dict:
             chat = LlmChat(
                 api_key=EMERGENT_LLM_KEY, session_id="receipt-scan",
                 system_message="You extract structured data from receipt images and reply with pure JSON only.",
-            ).with_model("gemini", "gemini-3-flash-preview")
+            ).with_model("gemini", "gemini-2.5-flash")
             resp = await chat.send_message(
                 UserMessage(text=RECEIPT_PROMPT, file_contents=[ImageContent(image_base64=b64)])
             )
             text = resp if isinstance(resp, str) else getattr(resp, "content", str(resp))
         except Exception as e:
+            last_error = e
             print(f"[AI Service] emergentintegrations receipt error: {e}")
 
     if not text:
-        text = json.dumps({
-            "merchant": "Struk Belanja", "total": 50000, "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-            "category": "Makanan & Minuman", "items": [{"name": "Item Struk", "price": 50000, "category": "Makanan & Minuman"}]
-        })
+        err_msg = f" ({str(last_error)[:80]})" if last_error else ""
+        raise RuntimeError(
+            f"Struk tidak berhasil dipindai oleh AI{err_msg}. "
+            "Pastikan posisi struk tegak lurus (gunakan tombol 'Putar 90°' jika posisi foto miring), "
+            "pencahayaan terang, dan teks transaksi terbaca jelas."
+        )
 
     text = text.strip()
     if text.startswith("```"):

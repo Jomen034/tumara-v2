@@ -58,7 +58,7 @@ async def scan_receipt_endpoint(file: UploadFile = File(...), user: User = Depen
     try:
         data = await scan_receipt(raw)
     except Exception as e:
-        raise HTTPException(500, f"Gagal memindai struk: {str(e)[:120]}")
+        raise HTTPException(422, str(e)[:200])
     return data
 
 

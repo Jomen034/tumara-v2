@@ -20,6 +20,29 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-18 00:05:00 WIB] — Receipt Scanner Overhaul: Android Native Camera Capture, In-App 90° Image Rotation, Auto-EXIF Transpose, and Reliable AI Model Fallback
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menuntaskan kendala pada fitur Scan Struk Belanja:
+  1. Memunculkan opsi buka kamera langsung di perangkat Android (`capture="environment"`), yang sebelumnya hanya memunculkan file/media picker tanpa akses kamera.
+  2. Menyediakan fitur putar foto struk (90° Rotation) langsung di antarmuka preview sebelum proses scan dimulai, mengatasi foto miring/terputar ke samping (seperti kasus struk AEON Mall BSD yang terputar tidur 90 derajat).
+  3. Memperbaiki pemrosesan backend AI: auto-transpose EXIF smartphone, resolusi tinggi hingga 2400px untuk struk belanja panjang (30+ item), model fallback Google GenAI valid (`gemini-2.5-flash`, `gemini-2.0-flash`, `gemini-1.5-flash`), dan menghapus silent dummy fallback Rp 50.000 agar sistem selalu transparan dan akurat.
+- **Key Actions & Changes:**
+  - `frontend/src/components/ScanReceiptModal.js` & `frontend/src/components/AddTransactionModal.js`:
+    - Menyediakan 2 tombol aksi eksplisit pada dropzone upload: **"Buka Kamera HP"** (memicu input native dengan `capture="environment"`) dan **"Pilih dari Galeri"** (memicu input file/galeri).
+    - Menambahkan tombol rotasi **"Putar 90°"** baik secara floating di atas preview foto struk maupun di tombol aksi pendamping *"Ganti Foto"*, memungkinkan pengguna memutar orientasi foto 90 derajat searah jarum jam menggunakan HTML5 Canvas sebelum dikirim ke AI.
+  - `backend/ai_service.py`:
+    - Menambahkan `ImageOps.exif_transpose(img)` di fungsi `_resize_image()` agar seluruh metadata orientasi sensor smartphone (portrait vs landscape) otomatis dikoreksi menjadi tegak lurus secara internal.
+    - Meningkatkan dimensi thumbnail maksimal dari `1600px` ke `2400px` dengan interpolasi `LANCZOS`, menjaga ketajaman font thermal kasir pada struk supermarket panjang (seperti struk AEON 30 item bernilai Rp 692.529).
+    - Memperbarui model AI dari penamaan tidak valid menjadi model resmi Google GenAI (`gemini-2.5-flash` dengan fallback otomatis ke `gemini-2.0-flash` dan `gemini-1.5-flash`).
+    - **Menghapus silent dummy fallback Rp 50.000:** Mengganti pengembalian data dummy 50k dengan pengecualian `RuntimeError` deskriptif yang memandu pengguna jika struk benar-benar tidak dapat dibaca oleh AI.
+  - `backend/routes_ai.py`:
+    - Memperbarui endpoint `/ai/scan-receipt` untuk mengembalikan status HTTP 422 dengan detail pesan error yang ramah pengguna.
+- **Verifikasi & Sinkronisasi:**
+  - Kompilasi `backend/ai_service.py` dan `backend/routes_ai.py` 100% bebas error sintaks.
+  - Diterapkan pada repositori Tumara v2 dan di-push ke branch `main`.
+
+---
+
 ### [2026-10-17 23:45:00 WIB] — Aggregate Credit Card & Paylater Utilization Facility Summary & Mobile Scorecards Responsive Fix for Goals
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**
