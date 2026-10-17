@@ -10,8 +10,8 @@ from db import db
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "").strip()
-MODEL_NAME = "gemini-2.5-flash"  # Current Google GenAI recommended model
-LEGACY_MODEL_NAME = "gemini-1.5-flash"  # legacy google.generativeai SDK fallback
+MODEL_NAME = "gemini-3.8-flash"  # Current Google GenAI recommended model
+LEGACY_MODEL_NAME = "gemini-3.8-flash"  # legacy google.generativeai SDK fallback
 
 # Initialize Google GenAI client (modern SDK) or fallback to legacy google.generativeai
 genai_modern_client = None
@@ -263,10 +263,10 @@ RECEIPT_PROMPT = (
 
 def _extract_json(text: str) -> dict:
     text = (text or "").strip()
-    if text.startswith("```"):
-        text = text.split("```")[1]
-        if text.startswith("json"):
-            text = text[4:]
+    if "```" in text:
+        match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
+        if match:
+            text = match.group(1).strip()
     try:
         return json.loads(text.strip())
     except Exception:
@@ -495,29 +495,41 @@ async def scan_receipt(raw: bytes) -> dict:
     text = None
     last_error = None
     
-    # 1. Modern google.genai
+    # 1. Modern google.genai SDK
     if GEMINI_API_KEY and genai_modern_client:
         from google.genai import types
-        candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        candidate_models = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3-flash-preview"]
         for mod in candidate_models:
+            # Cara 1: Buka sebagai PIL Image (metode standar resmi SDK google-genai)
             try:
+                img_pil = Image.open(io.BytesIO(resized))
                 resp = await genai_modern_client.aio.models.generate_content(
                     model=mod,
-                    contents=[
-                        types.Part.from_bytes(data=resized, mime_type="image/jpeg"),
-                        RECEIPT_PROMPT,
-                    ]
+                    contents=[RECEIPT_PROMPT, img_pil]
                 )
                 if resp and resp.text:
                     text = resp.text
                     break
-            except Exception as e:
-                last_error = e
-                print(f"[AI Service] google.genai scan_receipt error ({mod}): {e}")
+            except Exception as e1:
+                # Cara 2: Gunakan types.Part eksplisit
+                try:
+                    resp = await genai_modern_client.aio.models.generate_content(
+                        model=mod,
+                        contents=[
+                            types.Part.from_text(text=RECEIPT_PROMPT),
+                            types.Part.from_bytes(data=resized, mime_type="image/jpeg"),
+                        ]
+                    )
+                    if resp and resp.text:
+                        text = resp.text
+                        break
+                except Exception as e2:
+                    last_error = e2
+                    print(f"[AI Service] google.genai scan_receipt error ({mod}): {e2}")
 
-    # 2. Legacy google.generativeai
+    # 2. Legacy google.generativeai SDK
     if not text and GEMINI_API_KEY and genai_legacy_client:
-        legacy_candidates = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash"]
+        legacy_candidates = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
         for mod in legacy_candidates:
             try:
                 model = genai_legacy_client.GenerativeModel(model_name=mod)
@@ -532,20 +544,25 @@ async def scan_receipt(raw: bytes) -> dict:
 
     # 3. Emergent fallback
     if not text and EMERGENT_LLM_KEY:
-        try:
-            from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-            b64 = base64.b64encode(resized).decode()
-            chat = LlmChat(
-                api_key=EMERGENT_LLM_KEY, session_id="receipt-scan",
-                system_message="You extract structured data from receipt images and reply with pure JSON only.",
-            ).with_model("gemini", "gemini-2.5-flash")
-            resp = await chat.send_message(
-                UserMessage(text=RECEIPT_PROMPT, file_contents=[ImageContent(image_base64=b64)])
-            )
-            text = resp if isinstance(resp, str) else getattr(resp, "content", str(resp))
-        except Exception as e:
-            last_error = e
-            print(f"[AI Service] emergentintegrations receipt error: {e}")
+        emergent_candidates = ["gemini-3.8-flash", "gemini-3-flash-preview", "gemini-3.5-flash"]
+        for mod in emergent_candidates:
+            try:
+                from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+                b64 = base64.b64encode(resized).decode()
+                chat = LlmChat(
+                    api_key=EMERGENT_LLM_KEY, session_id="receipt-scan",
+                    system_message="You extract structured data from receipt images and reply with pure JSON only.",
+                ).with_model("gemini", mod)
+                resp = await chat.send_message(
+                    UserMessage(text=RECEIPT_PROMPT, file_contents=[ImageContent(image_base64=b64)])
+                )
+                res_text = resp if isinstance(resp, str) else getattr(resp, "content", str(resp))
+                if res_text:
+                    text = res_text
+                    break
+            except Exception as e:
+                last_error = e
+                print(f"[AI Service] emergentintegrations receipt error ({mod}): {e}")
 
     if not text:
         err_msg = f" ({str(last_error)[:80]})" if last_error else ""
@@ -555,16 +572,11 @@ async def scan_receipt(raw: bytes) -> dict:
             "pencahayaan terang, dan teks transaksi terbaca jelas."
         )
 
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.split("```")[1]
-        if text.startswith("json"):
-            text = text[4:]
     try:
-        data = json.loads(text.strip())
+        data = _extract_json(text)
     except Exception:
         start, end = text.find("{"), text.rfind("}")
-        data = json.loads(text[start:end + 1]) if start != -1 else {
+        data = json.loads(text[start:end + 1]) if start != -1 and end != -1 else {
             "merchant": "", "total": 0, "date": None, "category": "Lainnya", "items": []
         }
     data.setdefault("merchant", "")

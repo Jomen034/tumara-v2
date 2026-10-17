@@ -20,6 +20,21 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-18 00:35:00 WIB] — Fix Google GenAI Model 404: Pin to Active Gemini 3.8/3.5 Family & Dual Multimodal Payload Support
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Mengatasi error 404 pada pemanggilan API Google GenAI: `404 This model models/gemini-2.5-flash is no longer available to new users.`
+- **Key Actions & Changes:**
+  - `backend/ai_service.py`:
+    - Mengembalikan `MODEL_NAME` dan `LEGACY_MODEL_NAME` ke model resmi aktif Google GenAI: `gemini-3.8-flash`.
+    - Memperbarui daftar kandidat model OCR struk menjadi keluarga Gemini 3 aktif: `["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3-flash-preview"]`.
+    - Menerapkan penanganan muatan multimodal ganda: mencoba passing native PIL `Image` terlebih dahulu, dengan fallback otomatis ke `types.Part.from_bytes` dan `types.Part.from_text` jika diperlukan.
+    - Menyempurnakan `_extract_json()` dengan regex parsing markdown code block (` ```json ... ``` `) agar output JSON dari model AI diekstrak tanpa kegagalan formatting.
+- **Verifikasi & Sinkronisasi:**
+  - Python compile 100% clean tanpa error.
+  - Perubahan di-commit dan di-push ke branch `main`.
+
+---
+
 ### [2026-10-18 00:05:00 WIB] — Receipt Scanner Overhaul: Android Native Camera Capture, In-App 90° Image Rotation, Auto-EXIF Transpose, and Reliable AI Model Fallback
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menuntaskan kendala pada fitur Scan Struk Belanja:
