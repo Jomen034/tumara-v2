@@ -62,14 +62,22 @@ export default function Layout({ children, onAdd, onScan }) {
 
   // Auto scroll to top on page / route transition
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    } catch {
+      window.scrollTo(0, 0);
+    }
   }, [location.pathname]);
 
   const handleNavClick = (to) => {
-    if (location.pathname === to) {
-      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-    } else {
-      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    try {
+      if (location.pathname === to) {
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      } else {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      }
+    } catch {
+      window.scrollTo(0, 0);
     }
   };
 

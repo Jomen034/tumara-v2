@@ -23,6 +23,7 @@ import api from "../lib/api";
 import { CATEGORIES, catMeta } from "../lib/constants";
 import { formatRp, formatShort } from "../lib/format";
 import { Modal, Button, Input, Select, Spinner } from "./ui";
+import { compressReceiptImage, rotateImageBlob } from "../lib/imageCompressor";
 
 const TYPES = [
   { value: "expense", label: "Pengeluaran", icon: ArrowUpRight, color: "var(--rose)" },
@@ -66,6 +67,7 @@ export default function AddTransactionModal({
   // Receipt Scanner state
   const scanGalleryRef = useRef();
   const scanCameraRef = useRef();
+  const [compressing, setCompressing] = useState(false);
   const [rotating, setRotating] = useState(false);
   const todayDateStr = new Date().toISOString().slice(0, 10);
   const currentMonthStr = todayDateStr.slice(0, 7);
@@ -121,6 +123,7 @@ export default function AddTransactionModal({
   const resetScan = () => {
     setPreview(null);
     setFile(null);
+    setCompressing(false);
     setScanResult(null);
     setItemized(false);
     setScanCategory("Groceries & Kebutuhan Rumah");
@@ -160,15 +163,23 @@ export default function AddTransactionModal({
   };
 
   // Receipt Pick
-  const processReceiptFile = (f) => {
+  const processReceiptFile = async (f) => {
     if (!f) return;
-    if (!["image/jpeg", "image/png", "image/webp", "image/jpg"].includes(f.type))
-      return toast.error("Format harus JPG, PNG, atau WEBP");
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
-    setScanResult(null);
-    setScanDate(todayDateStr);
-    setRawScanDate("");
+    setCompressing(true);
+    try {
+      const opt = await compressReceiptImage(f);
+      if (opt?.file) {
+        setFile(opt.file);
+        setPreview(opt.preview);
+        setScanResult(null);
+        setScanDate(todayDateStr);
+        setRawScanDate("");
+      }
+    } catch (err) {
+      toast.error(err?.message || "Gagal memproses foto struk. Coba ambil ulang.");
+    } finally {
+      setCompressing(false);
+    }
   };
 
   const pickReceipt = (e) => {
@@ -177,49 +188,21 @@ export default function AddTransactionModal({
     if (e.target) e.target.value = "";
   };
 
-  const rotateReceiptImage = () => {
-    if (!preview || rotating) return;
+  const rotateReceiptImage = async () => {
+    if (!preview || !file || rotating) return;
     setRotating(true);
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.naturalHeight || img.height;
-        canvas.height = img.naturalWidth || img.width;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          setRotating(false);
-          return;
-        }
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.rotate((90 * Math.PI) / 180);
-        ctx.drawImage(img, -(img.naturalWidth || img.width) / 2, -(img.naturalHeight || img.height) / 2);
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const rotatedFile = new File([blob], file?.name || "struk.jpg", {
-                type: "image/jpeg",
-              });
-              setFile(rotatedFile);
-              setPreview(URL.createObjectURL(rotatedFile));
-              toast.success("Foto diputar 90°");
-            }
-            setRotating(false);
-          },
-          "image/jpeg",
-          0.92
-        );
-      } catch (err) {
-        setRotating(false);
-        toast.error("Gagal memutar foto");
+    try {
+      const rotated = await rotateImageBlob(file, preview);
+      if (rotated?.file) {
+        setFile(rotated.file);
+        setPreview(rotated.preview);
+        toast.success("Foto diputar 90°");
       }
-    };
-    img.onerror = () => {
+    } catch {
+      toast.error("Gagal memutar foto");
+    } finally {
       setRotating(false);
-      toast.error("Gagal memuat foto untuk diputar");
-    };
-    img.src = preview;
+    }
   };
 
   // Receipt Scan
@@ -569,7 +552,7 @@ export default function AddTransactionModal({
             ref={scanGalleryRef}
             data-testid="receipt-file-input"
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*"
             onChange={pickReceipt}
             className="hidden"
           />
@@ -579,13 +562,21 @@ export default function AddTransactionModal({
             ref={scanCameraRef}
             data-testid="receipt-camera-input"
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*"
             capture="environment"
             onChange={pickReceipt}
             className="hidden"
           />
 
-          {preview && (
+          {compressing && (
+            <div className="p-6 rounded-2xl bg-elevated border border-brand/30 flex flex-col items-center justify-center text-center gap-2">
+              <Spinner size={24} className="text-brand" />
+              <p className="text-xs font-semibold text-tprimary">Mengoptimalkan resolusi foto struk...</p>
+              <p className="text-[11px] text-tmuted">Menyesuaikan kejernihan teks untuk OCR AI</p>
+            </div>
+          )}
+
+          {preview && !compressing && (
             <div className="relative rounded-2xl overflow-hidden border border-borderc max-h-72 flex items-center justify-center bg-elevated group">
               <img src={preview} alt="struk" className="max-h-72 object-contain" />
               {!scanResult && (
@@ -603,7 +594,7 @@ export default function AddTransactionModal({
             </div>
           )}
 
-          {preview && !scanResult && (
+          {preview && !scanResult && !compressing && (
             <div className="flex gap-2">
               <Button variant="secondary" onClick={resetScan} className="flex-1">
                 <RotateCcw size={15} /> Ganti Foto
@@ -621,7 +612,7 @@ export default function AddTransactionModal({
               <Button
                 data-testid="receipt-scan-button"
                 onClick={scanReceipt}
-                disabled={scanning || rotating}
+                disabled={scanning || rotating || compressing}
                 className="flex-[2]"
               >
                 {scanning ? (

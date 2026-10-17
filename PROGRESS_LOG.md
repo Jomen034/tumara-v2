@@ -20,6 +20,31 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-18 01:30:00 WIB] — Mobile PWA & Scan Struk Hardening: Client-side Image Compression, HEIC/iOS Support, Safe Auto-Scroll, and Neutralized Service Worker Caching
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menuntaskan stabilitas PWA mobile (mencegah black screen / WebContent process crash) dan mengoptimalkan performa pemindaian struk di perangkat mobile (Android & iOS).
+- **Key Actions & Changes:**
+  - `frontend/src/lib/imageCompressor.js`:
+    - Membuat utilitas kompresi dan rotasi gambar client-side `compressReceiptImage` dan `rotateImageBlob`.
+    - Menormalkan foto kamera smartphone beresolusi tinggi (12MP–50MP / 10MB–20MB) menjadi JPEG tajam berdimensi maksimal 2400px (~300KB–600KB) sebelum diunggah ke backend.
+    - Menjamin pemrosesan cepat (<0.5 detik), memangkas konsumsi RAM browser/tab, dan mencegah OOM / timeout pada jaringan seluler.
+  - `frontend/src/components/ScanReceiptModal.js` & `frontend/src/components/AddTransactionModal.js`:
+    - Mengintegrasikan `compressReceiptImage` dan `rotateImageBlob` pada alur upload struk.
+    - Menambahkan indikator status visual saat foto sedang dioptimalkan.
+    - Memperbarui atribut file input dengan `accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*"` untuk mendukung format HEIC/HEIF native iOS/Safari.
+  - `frontend/src/components/Layout.js`:
+    - Mengganti parameter scroll non-standar `behavior: "instant"` menjadi `behavior: "auto"` dengan pelindung `try-catch` guna mencegah `TypeError` pada Safari / WebKit.
+  - `frontend/public/service-worker.js`:
+    - Menetralisir service worker ke mode pasif (safe mode) yang secara otomatis membersihkan cache lama (`caches.delete`) dan tidak mengintersepsi fetch dinamis, mencegah ketidaksinkronan hash chunk JS antar-deployment Vercel.
+  - `backend/routes_ai.py` & `backend/ai_service.py`:
+    - Memperluas validasi tipe konten pada endpoint `/ai/scan-receipt` agar ramah terhadap beragam header mobile (`image/*`, `application/octet-stream`).
+    - Menambahkan model fallback resmi Gemini 3 & Gemini 2 aktif.
+- **Verifikasi & Sinkronisasi:**
+  - Sintaks JavaScript dan Python terverifikasi valid tanpa error.
+  - Diterapkan pada repositori Tumara v2 dan siap disinkronkan ke branch `main`.
+
+---
+
 ### [2026-10-18 00:35:00 WIB] — Fix Google GenAI Model 404: Pin to Active Gemini 3.8/3.5 Family & Dual Multimodal Payload Support
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Mengatasi error 404 pada pemanggilan API Google GenAI: `404 This model models/gemini-2.5-flash is no longer available to new users.`

@@ -498,7 +498,7 @@ async def scan_receipt(raw: bytes) -> dict:
     # 1. Modern google.genai SDK
     if GEMINI_API_KEY and genai_modern_client:
         from google.genai import types
-        candidate_models = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3-flash-preview"]
+        candidate_models = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash"]
         for mod in candidate_models:
             # Cara 1: Buka sebagai PIL Image (metode standar resmi SDK google-genai)
             try:

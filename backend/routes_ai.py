@@ -50,15 +50,17 @@ async def chat(body: ChatRequest, ctx: Ctx = Depends(get_ctx)):
 
 @router.post("/scan-receipt")
 async def scan_receipt_endpoint(file: UploadFile = File(...), user: User = Depends(get_current_user)):
-    if file.content_type not in ("image/jpeg", "image/png", "image/webp", "image/jpg"):
-        raise HTTPException(400, "Format gambar harus JPEG, PNG, atau WEBP")
     raw = await file.read()
     if len(raw) == 0:
         raise HTTPException(400, "File kosong")
+    ct = (file.content_type or "").lower()
+    allowed_types = ("image/jpeg", "image/png", "image/webp", "image/jpg", "image/heic", "image/heif", "application/octet-stream")
+    if ct and not any(ct.startswith("image/") or ct in allowed_types):
+        raise HTTPException(400, f"Format gambar harus gambar valid (diterima: {ct})")
     try:
         data = await scan_receipt(raw)
     except Exception as e:
-        raise HTTPException(422, str(e)[:200])
+        raise HTTPException(422, str(e)[:250])
     return data
 
 
