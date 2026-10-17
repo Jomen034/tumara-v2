@@ -20,6 +20,43 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-17 23:30:00 WIB] — Flexible Bill Payment Amount, Monthly Cycle Status in Scorecards, Alphabetical Sorting, & Auto Scroll-to-Top
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menyempurnakan modul Tagihan (Bills) dan Navigasi aplikasi berdasarkan masukan dan pengalaman riil pengguna:
+  1. Mendukung nominal pembayaran fleksibel/variabel saat bayar tagihan (seperti PDAM, PLN, atau kartu kredit) yang berfluktuasi tiap bulan.
+  2. Memperbaiki perhitungan Score Cards kalender tagihan (Total Kewajiban, Sisa Belum Bayar, Sudah Lunas) agar mengenali status pembayaran per siklus bulan berjalan (seperti pembayaran Car Loan Rp 2.700.000 pada siklus Oktober).
+  3. Menambahkan opsi pengurutan kartu tagihan berdasarkan abjad (A–Z default), jatuh tempo terdekat, dan status lunas.
+  4. Menerapkan auto scroll-to-top saat navigasi menu bawah atau rute halaman diklik/berpindah.
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Menambahkan field `last_paid_date` dan `last_paid_amount` pada model `Bill`.
+    - Menambahkan field `amount` dan `update_master_amount` pada model `BillPaymentRequest`.
+  - `backend/routes_bills.py`:
+    - Pada `list_bills`: melakukan query otomatis ke koleksi transaksi untuk mengisi `last_paid_date` dan `last_paid_amount` jika belum tertera pada dokumen tagihan.
+    - Pada `pay_bill`: mendukung parameter `amount` kustom, memotong saldo dompet dan mencatat mutasi riil sesuai angka yang dibayarkan, memperbarui `last_paid_date` dan `last_paid_amount`, serta memperbarui master patokan tagihan jika `update_master_amount` aktif.
+  - `frontend/src/components/PayBillModal.js`:
+    - Mengubah kolom nominal menjadi input angka yang dapat disesuaikan (editable) saat bayar, lengkap dengan tombol reset ke patokan estimasi master.
+    - Menambahkan checkbox opsi *"Update patokan kartu"* untuk mengubah master estimasi masa depan jika diinginkan.
+    - Memperbarui perhitungan real-time preview saldo dompet terhadap nominal yang diketik.
+  - `frontend/src/components/BillCalendar.js`:
+    - Memperbaiki logika pemetaan kalender dan barometer bulanan: tagihan yang sudah dibayar pada bulan yang sedang dilihat dihitung ke dalam **Sudah Lunas** dan tidak lagi dihitung sebagai sisa kewajiban yang belum dibayar.
+    - Memperbarui warna dot kalender menjadi hijau (lunas) untuk tagihan yang telah diselesaikan pada siklus tersebut.
+  - `frontend/src/pages/Bills.js`:
+    - Menambahkan deteksi status lunas siklus berjalan (`isPaidThisMonth`).
+    - Kartu tagihan yang sudah dibayar pada bulan berjalan mendapatkan badge hijau `✓ Lunas Siklus Ini`, info jatuh tempo berikutnya, dan tombol status lunas (dengan opsi *"Bayar Lagi"* jika ingin membayar siklus berikutnya lebih awal).
+    - Menambahkan filter pengurutan (Sort Pills) di bagian atas: **Abjad (A–Z)** *(Default)*, **Jatuh Tempo**, dan **Belum Lunas**.
+  - `frontend/src/components/BillDetailModal.js`:
+    - Menambahkan banner informatif status lunas siklus bulan berjalan dan tombol bayar dinamis.
+  - `frontend/src/components/Layout.js`:
+    - Menambahkan `useEffect` pada `location.pathname` untuk me-reset posisi scroll layar ke koordinat paling atas `(0, 0)` secara instan setiap kali berpindah halaman/rute.
+    - Menambahkan handler `handleNavClick` pada navigasi bawah (bottom nav) dan sidebar untuk melakukan *smooth scroll to top* ketika tab yang sedang aktif diketuk ulang.
+- **Verifikasi & Sinkronisasi:**
+  - Melakukan sinkronisasi satu kali pada dokumen database MongoDB Atlas sehingga transaksi Car Loan Rp 2.700.000 pada 4 Oktober 2026 langsung terhubung dengan `last_paid_date`.
+  - Kompilasi Python backend 100% bebas error sintaks.
+  - Perubahan di-commit (`8fdc716`) dan di-push ke branch `main` GitHub untuk auto-deploy Vercel & Render.
+
+---
+
 ### [2026-10-06 04:18:00 WIB] — Streamline Receipt Scanner to Universal Native Sheet Picker (Photo Library, Camera, & Files)
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menyederhanakan dan menyatukan antarmuka pemindai struk belanja (*Receipt Scanner*). Karena input berkas standar tanpa atribut `capture` secara bawaan memunculkan menu sistem native di perangkat mobile (iOS & Android) yang mencakup *Photo Library (Galeri)*, *Take Photo (Kamera)*, dan *Choose File (Berkas)*, sistem dirombak menjadi satu kartu dropzone yang elegan dan intuitif, serta menghilangkan opsi kamera webcam desktop yang tidak diperlukan.
