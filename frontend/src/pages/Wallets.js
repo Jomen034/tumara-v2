@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import { motion } from "framer-motion";
 import * as Icons from "lucide-react";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { Plus, Trash2, Pencil, CreditCard, ShieldCheck, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import api from "../lib/api";
 import { useRefresh } from "../context/RefreshContext";
@@ -127,13 +127,46 @@ export default function Wallets() {
   const totalDebt = wallets
     .filter((w) => ["credit_card", "paylater"].includes(w.type))
     .reduce((a, w) => a + w.balance, 0);
-  const debtWalletsWithLimit = wallets.filter(
-    (w) => ["credit_card", "paylater"].includes(w.type) && (w.credit_limit || 0) > 0
+  const debtWallets = useMemo(
+    () => wallets.filter((w) => ["credit_card", "paylater"].includes(w.type)),
+    [wallets]
   );
-  const totalAvailableCredit = debtWalletsWithLimit.reduce(
-    (a, w) => a + Math.max(0, (w.credit_limit || 0) - w.balance),
-    0
+  const totalCreditLimit = useMemo(
+    () => debtWallets.reduce((a, w) => a + (Number(w.credit_limit) || 0), 0),
+    [debtWallets]
   );
+  const totalCreditUsed = useMemo(
+    () => debtWallets.reduce((a, w) => a + (Number(w.balance) || 0), 0),
+    [debtWallets]
+  );
+  const totalCreditAvailable = Math.max(0, totalCreditLimit - totalCreditUsed);
+  const aggregateUtilPct = totalCreditLimit > 0
+    ? Math.min(100, Math.round((totalCreditUsed / totalCreditLimit) * 100))
+    : 0;
+
+  const creditHealth = aggregateUtilPct > 70
+    ? {
+        label: "Tinggi (>70%)",
+        color: "var(--rose)",
+        desc: "Beban limit kartu kredit/paylater tergolong tinggi. Prioritaskan pelunasan untuk menjaga skor kredit & menghindari beban bunga.",
+      }
+    : aggregateUtilPct > 30
+    ? {
+        label: "Waspada (30–70%)",
+        color: "#F59E0B",
+        desc: "Mendekati batas ideal 30%. Pertimbangkan untuk membatasi transaksi baru hingga tagihan berjalan dilunasi.",
+      }
+    : {
+        label: "Sehat (<30%)",
+        color: "var(--brand)",
+        desc: "Rasio pemakaian sangat ideal (di bawah batas aman 30%). Menjaga rasio ini mempertahankan skor kredit prima & likuiditas yang fleksibel.",
+      };
+
+  const debtWalletsWithLimit = useMemo(
+    () => debtWallets.filter((w) => (Number(w.credit_limit) || 0) > 0),
+    [debtWallets]
+  );
+  const totalAvailableCredit = totalCreditAvailable;
 
   const isDebtForm = ["credit_card", "paylater"].includes(form.type);
   const curLimit = parseFloat(form.credit_limit) || 0;
@@ -250,6 +283,136 @@ export default function Wallets() {
           </div>
         </div>
       </div>
+
+      {/* Dedicated Section: Ringkasan Pemakaian Fasilitas Kredit & Paylater */}
+      {debtWallets.length > 0 && (
+        <div className="rounded-2xl sm:rounded-3xl bg-surface/90 border border-borderc/80 p-4 sm:p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-2.5 border-b border-borderc/40 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: creditHealth.color }} />
+              <h2 className="text-xs font-bold text-tmuted uppercase tracking-wider">
+                Ringkasan Fasilitas Kredit & Paylater ({debtWallets.length} Akun)
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <span
+                className="text-[11px] font-semibold px-2 py-0.5 rounded-full font-mono"
+                style={{ backgroundColor: `${creditHealth.color}18`, color: creditHealth.color }}
+              >
+                Utilisasi Total: {aggregateUtilPct}% · {creditHealth.label}
+              </span>
+            </div>
+          </div>
+
+          {/* 3 Metric Score Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Total Plafon */}
+            <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-elevated/40 border border-borderc/60 flex flex-col justify-between">
+              <div>
+                <p className="text-xs text-tmuted font-medium flex items-center justify-between">
+                  <span>Total Plafon Gabungan</span>
+                  <span className="text-[10px] font-semibold bg-cyan/10 text-cyan px-1.5 py-0.5 rounded-full">
+                    Limit
+                  </span>
+                </p>
+                <p className={`text-xl sm:text-2xl font-head font-bold font-mono text-tprimary mt-2 truncate ${privacy ? "privacy-blur" : ""}`}>
+                  {formatRp(totalCreditLimit, privacy)}
+                </p>
+              </div>
+              <span className="text-[11px] text-tmuted block mt-2 truncate">
+                Dari {debtWallets.length} kartu kredit & paylater
+              </span>
+            </div>
+
+            {/* Total Tagihan Terpakai */}
+            <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-elevated/40 border border-borderc/60 flex flex-col justify-between">
+              <div>
+                <p className="text-xs text-tmuted font-medium flex items-center justify-between">
+                  <span>Total Tagihan Berjalan</span>
+                  <span className="text-[10px] font-semibold bg-rose/10 text-rose px-1.5 py-0.5 rounded-full">
+                    {aggregateUtilPct}% Terpakai
+                  </span>
+                </p>
+                <p className={`text-xl sm:text-2xl font-head font-bold font-mono text-rose mt-2 truncate ${privacy ? "privacy-blur" : ""}`}>
+                  {formatRp(totalCreditUsed, privacy)}
+                </p>
+              </div>
+              <span className="text-[11px] text-tmuted block mt-2 truncate">
+                Kewajiban berjalan seluruh kartu
+              </span>
+            </div>
+
+            {/* Sisa Plafon Bebas */}
+            <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-elevated/40 border border-borderc/60 flex flex-col justify-between">
+              <div>
+                <p className="text-xs text-tmuted font-medium flex items-center justify-between">
+                  <span>Sisa Plafon Tersedia</span>
+                  <span className="text-[10px] font-semibold bg-brand/10 text-brand px-1.5 py-0.5 rounded-full">
+                    Tersedia
+                  </span>
+                </p>
+                <p className={`text-xl sm:text-2xl font-head font-bold font-mono text-brand mt-2 truncate ${privacy ? "privacy-blur" : ""}`}>
+                  {formatRp(totalCreditAvailable, privacy)}
+                </p>
+              </div>
+              <span className="text-[11px] text-tmuted block mt-2 truncate">
+                Dapat digunakan sewaktu-waktu
+              </span>
+            </div>
+          </div>
+
+          {/* Aggregate Progress Bar with Safe Threshold Marker */}
+          <div className="space-y-1.5 pt-1">
+            <div className="flex justify-between items-center text-xs text-tmuted font-mono">
+              <span className="flex items-center gap-1.5">
+                <span>Rasio Beban Kredit Gabungan:</span>
+                <strong style={{ color: creditHealth.color }}>{aggregateUtilPct}%</strong>
+              </span>
+              <span>Batas Ideal Sehat: &le; 30%</span>
+            </div>
+            <Progress
+              value={aggregateUtilPct}
+              color={creditHealth.color}
+              className="h-2.5"
+            />
+            <p className="text-[11px] text-tmuted italic pt-0.5">
+              💡 {creditHealth.desc}
+            </p>
+          </div>
+
+          {/* Breakdown Per Card Horizontal Bars */}
+          <div className="pt-2 border-t border-borderc/40 space-y-2">
+            <p className="text-xs font-semibold text-tsecondary">
+              Rincian Utilisasi per Fasilitas:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {debtWallets.map((dw) => {
+                const lim = Number(dw.credit_limit) || 0;
+                const bal = Number(dw.balance) || 0;
+                const pct = lim > 0 ? Math.min(100, Math.round((bal / lim) * 100)) : 0;
+                const pColor = pct > 70 ? "var(--rose)" : pct > 30 ? "#F59E0B" : "var(--brand)";
+                return (
+                  <div
+                    key={dw.id}
+                    onClick={() => setSelectedWallet(dw)}
+                    className="p-2.5 rounded-xl bg-elevated/30 border border-borderc/50 hover:border-brand/40 cursor-pointer transition-all flex flex-col justify-between gap-1.5"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-tprimary truncate max-w-[160px]">{dw.name}</span>
+                      <span className="font-mono font-bold" style={{ color: pColor }}>{pct}%</span>
+                    </div>
+                    <Progress value={pct} color={pColor} className="h-1.5" />
+                    <div className="flex justify-between text-[10px] text-tmuted font-mono">
+                      <span>Tagihan: {formatRp(bal, privacy)}</span>
+                      <span>Limit: {formatRp(lim, privacy)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sub-Header for Wallet Cards */}
       <div className="flex items-center justify-between pt-1">

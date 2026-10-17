@@ -20,6 +20,28 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-17 23:45:00 WIB] — Aggregate Credit Card & Paylater Utilization Facility Summary & Mobile Scorecards Responsive Fix for Goals
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. **Halaman Tujuan (Goals):** Memperbaiki tampilan hero scorecards (Total Terkumpul, Target Keseluruhan, Sisa Dana Dibutuhkan) di layar mobile yang sebelumnya asimetris/terpotong karena layout grid `divide-y` bertingkat, diselaraskan menjadi kartu individual mandiri (`grid-cols-1 sm:grid-cols-3 gap-3`) seperti pada halaman Rekening & Dompet.
+  2. **Halaman Rekening & Dompet (Wallets):** Menambahkan modul ringkasan fasilitas kredit & paylater secara terpusat (*aggregate credit limit & utilization summary*), menghitung total plafon gabungan seluruh kartu, total kewajiban berjalan, sisa limit bebas pakai, rasio utilisasi gabungan dengan standar kesehatan kredit OJK/perbankan (indikator aman < 30%), dan visualisasi progres beban kredit per kartu.
+- **Key Actions & Changes:**
+  - `frontend/src/pages/Goals.js`:
+    - Merombak hero scorecards atas dari layout `grid-cols-2 sm:grid-cols-3 divide-y` yang membuat kartu ketiga melompat selebar 2 kolom pada mobile menjadi `grid-cols-1 sm:grid-cols-3 gap-3`.
+    - Mengubah setiap metrik menjadi kartu mandiri berbingkai (`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-elevated/40 border border-borderc/60 flex flex-col justify-between`) dengan badge status (`Terkumpul`, `Target`, `Sisa`) dan perataan teks proporsional.
+  - `frontend/src/pages/Wallets.js`:
+    - Mengkalkulasi metrik gabungan fasilitas kredit: `totalCreditLimit`, `totalCreditUsed`, `totalCreditAvailable`, `aggregateUtilPct`, serta kalkulasi status kesehatan kredit (`creditHealth` aman &le; 30%, waspada 30–70%, bahaya > 70%).
+    - Menambahkan komponen hero section baru **"Ringkasan Fasilitas Kredit & Paylater"**:
+      - Status pill indikator utilisasi total real-time dan label kesehatan kredit.
+      - Tiga kartu skor komprehensif: **Total Plafon Gabungan**, **Total Tagihan Berjalan** (dengan persentase terpakai), dan **Sisa Plafon Tersedia**.
+      - Progress bar agregat dengan penanda batas ideal sehat (&le; 30%) dan tips finansial kontekstual.
+      - Grid rincian per fasilitas/kartu (Mandiri CC, OCBC CC, Paylater, dll.) dengan mini progress bar utilisasi masing-masing dan fitur interaktif klik untuk membuka detail dompet terkait.
+- **Verifikasi & Sinkronisasi:**
+  - Data akun `jomenpardede@gmail.com` diverifikasi: Total Plafon Rp 57.000.000 (Mandiri CC Rp 37jt + OCBC CC Rp 20jt), Total Tagihan Rp 7.555.461, Sisa Plafon Rp 49.444.539, Utilisasi 13,2% (Status: Sehat < 30%).
+  - Diterapkan pada repositori Tumara v2 dan di-push ke branch `main`.
+
+---
+
 ### [2026-10-17 23:30:00 WIB] — Flexible Bill Payment Amount, Monthly Cycle Status in Scorecards, Alphabetical Sorting, & Auto Scroll-to-Top
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menyempurnakan modul Tagihan (Bills) dan Navigasi aplikasi berdasarkan masukan dan pengalaman riil pengguna:

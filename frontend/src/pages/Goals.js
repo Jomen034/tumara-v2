@@ -278,51 +278,75 @@ export default function Goals() {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6 divide-y sm:divide-y-0 sm:divide-x divide-borderc/40">
-          <div className="min-w-0">
-            <p className="text-[11px] sm:text-xs text-tmuted font-medium flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand shrink-0" /> Total Terkumpul
-            </p>
-            <p
-              className={`text-lg sm:text-2xl font-head font-bold font-mono text-brand mt-1 truncate ${
-                privacy ? "privacy-blur" : ""
-              }`}
-            >
-              {formatRp(totalSaved, privacy)}
-            </p>
-            <span className="text-[10px] text-tmuted block mt-0.5 truncate">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Total Terkumpul */}
+          <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-elevated/40 border border-borderc/60 flex flex-col justify-between">
+            <div>
+              <p className="text-xs text-tmuted font-medium flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-brand shrink-0" /> Total Terkumpul
+                </span>
+                <span className="text-[10px] font-semibold bg-brand/10 text-brand px-1.5 py-0.5 rounded-full">
+                  Terkumpul
+                </span>
+              </p>
+              <p
+                className={`text-xl sm:text-2xl font-head font-bold font-mono text-brand mt-2 truncate ${
+                  privacy ? "privacy-blur" : ""
+                }`}
+              >
+                {formatRp(totalSaved, privacy)}
+              </p>
+            </div>
+            <span className="text-[11px] text-tmuted block mt-2 truncate">
               Dari {goals.length} target impian
             </span>
           </div>
 
-          <div className="min-w-0 pt-3 sm:pt-0 sm:pl-6">
-            <p className="text-[11px] sm:text-xs text-tmuted font-medium flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan shrink-0" /> Target Keseluruhan
-            </p>
-            <p
-              className={`text-lg sm:text-2xl font-head font-bold font-mono text-tprimary mt-1 truncate ${
-                privacy ? "privacy-blur" : ""
-              }`}
-            >
-              {formatRp(totalTarget, privacy)}
-            </p>
-            <span className="text-[10px] text-tmuted block mt-0.5 truncate">
+          {/* Target Keseluruhan */}
+          <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-elevated/40 border border-borderc/60 flex flex-col justify-between">
+            <div>
+              <p className="text-xs text-tmuted font-medium flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-cyan shrink-0" /> Target Keseluruhan
+                </span>
+                <span className="text-[10px] font-semibold bg-cyan/10 text-cyan px-1.5 py-0.5 rounded-full">
+                  Target
+                </span>
+              </p>
+              <p
+                className={`text-xl sm:text-2xl font-head font-bold font-mono text-tprimary mt-2 truncate ${
+                  privacy ? "privacy-blur" : ""
+                }`}
+              >
+                {formatRp(totalTarget, privacy)}
+              </p>
+            </div>
+            <span className="text-[11px] text-tmuted block mt-2 truncate">
               Total komitmen tabungan
             </span>
           </div>
 
-          <div className="col-span-2 sm:col-span-1 min-w-0 pt-3 sm:pt-0 sm:pl-6">
-            <p className="text-[11px] sm:text-xs text-tmuted font-medium flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose shrink-0" /> Sisa Dana Dibutuhkan
-            </p>
-            <p
-              className={`text-lg sm:text-2xl font-head font-bold font-mono text-rose mt-1 truncate ${
-                privacy ? "privacy-blur" : ""
-              }`}
-            >
-              {formatRp(totalRemaining, privacy)}
-            </p>
-            <span className="text-[10px] text-tmuted block mt-0.5 truncate">
+          {/* Sisa Dana Dibutuhkan */}
+          <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-elevated/40 border border-borderc/60 flex flex-col justify-between">
+            <div>
+              <p className="text-xs text-tmuted font-medium flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose shrink-0" /> Sisa Dana Dibutuhkan
+                </span>
+                <span className="text-[10px] font-semibold bg-rose/10 text-rose px-1.5 py-0.5 rounded-full">
+                  Sisa
+                </span>
+              </p>
+              <p
+                className={`text-xl sm:text-2xl font-head font-bold font-mono text-rose mt-2 truncate ${
+                  privacy ? "privacy-blur" : ""
+                }`}
+              >
+                {formatRp(totalRemaining, privacy)}
+              </p>
+            </div>
+            <span className="text-[11px] text-tmuted block mt-2 truncate">
               Kekurangan dana sisa
             </span>
           </div>
