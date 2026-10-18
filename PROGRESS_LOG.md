@@ -20,6 +20,26 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-18 22:05:00 WIB] — Fix Scan Receipt Endpoint: Resolve TypeError in Content-Type Validation and Add Robust Client-side Error Feedback
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Memperbaiki kegagalan pemindaian struk ("Gagal memindai struk") pada web desktop dan mobile PWA.
+- **Akar Masalah (Root Cause):**
+  - Pada commit `32f42ed`, validasi tipe konten di `backend/routes_ai.py` baris 58 ditulis sebagai:
+    `if ct and not any(ct.startswith("image/") or ct in allowed_types):`
+    Ekspresi `ct.startswith(...) or ct in allowed_types` menghasilkan nilai `bool` tunggal (`True` atau `False`). Di Python, pemanggilan fungsi bawaan `any(bool)` melemparkan exception fatal `TypeError: 'bool' object is not iterable`.
+  - Karena baris validasi ini berada di luar blok `try-except` rute, `TypeError` yang tak tertangani langsung ditangkap oleh layer ASGI uvicorn dan mengembalikan respons HTTP `500 Internal Server Error` (plain text).
+  - Pada frontend (`AddTransactionModal.js` & `ScanReceiptModal.js`), toast hanya mengekstrak `e?.response?.data?.detail`. Karena respons server adalah string plain text bukan JSON, `data.detail` bernilai `undefined`, sehingga frontend selalu memunculkan fallback generik `"Gagal memindai struk"`.
+- **Key Actions & Changes:**
+  - `backend/routes_ai.py`:
+    - Memperbaiki ekspresi boolean menjadi `if ct and not (ct.startswith("image/") or ct in allowed_types):` (menghilangkan pemanggilan `any()` pada tipe boolean).
+    - Membungkus seluruh alur pemrosesan upload struk dalam blok `try-except` tangguh sehingga setiap anomali tertangkap rapi dan mengembalikan respons JSON bersahabat (`HTTPException(422, "Gagal memindai struk: ...")`) lengkap dengan stack trace di server log.
+  - `frontend/src/components/AddTransactionModal.js` & `frontend/src/components/ScanReceiptModal.js`:
+    - Mengirim parameter nama file eksplisit pada `FormData.append("file", file, file.name || "struk.jpg")` untuk menjaga kepatuhan header `Content-Disposition`.
+    - Menyempurnakan parser error toast: mengekstrak array error FastAPI (`msg.map`), string detail, maupun pesan jaringan (`e.message`), sehingga penyebab error selalu transparan dan tidak tertutup pesan generik.
+- **Verifikasi:**
+  - Telah diuji menggunakan pengujian HTTP live: verifikasi respon 400 saat file kosong, dan pemrosesan `scan_receipt` tanpa `TypeError`.
+  - Kode bersih dan siap dideploy ke Vercel dan Render.
+
 ### [2026-10-18 21:05:00 WIB] — Fix Receipt Transaction Recording: Decimal Quantity Support for Produce/Weight Items, Robust Price Parsing, and Bulletproof Image Fallback
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Memperbaiki kegagalan saat menyimpan transaksi hasil scan struk belanja (error HTTP 422 Unprocessable Entity "Gagal menyimpan transaksi").

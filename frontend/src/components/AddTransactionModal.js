@@ -211,7 +211,7 @@ export default function AddTransactionModal({
     setScanning(true);
     try {
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", file, file.name || "struk.jpg");
       const res = await api.post("/ai/scan-receipt", fd);
       setScanResult(res.data);
       const cat = res.data.category || "Groceries & Kebutuhan Rumah";
@@ -231,7 +231,9 @@ export default function AddTransactionModal({
 
       toast.success("Struk berhasil dipindai!");
     } catch (e) {
-      toast.error(e?.response?.data?.detail || "Gagal memindai struk");
+      const msg = e?.response?.data?.detail;
+      const detailStr = typeof msg === "string" ? msg : Array.isArray(msg) ? msg.map((m) => m.msg).join(", ") : null;
+      toast.error(detailStr || e?.response?.data?.message || e?.message || "Gagal memindai struk");
     } finally {
       setScanning(false);
     }
