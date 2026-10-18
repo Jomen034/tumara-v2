@@ -20,6 +20,33 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-18 21:05:00 WIB] — Fix Receipt Transaction Recording: Decimal Quantity Support for Produce/Weight Items, Robust Price Parsing, and Bulletproof Image Fallback
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Memperbaiki kegagalan saat menyimpan transaksi hasil scan struk belanja (error HTTP 422 Unprocessable Entity "Gagal menyimpan transaksi").
+- **Akar Masalah (Root Cause):**
+  1. Pada struk belanja supermarket (seperti struk AEON Mall BSD), item timbangan (sayur, buah, daging, bumbu curah) memiliki kuantitas desimal (contoh: `0.918 kg` pir, `0.406 kg` wortel, `1.16 kg` labu siam). Namun, model Pydantic backend `SubItem` mendefinisikan `quantity: Optional[int] = 1`. Ketika Pydantic v2 memvalidasi angka pecahan seperti `0.918` terhadap tipe `int`, server langsung melempar error validasi `422 Unprocessable Entity`, sehingga transaksi gagal tersimpan ke database.
+  2. Parsing angka pada `amount` dan `items[].price` rentan gagal jika model AI mengembalikan format bertitik/berkoma (mis. `"39.290"` atau `"692.529"`).
+  3. `imageCompressor.js` menyetel `crossOrigin = "anonymous"` pada URL `blob:`, yang memicu security/CORS error pada browser WebKit/Safari saat proses rotasi gambar.
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Mengubah tipe `SubItem.quantity` menjadi `Optional[Union[float, int, str]] = 1.0` dengan validator otomatis untuk mendukung kuantitas desimal barang timbangan.
+    - Menambahkan `field_validator` untuk `SubItem.price` dan `TransactionCreate.amount` agar membersihkan string mata uang, separator ribuan, dan titik/koma secara tangguh.
+  - `backend/ai_service.py`:
+    - Menambahkan sanitasi eksplisit pada hasil JSON `scan_receipt`: membersihkan `total`, `tax_included`, `discount_total`, serta harga & kuantitas tiap item ke tipe numerik baku.
+    - Menghitung total otomatis dari agregasi harga item jika total terbaca 0 namun rincian item tersedia.
+  - `frontend/src/lib/imageCompressor.js`:
+    - Menghapus `crossOrigin` pada `blob:` URL dan beralih dari `FileReader.readAsDataURL` ke `URL.createObjectURL` yang instan dan hemat RAM.
+    - Memastikan fungsi kompresi selalu me-resolve file asli jika canvas gagal (fail-safe), mencegah tombol pemindaian macet.
+  - `frontend/src/components/ScanReceiptModal.js` & `frontend/src/components/AddTransactionModal.js`:
+    - Memperbaiki `saveTxn` dan `saveScanTxn` dengan membulatkan nilai `amount` dan `price` sebelum dikirim ke endpoint `/transactions`.
+    - Menampilkan detail pesan error spesifik dari respons server (`err?.response?.data?.detail`) alih-alih pesan generik jika request gagal.
+    - Mengambil data dompet pengguna secara proaktif pada saat modal terbuka (`useEffect` on `open`).
+- **Verifikasi & Sinkronisasi:**
+  - Python py_compile dan syntax check JavaScript 100% bebas error.
+  - Disinkronkan dan di-push ke GitHub `main`.
+
+---
+
 ### [2026-10-18 01:30:00 WIB] — Mobile PWA & Scan Struk Hardening: Client-side Image Compression, HEIC/iOS Support, Safe Auto-Scroll, and Neutralized Service Worker Caching
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menuntaskan stabilitas PWA mobile (mencegah black screen / WebContent process crash) dan mengoptimalkan performa pemindaian struk di perangkat mobile (Android & iOS).

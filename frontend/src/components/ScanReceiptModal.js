@@ -147,17 +147,32 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
     return acc;
   }, {});
 
+  useEffect(() => {
+    if (open) {
+      api.get("/wallets").then((w) => {
+        setWallets(w.data || []);
+        if (w.data?.[0] && !walletId) setWalletId(w.data[0].id);
+      }).catch(() => {});
+    }
+  }, [open]);
+
   const saveTxn = async () => {
-    if (!walletId) return toast.error("Pilih dompet");
+    if (!walletId) return toast.error("Pilih dompet pembayaran");
+    if (!result) return toast.error("Data struk belum tersedia");
     setSaving(true);
     try {
       const validItems = scannedItems.filter((it) => Number(it.price) > 0);
+      const computedTotal = Math.round(Number(result.total) || 0) || validItems.reduce((acc, it) => acc + (Math.round(Number(it.price)) || 0), 0);
+      if (!computedTotal || computedTotal <= 0) {
+        return toast.error("Total belanja tidak boleh 0. Periksa kembali struk Anda.");
+      }
+
       if (itemized && validItems.length > 0) {
         await Promise.all(
           validItems.map((it) =>
             api.post("/transactions", {
               type: "expense",
-              amount: Number(it.price),
+              amount: Math.round(Number(it.price)),
               wallet_id: walletId,
               category: it.category || receiptCategory || "Groceries & Kebutuhan Rumah",
               note: `${it.name}${result.merchant ? " · " + result.merchant : ""}`,
@@ -170,17 +185,17 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
       } else {
         await api.post("/transactions", {
           type: "expense",
-          amount: result.total,
+          amount: computedTotal,
           wallet_id: walletId,
           category: receiptCategory || "Groceries & Kebutuhan Rumah",
           note: result.merchant || "Struk Belanja",
           date: receiptDate || todayStr,
           source: "ai_receipt",
           items: validItems.length > 0 ? validItems.map((it) => ({
-            name: it.name,
-            price: Number(it.price),
+            name: String(it.name || "Item").trim(),
+            price: Math.round(Number(it.price) || 0),
             category: it.category || receiptCategory || "Groceries & Kebutuhan Rumah",
-            quantity: Number(it.qty || it.quantity || 1),
+            quantity: parseFloat(it.qty ?? it.quantity ?? 1) || 1,
           })) : undefined,
         });
         toast.success(
@@ -192,8 +207,10 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
       onSaved?.();
       onClose();
       reset();
-    } catch {
-      toast.error("Gagal menyimpan");
+    } catch (err) {
+      const msg = err?.response?.data?.detail;
+      const detailStr = typeof msg === "string" ? msg : Array.isArray(msg) ? msg.map((m) => m.msg).join(", ") : "Gagal menyimpan transaksi";
+      toast.error(detailStr || "Gagal menyimpan transaksi");
     } finally {
       setSaving(false);
     }

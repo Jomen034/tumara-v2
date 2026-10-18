@@ -252,19 +252,20 @@ export default function AddTransactionModal({
   // Transfer scan result into manual form for fine-tuning
   const editScanInManualForm = () => {
     if (!scanResult) return;
+    const validItems = scanItems.filter((it) => Number(it.price) > 0);
+    const computedTotal = Math.round(Number(scanResult.total) || 0) || validItems.reduce((acc, it) => acc + (Math.round(Number(it.price)) || 0), 0);
     setType("expense");
-    setAmount(String(scanResult.total || ""));
+    setAmount(String(computedTotal || ""));
     setCategory(scanCategory || "Groceries & Kebutuhan Rumah");
     setNote(scanResult.merchant || "Struk Belanja");
     setDate(scanDate || todayDateStr);
-    const validItems = scanItems.filter((it) => Number(it.price) > 0);
     if (validItems.length > 0) {
       setSubItemsDraft(
         validItems.map((it) => ({
-          name: it.name,
-          price: Number(it.price),
+          name: String(it.name || "Item").trim(),
+          price: Math.round(Number(it.price) || 0),
           category: it.category || scanCategory || "Groceries & Kebutuhan Rumah",
-          quantity: Number(it.qty || it.quantity || 1),
+          quantity: parseFloat(it.qty ?? it.quantity ?? 1) || 1,
         }))
       );
     }
@@ -272,6 +273,7 @@ export default function AddTransactionModal({
       understood: `Data struk: ${scanResult.merchant || "Pembelian"}${validItems.length > 0 ? ` (${validItems.length} item)` : ""}`,
       confidence: 1,
       matched: true,
+      source: "ai_receipt",
     });
     setMode("manual");
   };
@@ -284,12 +286,17 @@ export default function AddTransactionModal({
     try {
       const items = scanItems.filter((it) => Number(it.price) > 0);
       const chosenDate = scanDate || date || todayDateStr;
+      const computedTotal = Math.round(Number(scanResult.total) || 0) || items.reduce((acc, it) => acc + (Math.round(Number(it.price)) || 0), 0);
+      if (!computedTotal || computedTotal <= 0) {
+        return toast.error("Total belanja tidak boleh 0. Periksa kembali struk Anda.");
+      }
+
       if (itemized && items.length > 0) {
         await Promise.all(
           items.map((it) =>
             api.post("/transactions", {
               type: "expense",
-              amount: Number(it.price),
+              amount: Math.round(Number(it.price)),
               wallet_id: walletId,
               category: it.category || scanCategory || "Groceries & Kebutuhan Rumah",
               note: `${it.name}${scanResult.merchant ? " · " + scanResult.merchant : ""}`,
@@ -302,17 +309,17 @@ export default function AddTransactionModal({
       } else {
         await api.post("/transactions", {
           type: "expense",
-          amount: scanResult.total,
+          amount: computedTotal,
           wallet_id: walletId,
           category: scanCategory || "Groceries & Kebutuhan Rumah",
           note: scanResult.merchant || "Struk Belanja",
           date: chosenDate,
           source: "ai_receipt",
           items: items.length > 0 ? items.map((it) => ({
-            name: it.name,
-            price: Number(it.price),
+            name: String(it.name || "Item").trim(),
+            price: Math.round(Number(it.price) || 0),
             category: it.category || scanCategory || "Groceries & Kebutuhan Rumah",
-            quantity: Number(it.qty || it.quantity || 1),
+            quantity: parseFloat(it.qty ?? it.quantity ?? 1) || 1,
           })) : undefined,
         });
         toast.success(
@@ -324,8 +331,10 @@ export default function AddTransactionModal({
       onSaved?.();
       onClose();
       resetScan();
-    } catch {
-      toast.error("Gagal menyimpan transaksi");
+    } catch (err) {
+      const msg = err?.response?.data?.detail;
+      const detailStr = typeof msg === "string" ? msg : Array.isArray(msg) ? msg.map((m) => m.msg).join(", ") : "Gagal menyimpan transaksi";
+      toast.error(detailStr || "Gagal menyimpan transaksi");
     } finally {
       setSaving(false);
     }
@@ -383,8 +392,10 @@ export default function AddTransactionModal({
       );
       onSaved?.();
       onClose();
-    } catch {
-      toast.error("Gagal menyimpan transaksi");
+    } catch (err) {
+      const msg = err?.response?.data?.detail;
+      const detailStr = typeof msg === "string" ? msg : Array.isArray(msg) ? msg.map((m) => m.msg).join(", ") : "Gagal menyimpan transaksi";
+      toast.error(detailStr || "Gagal menyimpan transaksi");
     } finally {
       setSaving(false);
     }

@@ -576,19 +576,61 @@ async def scan_receipt(raw: bytes) -> dict:
         data = _extract_json(text)
     except Exception:
         start, end = text.find("{"), text.rfind("}")
-        data = json.loads(text[start:end + 1]) if start != -1 and end != -1 else {
-            "merchant": "", "total": 0, "date": None, "category": "Lainnya", "items": []
-        }
+        try:
+            data = json.loads(text[start:end + 1]) if start != -1 and end != -1 else {}
+        except Exception:
+            data = {}
+    if not isinstance(data, dict):
+        data = {}
+    def _clean_num(val, default=0):
+        if val is None:
+            return default
+        if isinstance(val, (int, float)):
+            return int(round(val))
+        try:
+            s = str(val).replace("Rp", "").replace("IDR", "").strip()
+            if "." in s and "," not in s:
+                parts = s.split(".")
+                if len(parts) == 2 and len(parts[1]) == 3:
+                    s = "".join(parts)
+            s = s.replace(".", "").replace(",", ".")
+            return int(round(float(s)))
+        except Exception:
+            return default
+
+    def _clean_qty(val, default=1.0):
+        if val is None:
+            return default
+        try:
+            return float(str(val).replace(",", "."))
+        except Exception:
+            return default
+
     data.setdefault("merchant", "")
-    data.setdefault("total", 0)
+    data["total"] = _clean_num(data.get("total"), 0)
     data.setdefault("date", None)
-    data.setdefault("category", "Lainnya")
-    data.setdefault("tax_included", 0)
+    data.setdefault("category", "Groceries & Kebutuhan Rumah")
+    data["tax_included"] = _clean_num(data.get("tax_included"), 0)
     data.setdefault("tax_label", "")
-    data.setdefault("discount_total", 0)
+    data["discount_total"] = _clean_num(data.get("discount_total"), 0)
     data.setdefault("items", [])
+
+    clean_items = []
     for it in data["items"]:
-        it.setdefault("category", data.get("category", "Lainnya"))
-        it.setdefault("price", 0)
-        it.setdefault("name", "Item")
+        if not isinstance(it, dict):
+            continue
+        item_price = _clean_num(it.get("price"), 0)
+        item_qty = _clean_qty(it.get("qty") or it.get("quantity"), 1.0)
+        clean_items.append({
+            "name": str(it.get("name") or "Item").strip(),
+            "price": item_price,
+            "category": it.get("category") or data.get("category") or "Groceries & Kebutuhan Rumah",
+            "quantity": item_qty,
+        })
+    data["items"] = clean_items
+
+    # Jika total terdeteksi 0 tapi ada item belanja, kalkulasi otomatis dari jumlah harga item
+    if data["total"] <= 0 and clean_items:
+        data["total"] = sum(it["price"] for it in clean_items if it["price"] > 0)
+
     return data

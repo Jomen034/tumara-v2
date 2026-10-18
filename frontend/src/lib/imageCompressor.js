@@ -12,21 +12,23 @@ export async function compressReceiptImage(file, options = {}) {
 
   if (!file) return null;
 
-  return new Promise((resolve, reject) => {
-    // 1. Baca file sebagai Image
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Gagal membaca file foto"));
-    reader.onload = () => {
+  const originalFallback = {
+    file,
+    preview: URL.createObjectURL(file),
+  };
+
+  return new Promise((resolve) => {
+    try {
+      const blobUrl = URL.createObjectURL(file);
       const img = new Image();
-      img.onerror = () => reject(new Error("Format foto tidak didukung atau rusak"));
+
       img.onload = () => {
         try {
           let origW = img.naturalWidth || img.width;
           let origH = img.naturalHeight || img.height;
 
           if (!origW || !origH) {
-            origW = 1200;
-            origH = 1600;
+            return resolve(originalFallback);
           }
 
           // Hitung dimensi target proporsional
@@ -52,13 +54,7 @@ export async function compressReceiptImage(file, options = {}) {
           const ctx = canvas.getContext("2d");
 
           if (!ctx) {
-            // Fallback jika konteks canvas gagal: kembalikan file asli jika type valid
-            return resolve({
-              file,
-              preview: URL.createObjectURL(file),
-              width: origW,
-              height: origH,
-            });
+            return resolve(originalFallback);
           }
 
           ctx.imageSmoothingEnabled = true;
@@ -67,13 +63,11 @@ export async function compressReceiptImage(file, options = {}) {
 
           canvas.toBlob(
             (blob) => {
+              // Revoke URL sementara
+              try { URL.revokeObjectURL(blobUrl); } catch {}
+
               if (!blob) {
-                return resolve({
-                  file,
-                  preview: URL.createObjectURL(file),
-                  width: targetW,
-                  height: targetH,
-                });
+                return resolve(originalFallback);
               }
 
               const cleanName = (file.name || "struk.jpg").replace(/\.[^/.]+$/, "") + ".jpg";
@@ -93,13 +87,21 @@ export async function compressReceiptImage(file, options = {}) {
             "image/jpeg",
             quality
           );
-        } catch (err) {
-          reject(err);
+        } catch {
+          try { URL.revokeObjectURL(blobUrl); } catch {}
+          resolve(originalFallback);
         }
       };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
+
+      img.onerror = () => {
+        // Jangan gagal keras jika format tertentu tidak bisa didecode langsung canvas: kembalikan file asli
+        resolve(originalFallback);
+      };
+
+      img.src = blobUrl;
+    } catch {
+      resolve(originalFallback);
+    }
   });
 }
 
@@ -107,48 +109,62 @@ export async function compressReceiptImage(file, options = {}) {
  * Putar foto struk 90 derajat searah jarum jam secara cepat dan hemat memori
  */
 export async function rotateImageBlob(fileOrBlob, currentPreview) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onerror = () => reject(new Error("Gagal memuat foto untuk diputar"));
-    img.onload = () => {
-      try {
-        const w = img.naturalWidth || img.width;
-        const h = img.naturalHeight || img.height;
+  if (!currentPreview) return { file: fileOrBlob, preview: currentPreview };
 
-        const canvas = document.createElement("canvas");
-        // Swap width and height for 90 degree rotation
-        canvas.width = h;
-        canvas.height = w;
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      // JANGAN gunakan crossOrigin = "anonymous" pada blob: URL karena Safari/Chrome akan melempar security/CORS error
+      img.onload = () => {
+        try {
+          const w = img.naturalWidth || img.width;
+          const h = img.naturalHeight || img.height;
 
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return reject(new Error("Gagal menginisialisasi canvas"));
+          const canvas = document.createElement("canvas");
+          // Swap width and height for 90 degree rotation
+          canvas.width = h;
+          canvas.height = w;
 
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.rotate((90 * Math.PI) / 180);
-        ctx.drawImage(img, -w / 2, -h / 2);
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            return resolve({ file: fileOrBlob, preview: currentPreview });
+          }
 
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) return reject(new Error("Gagal mengekspor foto yang diputar"));
-            const rotatedFile = new File([blob], (fileOrBlob.name || "struk.jpg"), {
-              type: "image/jpeg",
-              lastModified: Date.now(),
-            });
-            resolve({
-              file: rotatedFile,
-              preview: URL.createObjectURL(blob),
-            });
-          },
-          "image/jpeg",
-          0.90
-        );
-      } catch (e) {
-        reject(e);
-      }
-    };
-    img.src = currentPreview;
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.translate(canvas.width / 2, canvas.height / 2);
+          ctx.rotate((90 * Math.PI) / 180);
+          ctx.drawImage(img, -w / 2, -h / 2);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                return resolve({ file: fileOrBlob, preview: currentPreview });
+              }
+              const rotatedFile = new File([blob], (fileOrBlob.name || "struk.jpg"), {
+                type: "image/jpeg",
+                lastModified: Date.now(),
+              });
+              resolve({
+                file: rotatedFile,
+                preview: URL.createObjectURL(blob),
+              });
+            },
+            "image/jpeg",
+            0.90
+          );
+        } catch {
+          resolve({ file: fileOrBlob, preview: currentPreview });
+        }
+      };
+
+      img.onerror = () => {
+        resolve({ file: fileOrBlob, preview: currentPreview });
+      };
+
+      img.src = currentPreview;
+    } catch {
+      resolve({ file: fileOrBlob, preview: currentPreview });
+    }
   });
 }

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional, Literal
-from pydantic import BaseModel, Field, ConfigDict
+from typing import List, Optional, Literal, Union
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 def now_utc() -> datetime:
@@ -149,9 +149,35 @@ CATEGORIES = [
 
 class SubItem(BaseModel):
     name: str
-    price: float = 0
+    price: float = 0.0
     category: Optional[str] = None
-    quantity: Optional[int] = 1
+    quantity: Optional[Union[float, int, str]] = 1.0
+
+    @field_validator("quantity", mode="before")
+    @classmethod
+    def _parse_qty(cls, v):
+        if v is None:
+            return 1.0
+        try:
+            return float(str(v).replace(",", "."))
+        except Exception:
+            return 1.0
+
+    @field_validator("price", mode="before")
+    @classmethod
+    def _parse_price(cls, v):
+        if v is None:
+            return 0.0
+        try:
+            clean = str(v).replace("Rp", "").replace("IDR", "").strip()
+            if "." in clean and "," not in clean:
+                parts = clean.split(".")
+                if len(parts) == 2 and len(parts[1]) == 3:
+                    clean = "".join(parts)
+            clean = clean.replace(".", "").replace(",", ".")
+            return float(clean)
+        except Exception:
+            return 0.0
 
 
 class TransactionCreate(BaseModel):
@@ -166,6 +192,22 @@ class TransactionCreate(BaseModel):
     goal_id: Optional[str] = None
     bill_id: Optional[str] = None
     items: Optional[List[SubItem]] = None
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def _parse_amount(cls, v):
+        if v is None:
+            return 0.0
+        try:
+            clean = str(v).replace("Rp", "").replace("IDR", "").strip()
+            if "." in clean and "," not in clean:
+                parts = clean.split(".")
+                if len(parts) == 2 and len(parts[1]) == 3:
+                    clean = "".join(parts)
+            clean = clean.replace(".", "").replace(",", ".")
+            return float(clean)
+        except Exception:
+            return 0.0
 
 
 class TransactionUpdate(BaseModel):
