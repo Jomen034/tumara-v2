@@ -32,13 +32,14 @@ const PRICING_TIERS = [
     badge: null,
     features: [
       "1 Akun Personal Seumur Hidup",
-      "Pencatatan Manual & Dompet Unlimited",
+      "Pencatatan Manual, Dompet & Kategori Unlimited",
       "Budgeting 50/30/20 & Daily Spend Pulse",
-      "Kalender Tagihan & Pengingat Tempo",
-      "15 Scan Struk AI & 30 AI Chat / bulan",
+      "Kalender Tagihan & Mini Habit Tracker Disiplin",
+      "Financial Health Score (0–100)",
+      "3 Scan Struk AI & 5 Teks/Chat AI / bulan",
       "Reset Otomatis Kuota Tiap Tanggal 1",
       "Ekspor Data Lengkap (CSV)",
-      "100% Bebas Iklan",
+      "100% Bebas Iklan & Pelacak Komersial",
     ],
     buttonText: "Pilih Starter",
     highlight: false,
@@ -46,17 +47,17 @@ const PRICING_TIERS = [
   {
     id: "pro",
     name: "Pro Tumara AI",
-    price: "Rp 129.000",
+    price: "Rp 99.000",
     period: "sekali bayar · selamanya",
-    desc: "Solusi lengkap dengan asisten CFO AI pribadi untuk keputusan finansial yang matang.",
-    badge: "Paling Populer",
+    desc: "Solusi lengkap dengan asisten CFO AI pribadi untuk keputusan finansial yang matang dan terarah.",
+    badge: "Paling Populer · Best Value",
     features: [
       "Semua fitur di Paket Starter",
-      "50 Scan Struk AI & 100 AI Chat / bulan",
+      "50 Scan Struk AI & 100 Teks/Chat AI / bulan",
       "Reset Otomatis Kuota Tiap Tanggal 1",
-      "Konsultasi Finansial Personal Tumara AI",
-      "Weekly AI Financial Health Recap",
-      "Deteksi Pajak PB1 & Berat Desimal",
+      "Konsultasi Finansial Aktif Tumara AI CFO",
+      "Weekly AI Financial Health Recap Otomatis",
+      "Deteksi Pajak Resto PB1 & Berat Desimal Toko",
       "Cadangan Database JSON & Ekspor CSV",
       "Mode Privasi Blur Seketika",
       "Prioritas Akses Fitur Terbaru",
@@ -67,16 +68,16 @@ const PRICING_TIERS = [
   {
     id: "family",
     name: "Family Partner",
-    price: "Rp 189.000",
+    price: "Rp 169.000",
     period: "sekali bayar · selamanya",
-    desc: "Untuk pasangan suami-istri yang ingin menyatukan visi keuangan rumah tangga.",
+    desc: "Untuk pasangan suami-istri atau keluarga yang ingin menyatukan visi keuangan rumah tangga.",
     badge: "Hemat Berdua",
     features: [
-      "Akses untuk 2 Akun (Suami & Istri / Partner)",
+      "Akses untuk 2–3 Akun (Suami, Istri & Partner)",
       "Shared Net Worth & Portofolio Bersama",
       "Split Member Spend Tracking per Anggota",
       "Kalender Tagihan Bersama Real-Time",
-      "100 Scan Struk AI & 200 AI Chat / bulan",
+      "120 Scan Struk AI & 250 Teks/Chat AI / bulan (Pool)",
       "Reset Otomatis Kuota Tiap Tanggal 1",
       "Kontrol Dompet Pribadi vs Dompet Bersama",
       "Dukungan WhatsApp Priority",
@@ -98,18 +99,28 @@ const FAQS = [
     tag: "Arsitektur & Akurasi",
   },
   {
+    q: "Apakah saya bisa mulai dari paket Starter dulu lalu upgrade nanti?",
+    a: "Bisa banget! Tumara menerapkan sistem Upgrade Cukup Bayar Selisih. Jika kamu membeli Starter (Rp 49.000) dan ingin upgrade ke Pro (Rp 99.000), kamu hanya perlu membayar selisihnya sebesar Rp 50.000 saja. Investasi awalmu tidak akan pernah hangus.",
+    tag: "Jaminan Upgrade",
+  },
+  {
+    q: "Bagaimana jika kuota AI saya habis sebelum tanggal 1?",
+    a: "Kamu tetap bisa mencatat transaksi manual tanpa batas! Jika butuh scan struk tambahan segera, kamu bisa membeli Kuota Booster Instan mulai Rp 10.000 (+15 scan). Kuota booster ini AKTIF SELAMANYA SAMPAI HABIS tanpa batas kedaluwarsa, tidak akan hangus di akhir bulan.",
+    tag: "Jaminan Kuota Instan",
+  },
+  {
+    q: "Apakah fitur Financial Health Score dan Daily Spend Pulse menggunakan kuota AI?",
+    a: "Tidak! Financial Health Score (0–100) dan Daily Spend Pulse 100% dihitung menggunakan rumus matematika akuntansi pasti secara instan di perangkatmu. Fitur ini unlimited dan bebas digunakan di semua paket tanpa memotong kuota AI sedikit pun.",
+    tag: "Transparansi Fitur",
+  },
+  {
     q: "Apakah ada biaya langganan bulanan tersembunyi yang mendebit kartu saya?",
     a: "Sama sekali tidak ada. Tumara menganut prinsip Sekali Bayar untuk Akses Seumur Hidup (Lifetime License). Anda tidak perlu mendaftarkan kartu kredit, bebas dari auto-debit yang menjebak, dan akun Anda dapat digunakan selamanya.",
     tag: "Transparansi Biaya",
   },
   {
-    q: "Mengapa fitur AI memiliki Fair Usage Policy (FUP) bulanan?",
-    a: "FUP memastikan server AI selalu super cepat, terlindungi dari bot spam/abuse, dan menjamin operasional Tumara tetap sehat sehingga dapat terus melayani Anda selama bertahun-tahun. Kuota bulanan FUP (hingga 50-100 scan/bulan) di-reset otomatis setiap tanggal 1 dan sudah sangat melimpah untuk kebutuhan keluarga. Jika membutuhkan lebih, Anda juga bisa top-up kuota instan kapan saja.",
-    tag: "Keandalan Server",
-  },
-  {
     q: "Apakah pasangan saya harus membayar lagi jika ingin mengelola keuangan bersama?",
-    a: "Tidak perlu jika Anda memilih Paket Family Partner. 1 Lisensi Family langsung berlaku untuk 2 akun pengguna (suami & istri / partner) dengan kalender tagihan bersama, split tracking transaksi per anggota, dan gabungan net worth real-time.",
+    a: "Tidak perlu jika Anda memilih Paket Family Partner. 1 Lisensi Family langsung berlaku untuk 2–3 akun pengguna (suami & istri / partner) dengan kalender tagihan bersama, split tracking transaksi per anggota, dan gabungan net worth real-time.",
     tag: "Kolaborasi Keluarga",
   },
 ];
@@ -751,12 +762,145 @@ export default function Landing() {
           ))}
         </div>
 
+        <div className="grid sm:grid-cols-2 gap-4 mt-8 max-w-4xl mx-auto">
+          <div className="bg-surface/80 border border-brand/30 rounded-2xl p-5 flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center shrink-0">
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <h4 className="font-head font-bold text-sm text-tprimary">
+                Upgrade Paket: Cukup Bayar Selisih!
+              </h4>
+              <p className="text-xs text-tsecondary mt-1 leading-relaxed">
+                Mulai dari Starter dulu? Jangan khawatir. Kamu bisa upgrade ke paket <strong>Pro (cukup tambah Rp 50.000)</strong> atau ke <strong>Family (cukup tambah Rp 70.000 dari Pro)</strong> kapan saja. Uang pembelian pertamamu tidak akan hangus.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-surface/80 border border-amber/30 rounded-2xl p-5 flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber/10 text-amber flex items-center justify-center shrink-0">
+              <Zap size={20} />
+            </div>
+            <div>
+              <h4 className="font-head font-bold text-sm text-tprimary">
+                Jaminan Kuota Instan: Aktif Selamanya Sampai Habis
+              </h4>
+              <p className="text-xs text-tsecondary mt-1 leading-relaxed">
+                Butuh kuota AI tambahan tanpa ganti paket? Beli <strong>Booster Instan (mulai Rp 10.000)</strong>. Saldo booster <strong>tidak memiliki masa kedaluwarsa</strong> dan tidak akan hangus di akhir bulan!
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="mt-8 text-center text-xs text-tmuted flex flex-wrap items-center justify-center gap-4">
-          <span className="flex items-center gap-1.5"><Shield size={14} className="text-brand" /> Garansi Aman</span>
+          <span className="flex items-center gap-1.5"><Shield size={14} className="text-brand" /> Garansi Bebas Iklan Selamanya</span>
           <span>•</span>
           <span>Tersedia pembayaran QRIS, Transfer Bank, & E-Wallet</span>
           <span>•</span>
           <span>Aktivasi Kode Lisensi Instan</span>
+        </div>
+      </section>
+
+      {/* AI Transparency Section */}
+      <section className="max-w-5xl mx-auto px-5 py-16 border-t border-borderc/40">
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <span className="text-xs font-bold uppercase tracking-wider text-brand font-head">
+            Prinsip Kejujuran & Transparansi
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-head font-extrabold mt-1 text-tprimary">
+            Untuk apa saja AI Tumara <span className="brand-gradient-text">digunakan?</span>
+          </h2>
+          <p className="text-tsecondary text-xs sm:text-sm mt-2 leading-relaxed">
+            Kami tidak menjual ilusi atau jargon kosong. Kami memisahkan secara tegas antara kemampuan <strong>Kecerdasan Buatan (Cloud AI)</strong> dengan <strong>Algoritma Akuntansi Pasti</strong> demi akurasi finansial yang 100% dapat diandalkan.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Cloud AI column */}
+          <div className="bg-surface border border-brand/30 rounded-3xl p-6 sm:p-7 relative overflow-hidden">
+            <div className="flex items-center gap-2.5 mb-4 text-brand">
+              <Sparkles size={20} />
+              <h3 className="font-head font-bold text-base text-tprimary">
+                Didukung Cloud AI (Google Gemini Vision & LLM)
+              </h3>
+            </div>
+            <p className="text-xs text-tsecondary mb-5 leading-relaxed">
+              Membutuhkan biaya komputasi server tinggi sehingga diatur dengan kuota bulanan Fair Usage Policy (FUP) yang adil:
+            </p>
+            <ul className="space-y-3.5 text-xs text-tsecondary">
+              <li className="flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="text-brand shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-tprimary block">Scan Struk Belanja Otomatis (Vision OCR)</strong>
+                  Membaca foto struk toko fisik, merinci nama item belanjaan, pajak resto PB1, dan berat timbangan desimal (produce/buah/sayur).
+                </div>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="text-brand shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-tprimary block">Konsultasi Finansial Interaktif (Tumara AI CFO)</strong>
+                  Tanya jawab strategi uang, evaluasi pos bocor halus, dan saran finansial personal berbasis data dompet nyata.
+                </div>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="text-brand shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-tprimary block">Catat Cepat Ketikan Bahasa Sehari-hari</strong>
+                  Cukup ketik santai seperti <em>&quot;ngopi di fore 38rb pake gopay&quot;</em> dan AI otomatis mengubahnya jadi transaksi rapi.
+                </div>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="text-brand shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-tprimary block">Weekly AI Health Recap (Pro & Family)</strong>
+                  Narasi evaluasi mingguan otomatis mengevaluasi kebiasaan belanja dan progres finansialmu.
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          {/* Pure Accounting column */}
+          <div className="bg-surface border border-borderc rounded-3xl p-6 sm:p-7 relative overflow-hidden">
+            <div className="flex items-center gap-2.5 mb-4 text-cyan">
+              <ShieldCheck size={20} />
+              <h3 className="font-head font-bold text-base text-tprimary">
+                100% Algoritma Matematika Akuntansi Pasti
+              </h3>
+            </div>
+            <p className="text-xs text-tsecondary mb-5 leading-relaxed">
+              Dijalankan langsung di perangkatmu tanpa token AI — <strong>100% Bebas Kuota & Unlimited di Semua Paket:</strong>
+            </p>
+            <ul className="space-y-3.5 text-xs text-tsecondary">
+              <li className="flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="text-cyan shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-tprimary block">Financial Health Score (0–100)</strong>
+                  Dihitung transparan dari 4 pilar fundamental (Solvabilitas, Rasio Tabungan, Disiplin 50/30/20, & Goals). Rumus objektif bebas halusinasi.
+                </div>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="text-cyan shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-tprimary block">Smart Daily Spend Pulse</strong>
+                  Kalkulator pembagi anggaran aman harian berbasis sisa hari dalam bulan berjalan agar uang tidak habis sebelum akhir bulan.
+                </div>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="text-cyan shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-tprimary block">Kalender Tagihan & Mini Habit Tracker</strong>
+                  Visualisasi kedisiplinan pencatatan harian dan peringatan jatuh tempo tagihan berulang.
+                </div>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="text-cyan shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-tprimary block">Pencatatan Manual, Dompet & Kategori Unlimited</strong>
+                  Catat transaksi manual sebanyak apa pun tanpa pernah dibatasi kuota seumur hidup.
+                </div>
+              </li>
+            </ul>
+          </div>
         </div>
       </section>
 

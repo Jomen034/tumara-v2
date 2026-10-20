@@ -165,7 +165,7 @@ export default function About() {
             </h2>
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="p-5 space-y-2.5">
               <div className="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center">
                 <Shield size={20} />
@@ -193,6 +193,16 @@ export default function About() {
               <h3 className="font-head font-bold text-base">Portabilitas Penuh</h3>
               <p className="text-xs text-tsecondary leading-relaxed">
                 Seluruh catatan keuangan Anda adalah hak milik Anda. Unduh kapan saja dalam format CSV atau full JSON backup dengan 1 klik.
+              </p>
+            </Card>
+
+            <Card className="p-5 space-y-2.5">
+              <div className="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center">
+                <Zap size={20} />
+              </div>
+              <h3 className="font-head font-bold text-base">Kuota Instan Tanpa Expired</h3>
+              <p className="text-xs text-tsecondary leading-relaxed">
+                Saldo booster kuota AI tambahan aktif selamanya sampai habis tanpa masa kedaluwarsa. Uang Anda tidak pernah hangus di akhir bulan.
               </p>
             </Card>
           </div>

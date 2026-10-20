@@ -33,6 +33,7 @@ import TransactionDetailModal from "../components/TransactionDetailModal";
 import EditTransactionModal from "../components/EditTransactionModal";
 import PayBillModal from "../components/PayBillModal";
 import HabitJournalCalendar from "../components/HabitJournalCalendar";
+import AiQuotaModal from "../components/AiQuotaModal";
 
 function HealthGauge({ score }) {
   const r = 52, c = 2 * Math.PI * r;
@@ -596,15 +597,27 @@ function QuickAction({ icon: Icon, label, onClick, testid }) {
 
 function WeeklyRecap() {
   const [content, setContent] = useState(null);
+  const [locked, setLocked] = useState(false);
+  const [lockedMsg, setLockedMsg] = useState("");
+  const [quotaModalOpen, setQuotaModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const fetchRecap = async (refresh = false) => {
     setLoading(true);
     try {
       const { data } = await api.get("/ai/weekly-recap", { params: refresh ? { refresh: true } : {} });
-      setContent(data.content);
-    } catch { setContent("Belum bisa membuat rangkuman. Coba lagi nanti."); }
-    finally { setLoading(false); }
+      if (data.locked) {
+        setLocked(true);
+        setLockedMsg(data.message);
+      } else {
+        setLocked(false);
+        setContent(data.content);
+      }
+    } catch {
+      setContent("Belum bisa membuat rangkuman. Coba lagi nanti.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchRecap(false); }, []);
@@ -613,14 +626,35 @@ function WeeklyRecap() {
     <Card data-testid="weekly-recap-card" className="relative overflow-hidden border-brand/30">
       <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full opacity-10 blur-2xl" style={{ background: "var(--brand)" }} />
       <div className="flex items-center justify-between mb-2 relative">
-        <h2 className="font-head font-bold flex items-center gap-2"><Sparkles size={18} className="text-brand" /> Rangkuman Mingguan</h2>
-        <button onClick={() => fetchRecap(true)} disabled={loading} data-testid="recap-refresh-button"
-          className="p-2 rounded-lg hover:bg-elevated text-tsecondary disabled:opacity-50">
-          <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-        </button>
+        <h2 className="font-head font-bold flex items-center gap-2">
+          <Sparkles size={18} className="text-brand" /> Rangkuman Mingguan AI
+        </h2>
+        {!locked && (
+          <button onClick={() => fetchRecap(true)} disabled={loading} data-testid="recap-refresh-button"
+            className="p-2 rounded-lg hover:bg-elevated text-tsecondary disabled:opacity-50">
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+          </button>
+        )}
       </div>
-      {loading && !content ? (
-        <div className="flex items-center gap-2 text-sm text-tsecondary py-2"><Spinner size={16} className="text-brand" /> Tumara lagi merangkum minggumu...</div>
+
+      {locked ? (
+        <div className="py-2 space-y-3 relative">
+          <p className="text-xs text-tsecondary leading-relaxed">
+            {lockedMsg || "Weekly AI Financial Health Recap eksklusif untuk pengguna paket Pro & Family Partner."}
+          </p>
+          <Button
+            size="sm"
+            onClick={() => setQuotaModalOpen(true)}
+            className="flex items-center gap-1.5 text-xs font-semibold"
+          >
+            <Sparkles size={13} /> Upgrade ke Pro (Cukup Bayar Selisih)
+          </Button>
+          <AiQuotaModal open={quotaModalOpen} onClose={() => setQuotaModalOpen(false)} />
+        </div>
+      ) : loading && !content ? (
+        <div className="flex items-center gap-2 text-sm text-tsecondary py-2">
+          <Spinner size={16} className="text-brand" /> Tumara lagi merangkum minggumu...
+        </div>
       ) : (
         <p className="text-sm text-tsecondary leading-relaxed whitespace-pre-wrap relative">{content}</p>
       )}

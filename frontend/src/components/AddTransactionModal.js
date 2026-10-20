@@ -159,7 +159,13 @@ export default function AddTransactionModal({
       });
       toast.success("Tumara sudah paham — cek & konfirmasi ya");
     } catch (e) {
-      toast.error(e?.response?.data?.detail || "Gagal memahami teks");
+      if (e?.response?.status === 429) {
+        setQuotaData(e.response.data?.detail);
+        setQuotaOpen(true);
+        toast.error("Kuota teks AI bulan ini telah mencapai batas FUP");
+      } else {
+        toast.error(e?.response?.data?.detail || "Gagal memahami teks");
+      }
     } finally {
       setParsing(false);
     }

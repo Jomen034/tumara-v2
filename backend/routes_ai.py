@@ -90,6 +90,10 @@ async def parse_transaction_endpoint(body: ParseRequest, ctx: Ctx = Depends(get_
     text = (body.text or "").strip()
     if not text:
         raise HTTPException(400, "Teks kosong")
+    
+    # Enforce AI text quota (FUP)
+    await enforce_and_increment_ai_quota(ctx.user.user_id, "chat")
+
     wallets = await db.wallets.find({"household_id": ctx.hid}, {"_id": 0}).to_list(200)
     try:
         draft = await parse_transaction_text(text, wallets)
@@ -102,10 +106,23 @@ async def parse_transaction_endpoint(body: ParseRequest, ctx: Ctx = Depends(get_
 async def weekly_recap(refresh: bool = False, ctx: Ctx = Depends(get_ctx)):
     hid = ctx.hid
     week = datetime.now(timezone.utc).strftime("%G-W%V")
+    user_tier = getattr(ctx.user, "tier", "pro")
+
+    # Weekly AI Recap is exclusive to Pro and Family tiers
+    if user_tier == "starter":
+        return {
+            "locked": True,
+            "tier": "starter",
+            "message": "Weekly AI Financial Health Recap eksklusif untuk pengguna paket Pro & Family Partner. Silakan upgrade akunmu untuk menikmati evaluasi naratif mingguan otomatis.",
+            "content": None,
+            "week": week,
+            "cached": True,
+        }
+
     if not refresh:
         cached = await db.ai_recaps.find_one({"household_id": hid, "week": week}, {"_id": 0})
         if cached:
-            return {"content": cached["content"], "week": week, "cached": True}
+            return {"content": cached["content"], "week": week, "cached": True, "locked": False}
     try:
         content = await generate_weekly_recap(hid)
     except Exception as e:
@@ -115,4 +132,4 @@ async def weekly_recap(refresh: bool = False, ctx: Ctx = Depends(get_ctx)):
         {"$set": {"household_id": hid, "week": week, "content": content, "created_at": now_utc()}},
         upsert=True,
     )
-    return {"content": content, "week": week, "cached": False}
+    return {"content": content, "week": week, "cached": False, "locked": False}

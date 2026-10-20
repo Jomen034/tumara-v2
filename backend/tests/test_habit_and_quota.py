@@ -79,12 +79,12 @@ class MockCollection:
 class TestAiQuotaLimits(unittest.TestCase):
     def test_tier_limits_mapping(self):
         from ai_quota import TIER_LIMITS, get_next_reset_date, get_current_wib_month
-        self.assertEqual(TIER_LIMITS["starter"]["scans"], 15)
-        self.assertEqual(TIER_LIMITS["starter"]["chats"], 30)
+        self.assertEqual(TIER_LIMITS["starter"]["scans"], 3)
+        self.assertEqual(TIER_LIMITS["starter"]["chats"], 5)
         self.assertEqual(TIER_LIMITS["pro"]["scans"], 50)
         self.assertEqual(TIER_LIMITS["pro"]["chats"], 100)
-        self.assertEqual(TIER_LIMITS["family"]["scans"], 100)
-        self.assertEqual(TIER_LIMITS["family"]["chats"], 200)
+        self.assertEqual(TIER_LIMITS["family"]["scans"], 120)
+        self.assertEqual(TIER_LIMITS["family"]["chats"], 250)
 
         month_str = get_current_wib_month()
         self.assertRegex(month_str, r"^\d{4}-\d{2}$")
@@ -96,21 +96,29 @@ class TestAiQuotaLimits(unittest.TestCase):
         import ai_quota
         from ai_quota import enforce_and_increment_ai_quota, HTTPException
 
-        # Mock user at quota limit
+        # Mock user at quota limit with extra scans
         mock_user = {
             "user_id": "user_test_quota_01",
             "tier": "starter",
             "ai_usage": {
                 "month": ai_quota.get_current_wib_month(),
-                "scans_used": 15,
-                "scans_limit": 15,
-                "chats_used": 5,
-                "chats_limit": 30,
+                "scans_used": 3,
+                "scans_limit": 3,
+                "extra_scans": 1,
+                "chats_used": 2,
+                "chats_limit": 5,
+                "extra_chats": 0,
             }
         }
         ai_quota.db = type("MockDB", (), {"users": MockCollection({"user_test_quota_01": mock_user})})
 
-        # Test scan when limit reached -> raises 429
+        # Test scan when limit reached but extra_scans > 0 -> decrements extra_scans, does not raise 429
+        async def run_scan_with_extra():
+            await enforce_and_increment_ai_quota("user_test_quota_01", "scan")
+            u = await ai_quota.db.users.find_one({"user_id": "user_test_quota_01"})
+            self.assertEqual(u["ai_usage"]["extra_scans"], 0)
+
+        # Test scan when extra_scans is 0 -> raises 429
         async def run_scan_exceeded():
             try:
                 await enforce_and_increment_ai_quota("user_test_quota_01", "scan")
@@ -118,7 +126,7 @@ class TestAiQuotaLimits(unittest.TestCase):
             except HTTPException as e:
                 self.assertEqual(e.status_code, 429)
                 self.assertTrue(e.detail.get("quota_exceeded"))
-                self.assertEqual(e.detail.get("scans_used"), 15)
+                self.assertEqual(e.detail.get("scans_used"), 3)
                 self.assertTrue(e.detail.get("can_upgrade"))
                 return True
 
@@ -126,9 +134,10 @@ class TestAiQuotaLimits(unittest.TestCase):
         async def run_chat_valid():
             await enforce_and_increment_ai_quota("user_test_quota_01", "chat")
             u = await ai_quota.db.users.find_one({"user_id": "user_test_quota_01"})
-            self.assertEqual(u["ai_usage"]["chats_used"], 6)
+            self.assertEqual(u["ai_usage"]["chats_used"], 3)
 
         loop = asyncio.new_event_loop()
+        loop.run_until_complete(run_scan_with_extra())
         res_exceeded = loop.run_until_complete(run_scan_exceeded())
         self.assertTrue(res_exceeded)
         loop.run_until_complete(run_chat_valid())

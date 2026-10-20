@@ -125,6 +125,12 @@ async def leave_household(user: User = Depends(get_current_user)):
 async def create_invite(body: InviteCreate, ctx: Ctx = Depends(get_ctx)):
     if ctx.user.role != "admin":
         raise HTTPException(403, "Hanya admin yang bisa mengundang")
+    user_tier = getattr(ctx.user, "tier", "pro")
+    if user_tier != "family":
+        raise HTTPException(
+            403,
+            "Fitur kolaborasi dan undang pasangan eksklusif untuk pengguna paket Family Partner. Silakan upgrade paket akunmu (cukup bayar selisih) untuk mengundang anggota."
+        )
     members = await household_members(ctx.hid)
     if len(members) >= MAX_HOUSEHOLD_MEMBERS:
         raise HTTPException(400, f"Rumah tangga sudah penuh (maks {MAX_HOUSEHOLD_MEMBERS} anggota)")

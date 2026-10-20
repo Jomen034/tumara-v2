@@ -20,6 +20,29 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-21 00:10:00 WIB] — Commercialization Refinement: Winning Pricing Matrix, AI Architecture Transparency, Non-Expiring Booster Packs, and Prorated Tier Upgrades
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menghaluskan model monetisasi dan transparansi produk Tumara v2.2.1:
+  1. Menyesuaikan kuota FUP Starter (3 scan & 5 teks/chat) untuk mencegah kanibalisasi paket Pro, serta menetapkan harga Pro di angka psikologis sub-100k (Rp 99.000) dan Family di Rp 169.000.
+  2. Menerapkan sistem saldo kuota Booster cadangan (`extra_scans` & `extra_chats`) yang aktif selamanya tanpa batas kedaluwarsa.
+  3. Menerapkan mekanisme upgrade "Cukup Bayar Selisih" di Landing Page, Modal Kuota, dan Pengaturan Akun.
+  4. Menambahkan section Transparansi Kemampuan AI di Landing Page & Halaman About yang membedakan Cloud AI vs Algoritma Akuntansi Murni.
+  5. Mengunci fungsionalitas eksklusif: Kolaborasi Rumah Tangga (`/household/invite`) hanya untuk paket Family Partner, dan Weekly AI Recap untuk Pro & Family.
+- **Key Actions & Changes:**
+  - `backend/ai_quota.py`: Menetapkan TIER_LIMITS baru (Starter: 3/5, Pro: 50/100, Family: 120/250) dan logika konsumsi kuota yang mendahulukan kuota bulanan sebelum memotong saldo booster permanen.
+  - `backend/auth.py`: Menambahkan mapping paket voucher booster (`booster_mini`, `booster_populer`, `booster_jumbo`) pada endpoint redeem code.
+  - `backend/routes_ai.py`: Menambahkan pemotongan kuota teks AI pada `/ai/parse-transaction` dan proteksi tier lock pada `/ai/weekly-recap`.
+  - `backend/routes_household.py`: Memvalidasi bahwa hanya pengguna tier `family` yang dapat membuat tautan undangan rumah tangga.
+  - `backend/tests/test_habit_and_quota.py`: Mengupdate unit test dan memverifikasi proteksi FUP dan konsumsi saldo booster.
+  - `frontend/src/pages/Landing.js`: Memperbarui kartu harga, FAQ, garansi bayar selisih, jaminan kuota booster permanen, dan section breakdown transparansi AI.
+  - `frontend/src/components/AiQuotaModal.js`: Overhaul modal kuota dengan tab Upgrade Selisih per-tier dan 3 pilihan paket booster instan terintegrasi WhatsApp.
+  - `frontend/src/components/SettingsModal.js`: Menampilkan badge lisensi tier akun dan tombol kelola/upgrade paket.
+  - `frontend/src/pages/Household.js`: Menampilkan card upgrade ke Family Partner jika user non-family ingin mengundang pasangan.
+  - `frontend/src/pages/Dashboard.js`: Menangani tampilan terkunci Weekly AI Recap untuk paket Starter dengan tombol upgrade.
+  - `frontend/src/pages/About.js`: Menambahkan kartu standar transparansi arsitektur AI dan kuota instan tanpa expired.
+- **Notes & Important Context:**
+  - Seluruh unit test backend 3/3 passed. Zero matches untuk kata legacy.
+
 ### [2026-10-20 23:35:00 WIB] — Fix: Import clsx in Landing.js to Resolve Vercel Production Build Failure
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Memperbaiki kegagalan compile Vercel CI pada commit `1bf9e20` akibat `clsx` belum ter-import di `frontend/src/pages/Landing.js`.

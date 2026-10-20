@@ -22,12 +22,14 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { Modal, Button, Input, Spinner, Badge } from "./ui";
 import { AVATAR_CHARACTERS, AVATAR_DATA_URIS, getUserAvatar } from "../lib/avatars";
+import AiQuotaModal from "./AiQuotaModal";
 
 export default function SettingsModal({ open, onClose }) {
   const { user, checkAuth, logout } = useAuth();
   const { theme, toggleTheme, privacy, togglePrivacy } = useTheme();
 
   const [activeTab, setActiveTab] = useState("profil"); // 'profil' | 'preferensi' | 'data' | 'danger'
+  const [quotaModalOpen, setQuotaModalOpen] = useState(false);
 
   // Profile state
   const [displayName, setDisplayName] = useState(user?.display_name || user?.name || "");
@@ -195,8 +197,36 @@ export default function SettingsModal({ open, onClose }) {
                   <Badge color={user?.role === "admin" ? "var(--amber)" : "var(--cyan)"}>
                     {user?.role === "admin" ? "Admin Rumah Tangga" : "Partner"}
                   </Badge>
+                  <Badge color="var(--brand)" className="uppercase font-mono text-[10px]">
+                    Paket {user?.tier || "starter"}
+                  </Badge>
                 </div>
               </div>
+            </div>
+
+            {/* License & Quota Status Card */}
+            <div className="bg-surface border border-borderc rounded-2xl p-3.5 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-tprimary flex items-center gap-1.5 font-head">
+                  <Sparkles size={14} className="text-brand" /> Lisensi: Paket {(user?.tier || "starter").toUpperCase()}
+                </p>
+                <p className="text-[11px] text-tsecondary mt-0.5">
+                  {user?.tier === "starter"
+                    ? "3 Scan & 5 Teks AI / bln · Upgrade cukup bayar selisih"
+                    : user?.tier === "family"
+                    ? "120 Scan & 250 Teks AI / bln · Kolaborasi Rumah Tangga Aktif"
+                    : "50 Scan & 100 Teks AI / bln · Pro Tumara AI Aktif"}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setQuotaModalOpen(true)}
+                className="text-xs font-semibold shrink-0"
+              >
+                Kelola / Upgrade
+              </Button>
             </div>
 
             {/* Avatar Character Chooser */}
@@ -394,6 +424,14 @@ export default function SettingsModal({ open, onClose }) {
           </div>
         )}
       </div>
+
+      <AiQuotaModal
+        open={quotaModalOpen}
+        onClose={() => setQuotaModalOpen(false)}
+        onRedeemed={async () => {
+          if (checkAuth) await checkAuth();
+        }}
+      />
     </Modal>
   );
 }

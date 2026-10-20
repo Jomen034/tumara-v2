@@ -17,9 +17,9 @@ except ImportError:
     db = None
 
 TIER_LIMITS = {
-    "starter": {"scans": 15, "chats": 30},
+    "starter": {"scans": 3, "chats": 5},
     "pro": {"scans": 50, "chats": 100},
-    "family": {"scans": 100, "chats": 200},
+    "family": {"scans": 120, "chats": 250},
 }
 
 ID_MONTHS = [
@@ -56,12 +56,18 @@ async def get_or_init_ai_usage(user_id: str, tier: str = "pro") -> dict:
     ai_usage = user_doc.get("ai_usage") or {}
     last_month = ai_usage.get("month")
 
-    # Auto reset on month change
+    # Extra/booster balances never expire across months
+    extra_scans = int(ai_usage.get("extra_scans", 0) or 0)
+    extra_chats = int(ai_usage.get("extra_chats", 0) or 0)
+
+    # Auto reset monthly quota on month change
     if last_month != current_month:
         ai_usage = {
             "month": current_month,
             "scans_used": 0,
             "chats_used": 0,
+            "extra_scans": extra_scans,
+            "extra_chats": extra_chats,
             "tier": user_tier,
             "scans_limit": limits["scans"],
             "chats_limit": limits["chats"],
@@ -71,11 +77,18 @@ async def get_or_init_ai_usage(user_id: str, tier: str = "pro") -> dict:
             {"$set": {"ai_usage": ai_usage, "tier": user_tier}}
         )
     else:
-        # Ensure limits are present
-        if "scans_limit" not in ai_usage:
+        # Ensure limits and extra balances are present
+        updated = False
+        if "scans_limit" not in ai_usage or ai_usage.get("scans_limit") != limits["scans"]:
             ai_usage["scans_limit"] = limits["scans"]
             ai_usage["chats_limit"] = limits["chats"]
             ai_usage["tier"] = user_tier
+            updated = True
+        if "extra_scans" not in ai_usage:
+            ai_usage["extra_scans"] = extra_scans
+            ai_usage["extra_chats"] = extra_chats
+            updated = True
+        if updated:
             await db.users.update_one(
                 {"user_id": user_id},
                 {"$set": {"ai_usage": ai_usage}}
@@ -87,8 +100,9 @@ async def get_or_init_ai_usage(user_id: str, tier: str = "pro") -> dict:
 async def enforce_and_increment_ai_quota(user_id: str, action: str):
     """
     Checks quota for action ('scan' or 'chat').
-    If exceeded, raises HTTPException(429) with structured payload.
-    If valid, increments the counter in DB.
+    Prioritizes monthly regular quota first.
+    If monthly quota is exceeded, uses non-expiring extra_scans/extra_chats booster.
+    If both are exhausted, raises HTTPException(429) with structured payload.
     """
     user_doc = await db.users.find_one({"user_id": user_id})
     tier = (user_doc or {}).get("tier", "pro")
@@ -98,7 +112,19 @@ async def enforce_and_increment_ai_quota(user_id: str, action: str):
     if action == "scan":
         used = usage.get("scans_used", 0)
         limit = usage.get("scans_limit", 50)
-        if used >= limit:
+        extra = int(usage.get("extra_scans", 0) or 0)
+
+        if used < limit:
+            await db.users.update_one(
+                {"user_id": user_id},
+                {"$inc": {"ai_usage.scans_used": 1}}
+            )
+        elif extra > 0:
+            await db.users.update_one(
+                {"user_id": user_id},
+                {"$inc": {"ai_usage.extra_scans": -1}}
+            )
+        else:
             raise HTTPException(
                 status_code=429,
                 detail={
@@ -107,33 +133,39 @@ async def enforce_and_increment_ai_quota(user_id: str, action: str):
                     "action": "scan",
                     "scans_used": used,
                     "scans_limit": limit,
+                    "extra_scans": 0,
                     "reset_date": reset_date,
                     "tier": usage.get("tier", "pro"),
                     "can_upgrade": True,
                 }
             )
-        await db.users.update_one(
-            {"user_id": user_id},
-            {"$inc": {"ai_usage.scans_used": 1}}
-        )
     elif action == "chat":
         used = usage.get("chats_used", 0)
         limit = usage.get("chats_limit", 100)
-        if used >= limit:
+        extra = int(usage.get("extra_chats", 0) or 0)
+
+        if used < limit:
+            await db.users.update_one(
+                {"user_id": user_id},
+                {"$inc": {"ai_usage.chats_used": 1}}
+            )
+        elif extra > 0:
+            await db.users.update_one(
+                {"user_id": user_id},
+                {"$inc": {"ai_usage.extra_chats": -1}}
+            )
+        else:
             raise HTTPException(
                 status_code=429,
                 detail={
-                    "message": f"Kuota tanya Tumara AI bulan ini telah mencapai batas FUP ({used}/{limit}).",
+                    "message": f"Kuota AI teks & konsultasi bulan ini telah mencapai batas FUP ({used}/{limit}).",
                     "quota_exceeded": True,
                     "action": "chat",
                     "chats_used": used,
                     "chats_limit": limit,
+                    "extra_chats": 0,
                     "reset_date": reset_date,
                     "tier": usage.get("tier", "pro"),
                     "can_upgrade": True,
                 }
             )
-        await db.users.update_one(
-            {"user_id": user_id},
-            {"$inc": {"ai_usage.chats_used": 1}}
-        )

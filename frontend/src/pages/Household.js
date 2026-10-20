@@ -27,6 +27,7 @@ import { getUserAvatar } from "../lib/avatars";
 import { formatRp, formatDate } from "../lib/format";
 import { catMeta } from "../lib/constants";
 import { Card, Button, Input, Spinner, Badge, Modal } from "../components/ui";
+import AiQuotaModal from "../components/AiQuotaModal";
 
 const EMOJI_OPTIONS = ["🏠", "🏡", "🏰", "🌴", "⛺", "⛵", "🛋️", "🍲", "☕", "🌺", "🐾", "🪴"];
 
@@ -38,6 +39,7 @@ export default function Household() {
   const [loading, setLoading] = useState(true);
   const [invite, setInvite] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [quotaModalOpen, setQuotaModalOpen] = useState(false);
   const [joinCode, setJoinCode] = useState(
     localStorage.getItem("tumara-invite") || ""
   );
@@ -68,12 +70,20 @@ export default function Household() {
   }, []);
 
   const createInvite = async () => {
+    if (user?.tier !== "family") {
+      setQuotaModalOpen(true);
+      return;
+    }
     try {
       const { data: inv } = await api.post("/household/invite", {});
       setInvite(inv);
       toast.success("Undangan berhasil dibuat!");
     } catch (e) {
-      toast.error(e?.response?.data?.detail || "Gagal membuat undangan");
+      if (e?.response?.status === 403) {
+        setQuotaModalOpen(true);
+      } else {
+        toast.error(e?.response?.data?.detail || "Gagal membuat undangan");
+      }
     }
   };
 
@@ -384,8 +394,36 @@ export default function Household() {
         </div>
       </Card>
 
-      {/* Invite Partner Section */}
-      {isAdmin && data.can_invite && (
+      {/* Invite Partner Section (Family Tier Gated) */}
+      {isAdmin && user?.tier !== "family" && members.length === 1 && (
+        <Card className="border-brand/40 bg-surface/90 relative overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <UserPlus size={18} className="text-brand" />
+                <h2 className="font-head font-bold text-base text-tprimary">
+                  Undang Pasangan & Kolaborasi Rumah Tangga
+                </h2>
+                <Badge variant="brand" className="text-[10px]">
+                  Eksklusif Family Partner
+                </Badge>
+              </div>
+              <p className="text-xs text-tsecondary max-w-xl leading-relaxed">
+                Kelola keuangan berdua secara transparan (Shared Net Worth, Kalender Tagihan Bersama, & 120 Scan Struk/bln). Akunmu saat ini berada di <strong>Paket {(user?.tier || "starter").toUpperCase()}</strong>. Upgrade kapan saja cukup bayar selisih!
+              </p>
+            </div>
+            <Button
+              onClick={() => setQuotaModalOpen(true)}
+              size="sm"
+              className="shrink-0 flex items-center gap-1.5 text-xs font-semibold"
+            >
+              <Sparkles size={14} /> Upgrade ke Family Partner
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {isAdmin && user?.tier === "family" && data.can_invite && (
         <Card className="border-brand/20">
           <h2 className="font-head font-bold flex items-center gap-2 mb-1">
             <UserPlus size={18} className="text-brand" /> Undang Pasangan
@@ -555,6 +593,15 @@ export default function Household() {
           </div>
         </form>
       </Modal>
+
+      <AiQuotaModal
+        open={quotaModalOpen}
+        onClose={() => setQuotaModalOpen(false)}
+        onRedeemed={async () => {
+          if (checkAuth) await checkAuth();
+          load();
+        }}
+      />
     </div>
   );
 }

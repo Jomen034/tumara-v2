@@ -419,14 +419,28 @@ async def redeem_code(body: RedeemCodeRequest, user: User = Depends(get_current_
     tier = ac.get("tier", "pro")
     await db.access_codes.update_one({"_id": ac["_id"]}, {"$inc": {"used_count": 1}})
 
-    from ai_quota import TIER_LIMITS
-    if tier == "addon_scan50":
+    BOOSTER_PACKS = {
+        "booster_mini": {"scans": 15, "chats": 20, "label": "Booster Mini (+15 Scan & +20 Teks AI)"},
+        "addon_mini": {"scans": 15, "chats": 20, "label": "Booster Mini (+15 Scan & +20 Teks AI)"},
+        "booster_populer": {"scans": 40, "chats": 60, "label": "Booster Populer (+40 Scan & +60 Teks AI)"},
+        "addon_populer": {"scans": 40, "chats": 60, "label": "Booster Populer (+40 Scan & +60 Teks AI)"},
+        "addon_scan50": {"scans": 50, "chats": 50, "label": "Booster Populer (+50 Scan Struk)"},
+        "booster_jumbo": {"scans": 100, "chats": 150, "label": "Booster Jumbo (+100 Scan & +150 Teks AI)"},
+        "addon_jumbo": {"scans": 100, "chats": 150, "label": "Booster Jumbo (+100 Scan & +150 Teks AI)"},
+    }
+
+    if tier in BOOSTER_PACKS:
+        pack = BOOSTER_PACKS[tier]
         await db.users.update_one(
             {"user_id": user.user_id},
-            {"$inc": {"ai_usage.scans_limit": 50}}
+            {"$inc": {
+                "ai_usage.extra_scans": pack["scans"],
+                "ai_usage.extra_chats": pack["chats"],
+            }}
         )
-        msg = "Kode aktivasi berhasil! Kuota AI kamu bertambah +50 scan struk."
+        msg = f"Kode aktivasi berhasil! {pack['label']} telah ditambahkan ke saldomu dan aktif selamanya tanpa kedaluwarsa."
     else:
+        from ai_quota import TIER_LIMITS
         limits = TIER_LIMITS.get(tier, TIER_LIMITS["pro"])
         await db.users.update_one(
             {"user_id": user.user_id},
