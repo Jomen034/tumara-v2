@@ -20,6 +20,7 @@ import {
   ReceiptText,
   Users,
   Settings,
+  Info,
 } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "../context/AuthContext";
@@ -154,6 +155,12 @@ export default function Layout({ children, onAdd, onScan }) {
             </div>
             <Settings size={15} className="text-tmuted group-hover:text-brand transition-colors shrink-0" />
           </div>
+          <NavLink
+            to="/about"
+            className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-tmuted hover:text-brand hover:bg-elevated transition-colors mb-1"
+          >
+            <Info size={15} /> Tentang Tumara (v2.2)
+          </NavLink>
           <button
             data-testid="logout-button"
             onClick={logout}
@@ -228,6 +235,13 @@ export default function Layout({ children, onAdd, onScan }) {
                   </div>
                   <Settings size={15} className="text-tmuted shrink-0" />
                 </div>
+                <NavLink
+                  to="/about"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-tmuted hover:text-brand hover:bg-elevated transition-colors mb-1"
+                >
+                  <Info size={15} /> Tentang Tumara (v2.2)
+                </NavLink>
                 <button
                   onClick={logout}
                   className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-tsecondary hover:text-rose hover:bg-elevated transition-colors w-full"

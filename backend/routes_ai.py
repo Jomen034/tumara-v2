@@ -8,12 +8,21 @@ from models import User, ChatRequest, now_utc, new_id
 from auth import get_current_user
 from deps import get_ctx, Ctx
 from ai_service import advisor_stream, scan_receipt, parse_transaction_text, generate_weekly_recap
+from ai_quota import enforce_and_increment_ai_quota, get_or_init_ai_usage, get_next_reset_date
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 
 class ParseRequest(BaseModel):
     text: str
+
+
+@router.get("/usage")
+async def get_ai_usage_endpoint(user: User = Depends(get_current_user)):
+    """Returns monthly AI quota usage, limits, tier, and next reset date."""
+    usage = await get_or_init_ai_usage(user.user_id, getattr(user, "tier", "pro"))
+    usage["reset_date"] = get_next_reset_date()
+    return usage
 
 
 @router.get("/chat/history")
@@ -32,6 +41,9 @@ async def clear_history(user: User = Depends(get_current_user)):
 @router.post("/chat")
 async def chat(body: ChatRequest, ctx: Ctx = Depends(get_ctx)):
     user = ctx.user
+    # Enforce AI chat quota (FUP)
+    await enforce_and_increment_ai_quota(user.user_id, "chat")
+
     session_id = f"advisor_{user.user_id}"
 
     async def gen():
@@ -58,6 +70,10 @@ async def scan_receipt_endpoint(file: UploadFile = File(...), user: User = Depen
         allowed_types = ("image/jpeg", "image/png", "image/webp", "image/jpg", "image/heic", "image/heif", "application/octet-stream")
         if ct and not (ct.startswith("image/") or ct in allowed_types):
             raise HTTPException(400, f"Format gambar harus gambar valid (diterima: {ct})")
+
+        # Enforce AI scan quota (FUP)
+        await enforce_and_increment_ai_quota(user.user_id, "scan")
+
         data = await scan_receipt(raw)
         return data
     except HTTPException:

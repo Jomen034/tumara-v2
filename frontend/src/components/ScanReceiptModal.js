@@ -16,6 +16,7 @@ import { formatRp } from "../lib/format";
 import { CATEGORIES, catMeta } from "../lib/constants";
 import { Modal, Button, Select, Spinner, Badge } from "./ui";
 import { compressReceiptImage, rotateImageBlob } from "../lib/imageCompressor";
+import AiQuotaModal from "./AiQuotaModal";
 
 export default function ScanReceiptModal({ open, onClose, onSaved }) {
   const galleryRef = useRef();
@@ -27,6 +28,8 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
   const [rotating, setRotating] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState(null);
+  const [quotaOpen, setQuotaOpen] = useState(false);
+  const [quotaData, setQuotaData] = useState(null);
   const todayStr = new Date().toISOString().slice(0, 10);
   const currentMonthStr = todayStr.slice(0, 7);
   const [receiptDate, setReceiptDate] = useState(todayStr);
@@ -120,6 +123,11 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
 
       toast.success("Struk berhasil dipindai!");
     } catch (e) {
+      if (e?.response?.status === 429) {
+        setQuotaData(e?.response?.data?.detail);
+        setQuotaOpen(true);
+        return;
+      }
       const msg = e?.response?.data?.detail;
       const detailStr = typeof msg === "string" ? msg : Array.isArray(msg) ? msg.map((m) => m.msg).join(", ") : null;
       toast.error(detailStr || e?.response?.data?.message || e?.message || "Gagal memindai struk. Coba foto lebih dekat dan tegak.");
@@ -223,16 +231,17 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
   );
 
   return (
-    <Modal
-      open={open}
-      onClose={() => {
-        onClose();
-        reset();
-      }}
-      title="Scan Struk dengan AI"
-      testid="scan-receipt-modal"
-      size="md"
-    >
+    <>
+      <Modal
+        open={open}
+        onClose={() => {
+          onClose();
+          reset();
+        }}
+        title="Scan Struk dengan AI"
+        testid="scan-receipt-modal"
+        size="md"
+      >
       <div className="space-y-4">
         {!preview && (
           <div className="space-y-3">
@@ -591,5 +600,7 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
         )}
       </div>
     </Modal>
+    <AiQuotaModal open={quotaOpen} onClose={() => setQuotaOpen(false)} quotaData={quotaData} />
+    </>
   );
 }

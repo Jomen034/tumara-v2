@@ -14,6 +14,7 @@ import { Spinner } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { getUserAvatar } from "../lib/avatars";
 import FormattedMessage from "../components/FormattedMessage";
+import AiQuotaModal from "../components/AiQuotaModal";
 
 const SUGGESTIONS = [
   "Analisa pos pengeluaran terbesarku bulan ini",
@@ -30,6 +31,8 @@ export default function Advisor() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [quotaData, setQuotaData] = useState(null);
+  const [quotaOpen, setQuotaOpen] = useState(false);
   const scrollRef = useRef();
   const accRef = useRef("");
 
@@ -45,6 +48,17 @@ export default function Advisor() {
       }
     } catch {}
     setLoading(false);
+  }, []);
+
+  const fetchQuota = async () => {
+    try {
+      const res = await api.get("/ai/usage");
+      setQuotaData(res.data);
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchQuota();
   }, []);
 
   // Sync active session messages to sessionStorage
@@ -99,6 +113,12 @@ export default function Advisor() {
       });
 
       if (res.status === 401) throw new Error("Sesi habis, silakan masuk lagi.");
+      if (res.status === 429) {
+        const errJson = await res.json().catch(() => ({}));
+        setQuotaData(errJson.detail || null);
+        setQuotaOpen(true);
+        throw new Error(errJson.detail?.message || "Batas kuota AI bulanan (FUP) telah tercapai.");
+      }
       if (!res.ok || !res.body) throw new Error("Gagal menerima respons dari Tumara AI");
 
       const reader = res.body.getReader();
@@ -118,6 +138,7 @@ export default function Advisor() {
           return n;
         });
       }
+      fetchQuota();
     } catch (e) {
       toast.error(e?.message || "Gagal terhubung ke Tumara AI");
       setMessages((m) => {
@@ -162,15 +183,29 @@ export default function Advisor() {
           </div>
         </div>
 
-        <button
-          onClick={clearSession}
-          data-testid="clear-chat-button"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-elevated hover:bg-elevated/80 text-tsecondary hover:text-tprimary text-xs font-semibold transition-colors border border-borderc"
-          title="Bersihkan obrolan dan mulai sesi baru"
-        >
-          <RotateCcw size={13} />
-          <span>Sesi Baru</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {quotaData && (
+            <button
+              onClick={() => setQuotaOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand/10 hover:bg-brand/20 text-brand text-xs font-semibold border border-brand/30 transition-colors"
+              title="Cek Kuota & Fair Usage Policy"
+            >
+              <Sparkles size={13} />
+              <span>
+                FUP: {quotaData.chats_used || 0}/{quotaData.chats_limit || 100}
+              </span>
+            </button>
+          )}
+          <button
+            onClick={clearSession}
+            data-testid="clear-chat-button"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-elevated hover:bg-elevated/80 text-tsecondary hover:text-tprimary text-xs font-semibold transition-colors border border-borderc"
+            title="Bersihkan obrolan dan mulai sesi baru"
+          >
+            <RotateCcw size={13} />
+            <span>Sesi Baru</span>
+          </button>
+        </div>
       </div>
 
       {/* Ephemeral Session & Privacy Banner */}
@@ -250,6 +285,13 @@ export default function Advisor() {
           {streaming ? <Spinner size={18} /> : <Send size={18} />}
         </button>
       </div>
+
+      <AiQuotaModal
+        open={quotaOpen}
+        onClose={() => setQuotaOpen(false)}
+        quotaData={quotaData}
+        onRedeemed={() => fetchQuota()}
+      />
     </div>
   );
 }

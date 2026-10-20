@@ -24,6 +24,7 @@ import { CATEGORIES, catMeta } from "../lib/constants";
 import { formatRp, formatShort } from "../lib/format";
 import { Modal, Button, Input, Select, Spinner } from "./ui";
 import { compressReceiptImage, rotateImageBlob } from "../lib/imageCompressor";
+import AiQuotaModal from "./AiQuotaModal";
 
 const TYPES = [
   { value: "expense", label: "Pengeluaran", icon: ArrowUpRight, color: "var(--rose)" },
@@ -81,6 +82,8 @@ export default function AddTransactionModal({
   const [scanCategory, setScanCategory] = useState("Groceries & Kebutuhan Rumah");
   const [scanItems, setScanItems] = useState([]);
   const [subItemsDraft, setSubItemsDraft] = useState(null);
+  const [quotaOpen, setQuotaOpen] = useState(false);
+  const [quotaData, setQuotaData] = useState(null);
 
   const scanCategoryDistribution = scanItems.reduce((acc, it) => {
     const p = Number(it.price) || 0;
@@ -231,6 +234,11 @@ export default function AddTransactionModal({
 
       toast.success("Struk berhasil dipindai!");
     } catch (e) {
+      if (e?.response?.status === 429) {
+        setQuotaData(e?.response?.data?.detail);
+        setQuotaOpen(true);
+        return;
+      }
       const msg = e?.response?.data?.detail;
       const detailStr = typeof msg === "string" ? msg : Array.isArray(msg) ? msg.map((m) => m.msg).join(", ") : null;
       toast.error(detailStr || e?.response?.data?.message || e?.message || "Gagal memindai struk");
@@ -413,7 +421,8 @@ export default function AddTransactionModal({
   const showForm = mode === "manual" || (mode === "ai" && draft);
 
   return (
-    <Modal open={open} onClose={onClose} title="Tambah Transaksi" testid="add-transaction-modal">
+    <>
+      <Modal open={open} onClose={onClose} title="Tambah Transaksi" testid="add-transaction-modal">
       {/* Mode tabs: 3 options */}
       <div className="flex gap-1 bg-elevated rounded-full p-1 mb-5">
         <button
@@ -1191,5 +1200,7 @@ export default function AddTransactionModal({
         </div>
       )}
     </Modal>
+    <AiQuotaModal open={quotaOpen} onClose={() => setQuotaOpen(false)} quotaData={quotaData} />
+    </>
   );
 }

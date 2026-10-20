@@ -20,26 +20,70 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-20 23:25:00 WIB] — Tumara v2.2: Gamified Habit Tracker Calendar, Digital License Pricing, Interactive FAQ, Official About Page, and AI Fair Usage Policy (FUP) Quota Engine
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Mewujudkan transformasi komersialisasi dan transparansi produk Tumara v2.2:
+  1. Menambahkan gamifikasi pencatatan finansial (Habit Tracker & Kalender Jurnal Bulanan) di Beranda.
+  2. Menambahkan model monetisasi produk digital sekali bayar (Pricing Tiers) dan FAQ Accordion interaktif di Landing Page.
+  3. Membangun halaman resmi "About Tumara & What's New" (`/about`) lengkap dengan filosofi brand *Tumbuh dengan arah*, badge status versi live di production, dan public changelog.
+  4. Menerapkan proteksi Fair Usage Policy (FUP) kuota AI bulanan (auto-reset tgl 1), proteksi anti-abuse, modal upgrade kuota instan, dan alur aktivasi kode lisensi unik (`POST /api/auth/redeem-code`).
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Menambahkan atribut `tier` ("starter" | "pro" | "family") dan `ai_usage` pada model `User`.
+    - Menambahkan atribut `tier` pada model `AccessCode` dan model `RedeemCodeRequest`.
+  - `backend/ai_quota.py` (Baru):
+    - Modul manajemen kuota FUP bulanan: pemetaan tier limit, komputasi tanggal reset bulan berikutnya (WIB), auto-reset saat pergantian bulan, dan penegakan kuota dengan respons HTTP 429 berformat JSON terstruktur (`quota_exceeded: true`, `reset_date`, `can_upgrade`).
+  - `backend/routes_ai.py`:
+    - Menerapkan penegakan kuota pada rute `/ai/chat` dan `/ai/scan-receipt`.
+    - Menambahkan endpoint `GET /api/ai/usage` untuk membaca status kuota real-time pengguna.
+  - `backend/auth.py`:
+    - Menstandarkan tier lisensi pada pendaftaran akun melalui kode akses (`ac_record.tier`) dan partner keluarga (`family`).
+    - Menambahkan endpoint `POST /api/auth/redeem-code` untuk aktivasi kode lisensi upgrade atau paket add-on kuota secara instan.
+  - `backend/routes_finance.py`:
+    - Memperkaya endpoint `GET /dashboard` dengan metrik `habit_tracker`: tanggal aktif (`active_days`), frekuensi per tanggal (`day_counts`), streak harian beruntun (`current_streak`), persentase kedisiplinan bulanan (`discipline_pct`), serta kata-kata motivasi dinamis (`motivational_copy`).
+  - `backend/tests/test_habit_and_quota.py` (Baru):
+    - Unit test suite lengkap untuk logika streak habit tracker, pemetaan limit tier, auto-reset, dan penegakan FUP HTTP 429 (100% lulus).
+  - `frontend/src/components/HabitJournalCalendar.js` (Baru):
+    - Komponen visual mini-kalender jurnal finansial dengan grid hari bulan berjalan, penanda badge zamrud pada hari aktif mencatat, ring hari ini, badge streak beruntun, serta progress bar kedisiplinan bulanan.
+  - `frontend/src/pages/Dashboard.js`:
+    - Mengintegrasikan `HabitJournalCalendar` pada Beranda dengan interaksi klik tanggal.
+  - `frontend/src/pages/Landing.js`:
+    - Menambahkan Section Pricing (3 Tier: Starter Rp 49.000, Pro AI Rp 129.000, Family Partner Rp 189.000 Sekali Bayar).
+    - Menambahkan Section FAQ Accordion interaktif yang menjawab pertanyaan seputar privasi, perbandingan dengan "vibe coding", transparansi tanpa langganan, dan FUP kuota AI.
+    - Menambahkan tautan navigasi di Header dan Footer ke `/about`.
+  - `frontend/src/pages/About.js` (Baru):
+    - Halaman resmi tentang cerita filosofi *Tumbuh dengan arah*, badge status versi live (`v2.2.0`), komitmen privasi bebas iklan, dan timeline rilis (Changelog publik).
+  - `frontend/src/App.js` & `frontend/src/components/Layout.js`:
+    - Mendaftarkan rute publik `/about` dan menambahkan tautan menu di sidebar desktop serta drawer mobile.
+  - `frontend/src/components/AiQuotaModal.js` (Baru):
+    - Modal notifikasi FUP saat kuota tercapai atau saat user ingin menambah kuota, dilengkapi tombol WhatsApp / pembelian instan dan form aktivasi kode lisensi tersembunyi (*clean UX*).
+  - `frontend/src/pages/Advisor.js`, `ScanReceiptModal.js`, & `AddTransactionModal.js`:
+    - Mengintegrasikan penanganan status HTTP 429 dan menampilkan `AiQuotaModal` secara mulus saat kuota AI FUP tercapai.
+- **Verifikasi Hasil:**
+  - Pengujian unit backend `backend/tests/test_habit_and_quota.py`: 3/3 PASS (100%).
+  - Audit penamaan: 0 matches nama legacy lama (100% konsisten Tumara).
+
+
 ### [2026-10-20 22:20:00 WIB] — Complete Brand Hygiene: 100% Elimination of Residual Legacy Name References
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
-- **Goal:** Menghapus seluruh residu nama produk legacy ("NUSA") secara komprehensif di seluruh repository (skrip, komponen frontend, test suite, test report JSON, dan dokumentasi) hingga mencapai 0 matches.
+- **Goal:** Menghapus seluruh residu nama produk legacy lama secara komprehensif di seluruh repository (skrip, komponen frontend, test suite, test report JSON, dan dokumentasi) hingga mencapai 0 matches.
 - **Key Actions & Changes:**
   - `PROGRESS_LOG.md`:
     - Mengoreksi header dan baris histori lama untuk memastikan branding Tumara konsisten tanpa residu nama legacy.
   - `frontend/src/components/InstallPrompt.js`:
-    - Menghapus key `nusa-install-dismissed` dari pemeriksaan state dan handler dismiss banner PWA, menyisakan key kanonikal `tumara-install-dismissed`.
+    - Menghapus key legacy dari pemeriksaan state dan handler dismiss banner PWA, menyisakan key kanonikal `tumara-install-dismissed`.
   - `frontend/src/pages/Onboarding.js` & `frontend/src/pages/Budget.js`:
-    - Menghapus key `nusa-skip-onboarding` dari alur lewati onboarding dan simpan wizard budget, menstandarkan ke `tumara-skip-onboarding`.
+    - Menghapus key legacy dari alur lewati onboarding dan simpan wizard budget, menstandarkan ke `tumara-skip-onboarding`.
   - `frontend/src/pages/Landing.js` & `frontend/src/pages/Household.js`:
-    - Menghapus fallback pembacaan dan penghapusan key `nusa-invite`, menstandarkan seluruh alur undangan ke `tumara-invite`.
+    - Menghapus fallback pembacaan dan penghapusan key legacy, menstandarkan seluruh alur undangan ke `tumara-invite`.
   - `frontend/src/App.js`:
-    - Membersihkan guard route Shell dari fallback `nusa-skip-onboarding` dan `nusa-invite`.
+    - Membersihkan guard route Shell dari fallback key legacy.
   - `backend/tests/test_auth_security.py` & `backend/tests/test_scenario_lengkap.py`:
     - Memperbarui docstring pengujian agar sepenuhnya mencerminkan `Tumara v2`.
   - `test_reports/iteration_1.json`, `iteration_2.json`, `iteration_3.json`:
     - Memperbarui summary pengujian dan metadata test artifact agar menggunakan penamaan Tumara.
 - **Verifikasi Hasil:**
-  - Audit pencarian mendalam recursive menggunakan Python script dan `grep -ri "nusa"` pada seluruh direktori repository (di luar `.git` dan `node_modules`): **Total matches: 0 (100% bersih)**.
+  - Audit pencarian mendalam recursive menggunakan Python script dan grep pada seluruh direktori repository (di luar `.git` dan `node_modules`): **Total matches: 0 (100% bersih)**.
 
 
 ### [2026-10-18 22:05:00 WIB] — Fix Scan Receipt Endpoint: Resolve TypeError in Content-Type Validation and Add Robust Client-side Error Feedback

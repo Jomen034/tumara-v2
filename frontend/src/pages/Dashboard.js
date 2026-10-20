@@ -32,6 +32,7 @@ import { getUserAvatar } from "../lib/avatars";
 import TransactionDetailModal from "../components/TransactionDetailModal";
 import EditTransactionModal from "../components/EditTransactionModal";
 import PayBillModal from "../components/PayBillModal";
+import HabitJournalCalendar from "../components/HabitJournalCalendar";
 
 function HealthGauge({ score }) {
   const r = 52, c = 2 * Math.PI * r;
@@ -317,6 +318,20 @@ export default function Dashboard() {
         <QuickAction icon={ScanLine} label="Scan Struk" onClick={openScan} testid="quick-scan-receipt" />
         <QuickAction icon={Sparkles} label="Tanya Tumara" onClick={() => navigate("/advisor")} testid="quick-ask-ai" />
       </div>
+
+      {/* Habit Tracker / Financial Journal Calendar */}
+      {data.habit_tracker && (
+        <HabitJournalCalendar
+          habitTracker={data.habit_tracker}
+          onDayClick={(dateStr, isLogged) => {
+            if (isLogged) {
+              navigate("/transactions");
+            } else {
+              toast.info(`Belum ada catatan transaksi di tanggal ${dateStr}. Yuk catat sekarang!`);
+            }
+          }}
+        />
+      )}
 
       <WeeklyRecap />
 

@@ -23,8 +23,10 @@ class User(BaseModel):
     onboarded: bool = False
     household_id: Optional[str] = None
     role: str = "admin"  # admin | partner
+    tier: str = "pro"  # starter | pro | family
     display_name: Optional[str] = None
     active: bool = True
+    ai_usage: Optional[dict] = None
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -36,7 +38,12 @@ class AccessCode(BaseModel):
     active: bool = True
     created_by: Optional[str] = "system"
     note: Optional[str] = None
+    tier: str = "pro"  # starter | pro | family | addon_scan50
     created_at: datetime = Field(default_factory=now_utc)
+
+
+class RedeemCodeRequest(BaseModel):
+    code: str
 
 
 class ForgotPasswordRequest(BaseModel):

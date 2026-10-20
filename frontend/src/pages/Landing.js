@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { useNavigate, Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, ScanLine, Wallet, Target, ShieldCheck, TrendingUp,
-  ArrowRight, Moon, Smartphone, PieChart, Check, Eye, EyeOff, AlertTriangle
+  ArrowRight, Moon, Smartphone, PieChart, Check, Eye, EyeOff, AlertTriangle,
+  ChevronDown, HelpCircle, Users, Zap, CheckCircle2, Star, Shield
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
@@ -20,6 +21,98 @@ const FEATURES = [
   { icon: TrendingUp, title: "Financial Health Score", desc: "Skor 0–100 + tren pengeluaran & perbandingan bulan ke bulan." },
 ];
 
+const PRICING_TIERS = [
+  {
+    id: "starter",
+    name: "Starter Personal",
+    price: "Rp 49.000",
+    period: "sekali bayar · selamanya",
+    desc: "Cocok untuk individu yang ingin mulai rapi mencatat dan bebas dari bocor halus.",
+    badge: null,
+    features: [
+      "1 Akun Personal Seumur Hidup",
+      "Pencatatan Manual & Dompet Unlimited",
+      "Budgeting 50/30/20 & Daily Spend Pulse",
+      "Kalender Tagihan & Pengingat Tempo",
+      "15 Scan Struk AI & 30 AI Chat / bulan",
+      "Reset Otomatis Kuota Tiap Tanggal 1",
+      "Ekspor Data Lengkap (CSV)",
+      "100% Bebas Iklan",
+    ],
+    buttonText: "Pilih Starter",
+    highlight: false,
+  },
+  {
+    id: "pro",
+    name: "Pro Tumara AI",
+    price: "Rp 129.000",
+    period: "sekali bayar · selamanya",
+    desc: "Solusi lengkap dengan asisten CFO AI pribadi untuk keputusan finansial yang matang.",
+    badge: "Paling Populer",
+    features: [
+      "Semua fitur di Paket Starter",
+      "50 Scan Struk AI & 100 AI Chat / bulan",
+      "Reset Otomatis Kuota Tiap Tanggal 1",
+      "Konsultasi Finansial Personal Tumara AI",
+      "Weekly AI Financial Health Recap",
+      "Deteksi Pajak PB1 & Berat Desimal",
+      "Cadangan Database JSON & Ekspor CSV",
+      "Mode Privasi Blur Seketika",
+      "Prioritas Akses Fitur Terbaru",
+    ],
+    buttonText: "Beli Pro AI",
+    highlight: true,
+  },
+  {
+    id: "family",
+    name: "Family Partner",
+    price: "Rp 189.000",
+    period: "sekali bayar · selamanya",
+    desc: "Untuk pasangan suami-istri yang ingin menyatukan visi keuangan rumah tangga.",
+    badge: "Hemat Berdua",
+    features: [
+      "Akses untuk 2 Akun (Suami & Istri / Partner)",
+      "Shared Net Worth & Portofolio Bersama",
+      "Split Member Spend Tracking per Anggota",
+      "Kalender Tagihan Bersama Real-Time",
+      "100 Scan Struk AI & 200 AI Chat / bulan",
+      "Reset Otomatis Kuota Tiap Tanggal 1",
+      "Kontrol Dompet Pribadi vs Dompet Bersama",
+      "Dukungan WhatsApp Priority",
+    ],
+    buttonText: "Pilih Family Partner",
+    highlight: false,
+  },
+];
+
+const FAQS = [
+  {
+    q: "Kenapa harus pakai Tumara jika ada Excel gratis atau aplikasi gratisan di Play Store?",
+    a: "Excel dan template gratis sering berakhir terbengkalai karena melelahkan mengetik angka satu per satu. Aplikasi gratisan di Play Store sering kali memonetisasi data finansial pengguna ke broker iklan atau pinjaman online. Tumara menghadirkan AI Scan Struk otomatis (cukup foto bon), 100% Bebas Iklan & Tanpa Pelacak Pihak Ketiga, serta Sinkronisasi Pasangan Real-Time yang mustahil dilakukan di spreadsheet.",
+    tag: "Privasi & Kemudahan",
+  },
+  {
+    q: "Dengan AI siapa saja bisa bikin aplikasi keuangan (vibe coding). Apa bedanya Tumara?",
+    a: "Meminta AI membuat tampilan sederhana memang mudah, tetapi aplikasi finansial sungguhan menuntut akurasi akuntansi ganda dan edge-case yang kompleks. Tumara menangani receipt item berskala berat desimal (seperti buah/daging 0.918 kg), perhitungan pajak PB1 (inklusif vs eksklusif), isolasi data multi-tenant rumah tangga, guardrail budgeting 50/30/20, hingga rollback saldo otomatis saat transaksi dihapus. Aplikasi instan tanpa arsitektur teruji rentan salah hitung dan membocorkan data pribadi Anda.",
+    tag: "Arsitektur & Akurasi",
+  },
+  {
+    q: "Apakah ada biaya langganan bulanan tersembunyi yang mendebit kartu saya?",
+    a: "Sama sekali tidak ada. Tumara menganut prinsip Sekali Bayar untuk Akses Seumur Hidup (Lifetime License). Anda tidak perlu mendaftarkan kartu kredit, bebas dari auto-debit yang menjebak, dan akun Anda dapat digunakan selamanya.",
+    tag: "Transparansi Biaya",
+  },
+  {
+    q: "Mengapa fitur AI memiliki Fair Usage Policy (FUP) bulanan?",
+    a: "FUP memastikan server AI selalu super cepat, terlindungi dari bot spam/abuse, dan menjamin operasional Tumara tetap sehat sehingga dapat terus melayani Anda selama bertahun-tahun. Kuota bulanan FUP (hingga 50-100 scan/bulan) di-reset otomatis setiap tanggal 1 dan sudah sangat melimpah untuk kebutuhan keluarga. Jika membutuhkan lebih, Anda juga bisa top-up kuota instan kapan saja.",
+    tag: "Keandalan Server",
+  },
+  {
+    q: "Apakah pasangan saya harus membayar lagi jika ingin mengelola keuangan bersama?",
+    a: "Tidak perlu jika Anda memilih Paket Family Partner. 1 Lisensi Family langsung berlaku untuk 2 akun pengguna (suami & istri / partner) dengan kalender tagihan bersama, split tracking transaksi per anggota, dan gabungan net worth real-time.",
+    tag: "Kolaborasi Keluarga",
+  },
+];
+
 export default function Landing() {
   const { user, loginWithSession, loading } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -29,6 +122,7 @@ export default function Landing() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [dbDegraded, setDbDegraded] = useState(false);
+  const [openFaq, setOpenFaq] = useState(null);
 
   // Form states
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
@@ -239,6 +333,13 @@ export default function Landing() {
       {/* nav */}
       <header className="max-w-6xl mx-auto px-5 py-5 flex items-center justify-between">
         <TumaraLogo size={36} withText={true} />
+        <div className="hidden md:flex items-center gap-7 text-sm font-medium text-tsecondary">
+          <a href="#pricing" className="hover:text-tprimary transition-colors">Paket & Harga</a>
+          <a href="#faq" className="hover:text-tprimary transition-colors">Tanya Jawab</a>
+          <Link to="/about" className="hover:text-brand transition-colors flex items-center gap-1.5">
+            Tentang Tumara <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand/15 text-brand font-mono font-bold">v2.2</span>
+          </Link>
+        </div>
         <div className="flex items-center gap-2">
           <button data-testid="nav-login-button" onClick={() => { setAuthTab("login"); setAuthModalOpen(true); }}
             className="text-sm font-semibold px-5 py-2.5 rounded-full bg-elevated hover:bg-borderc transition-colors">
@@ -566,26 +667,195 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* pricing */}
+      <section id="pricing" className="max-w-6xl mx-auto px-5 py-20 border-t border-borderc/40">
+        <div className="text-center max-w-2xl mx-auto">
+          <span className="text-xs font-bold uppercase tracking-wider text-brand font-head">
+            Investasi Finansial Sekali Bayar
+          </span>
+          <h2 className="text-2xl sm:text-4xl font-head font-extrabold mt-2 tracking-tight">
+            Pilih paket yang paling <span className="brand-gradient-text">pas untukmu.</span>
+          </h2>
+          <p className="text-tsecondary text-sm sm:text-base mt-3 leading-relaxed">
+            Tanpa langganan auto-debit yang membebani. Beli sekali, nikmati akses dan pembaruan selamanya.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6 lg:gap-8 mt-14 items-stretch">
+          {PRICING_TIERS.map((tier) => (
+            <div
+              key={tier.id}
+              className={clsx(
+                "relative rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all duration-300",
+                tier.highlight
+                  ? "bg-surface border-2 border-brand shadow-2xl shadow-[var(--glow)] lg:-translate-y-2"
+                  : "bg-surface/70 border border-borderc hover:border-brand/50"
+              )}
+            >
+              {tier.badge && (
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-brand text-black font-head font-bold text-xs uppercase tracking-wider py-1 px-4 rounded-full shadow-md">
+                  {tier.badge}
+                </div>
+              )}
+
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-head font-bold text-xl text-tprimary">{tier.name}</h3>
+                  {tier.id === "family" && <Users size={18} className="text-brand" />}
+                  {tier.id === "pro" && <Sparkles size={18} className="text-brand" />}
+                  {tier.id === "starter" && <Wallet size={18} className="text-tsecondary" />}
+                </div>
+                <p className="text-xs text-tsecondary mt-2 leading-relaxed min-h-[36px]">
+                  {tier.desc}
+                </p>
+
+                <div className="mt-5 pb-5 border-b border-borderc/60">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl sm:text-4xl font-head font-extrabold font-mono text-tprimary">
+                      {tier.price}
+                    </span>
+                  </div>
+                  <span className="text-xs font-medium text-brand mt-1 block">
+                    ✓ {tier.period}
+                  </span>
+                </div>
+
+                <ul className="space-y-3 my-6">
+                  {tier.features.map((feat, idx) => (
+                    <li key={idx} className="flex items-start gap-2.5 text-xs sm:text-sm text-tsecondary">
+                      <CheckCircle2 size={16} className="text-brand shrink-0 mt-0.5" />
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setRegisterType("admin");
+                  setAuthTab("register");
+                  setAuthModalOpen(true);
+                }}
+                className={clsx(
+                  "w-full py-3.5 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer",
+                  tier.highlight
+                    ? "bg-brand text-black hover:brightness-110 shadow-lg shadow-[var(--glow)]"
+                    : "bg-elevated text-tprimary hover:bg-elevated/80 border border-borderc"
+                )}
+              >
+                {tier.buttonText} <ArrowRight size={15} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 text-center text-xs text-tmuted flex flex-wrap items-center justify-center gap-4">
+          <span className="flex items-center gap-1.5"><Shield size={14} className="text-brand" /> Garansi Aman</span>
+          <span>•</span>
+          <span>Tersedia pembayaran QRIS, Transfer Bank, & E-Wallet</span>
+          <span>•</span>
+          <span>Aktivasi Kode Lisensi Instan</span>
+        </div>
+      </section>
+
+      {/* faq */}
+      <section id="faq" className="max-w-4xl mx-auto px-5 py-20 border-t border-borderc/40">
+        <div className="text-center max-w-xl mx-auto mb-12">
+          <span className="text-xs font-bold uppercase tracking-wider text-brand font-head">
+            Tanya Jawab & Transparansi
+          </span>
+          <h2 className="text-2xl sm:text-4xl font-head font-extrabold mt-2 tracking-tight">
+            Pertanyaan yang sering <span className="brand-gradient-text">diajukan.</span>
+          </h2>
+          <p className="text-tsecondary text-sm mt-2">
+            Kami percaya pada transparansi arsitektur, keamanan data, dan nilai nyata.
+          </p>
+        </div>
+
+        <div className="space-y-3.5">
+          {FAQS.map((faq, idx) => {
+            const isOpen = openFaq === idx;
+            return (
+              <div
+                key={idx}
+                className={clsx(
+                  "border rounded-2xl transition-all duration-200 overflow-hidden",
+                  isOpen ? "bg-surface border-brand/50 shadow-md" : "bg-surface/60 border-borderc hover:border-borderc/80"
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(isOpen ? null : idx)}
+                  className="w-full text-left p-5 sm:p-6 flex items-start justify-between gap-4 cursor-pointer"
+                >
+                  <div className="flex-1">
+                    <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-elevated text-brand font-head mb-2">
+                      {faq.tag}
+                    </span>
+                    <h3 className="font-head font-semibold text-base sm:text-lg text-tprimary leading-snug">
+                      {faq.q}
+                    </h3>
+                  </div>
+                  <div className={clsx("w-8 h-8 rounded-full bg-elevated flex items-center justify-center shrink-0 text-tsecondary transition-transform duration-200", isOpen && "rotate-180 text-brand")}>
+                    <ChevronDown size={18} />
+                  </div>
+                </button>
+
+                <AnimatePresence>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: "easeOut" }}
+                    >
+                      <div className="px-5 pb-6 sm:px-6 sm:pb-6 text-sm text-tsecondary leading-relaxed border-t border-borderc/30 pt-4">
+                        {faq.a}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* cta */}
       <section className="max-w-4xl mx-auto px-5 py-20 text-center">
         <div className="bg-surface border border-borderc rounded-3xl p-10 sm:p-14 relative overflow-hidden">
           <div className="absolute inset-0 opacity-10 blur-3xl" style={{ background: "radial-gradient(circle at 50% 0%, var(--brand), transparent 60%)" }} />
           <h2 className="text-2xl sm:text-4xl font-head font-extrabold relative">Dirimu di masa depan akan berterima kasih.</h2>
-          <p className="text-tsecondary mt-3 relative">Gratis untuk mulai. Tanpa kartu kredit.</p>
+          <p className="text-tsecondary mt-3 relative">Pegang kendali finansialmu hari ini dengan arah yang jelas.</p>
           <div className="flex flex-wrap justify-center gap-3 mt-6 relative text-sm text-tsecondary">
             <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> Tanpa iklan</span>
             <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> Data tidak dijual</span>
             <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> Mode privasi</span>
           </div>
           <button onClick={() => { setAuthTab("register"); setAuthModalOpen(true); }} data-testid="cta-register-button"
-            className="mt-8 inline-flex items-center gap-2 bg-brand text-black font-semibold px-8 py-4 rounded-full hover:brightness-110 transition shadow-lg shadow-[var(--glow)] relative">
+            className="mt-8 inline-flex items-center gap-2 bg-brand text-black font-semibold px-8 py-4 rounded-full hover:brightness-110 transition shadow-lg shadow-[var(--glow)] relative cursor-pointer">
             Mulai atur keuangan <ArrowRight size={18} />
           </button>
         </div>
       </section>
 
-      <footer className="max-w-6xl mx-auto px-5 py-10 text-center text-xs text-tmuted">
-        Tumara © 2026 — Tumbuh dengan arah.
+      <footer className="max-w-6xl mx-auto px-5 py-12 flex flex-col sm:flex-row items-center justify-between gap-6 border-t border-borderc/40 text-xs text-tmuted">
+        <div>
+          <p className="font-medium text-tsecondary">Tumara © 2026 — Tumbuh dengan arah.</p>
+          <p className="mt-0.5">Platform Manajemen Finansial Pribadi & Pasangan Berbasis AI.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-6">
+          <Link to="/about" className="hover:text-brand transition-colors font-medium">
+            Tentang Tumara & Pembaruan (What&apos;s New)
+          </Link>
+          <button
+            onClick={() => { setAuthTab("login"); setAuthModalOpen(true); }}
+            className="hover:text-brand transition-colors font-medium cursor-pointer"
+          >
+            Masuk ke Akun
+          </button>
+        </div>
       </footer>
     </div>
   );

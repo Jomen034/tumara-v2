@@ -10,7 +10,7 @@ import httpx
 from db import db
 from models import (
     User, AccessCode, ForgotPasswordRequest, ResetPasswordRequest,
-    ProfileUpdate, ResetDataRequest, DeleteAccountRequest,
+    ProfileUpdate, ResetDataRequest, DeleteAccountRequest, RedeemCodeRequest,
     now_utc, new_id
 )
 
@@ -33,6 +33,7 @@ class AccessCodeCreate(BaseModel):
     code: Optional[str] = None
     max_uses: int = 50
     note: Optional[str] = None
+    tier: Optional[str] = "pro"
 
 
 class LoginRequest(BaseModel):
@@ -57,6 +58,7 @@ async def _ensure_default_access_code():
             "max_uses": 500,
             "used_count": 0,
             "active": True,
+            "tier": "pro",
             "created_by": "system",
             "note": "Default alpha registration code",
             "created_at": now_utc(),
@@ -189,6 +191,7 @@ async def register(body: RegisterRequest, request: Request, response: Response):
 
     invite_code = (body.invite_code or "").strip()
     access_code = (body.access_code or "").strip().upper()
+    user_tier = "pro"
 
     # 1. Option A: Registering as partner via Household Invite Code
     if invite_code:
@@ -202,6 +205,7 @@ async def register(body: RegisterRequest, request: Request, response: Response):
         role = "partner"
         household_id = invite["household_id"]
         onboarded = True
+        user_tier = "family"
         await db.household_invites.update_one(
             {"id": invite["id"]},
             {"$set": {"status": "accepted", "accepted_at": now_utc()}}
@@ -224,6 +228,7 @@ async def register(body: RegisterRequest, request: Request, response: Response):
         if ac_record.get("used_count", 0) >= ac_record.get("max_uses", 100):
             raise HTTPException(status_code=400, detail="Kuota pendaftaran untuk kode akses ini sudah habis")
 
+        user_tier = ac_record.get("tier", "pro")
         await db.access_codes.update_one(
             {"_id": ac_record["_id"]},
             {"$inc": {"used_count": 1}}
@@ -233,6 +238,17 @@ async def register(body: RegisterRequest, request: Request, response: Response):
             status_code=400,
             detail="Kode akses pendaftaran (alpha code) atau kode undangan keluarga diperlukan untuk mendaftar"
         )
+
+    from ai_quota import TIER_LIMITS, get_current_wib_month
+    limits = TIER_LIMITS.get(user_tier, TIER_LIMITS["pro"])
+    ai_usage = {
+        "month": get_current_wib_month(),
+        "scans_used": 0,
+        "chats_used": 0,
+        "tier": user_tier,
+        "scans_limit": limits["scans"],
+        "chats_limit": limits["chats"],
+    }
 
     hashed_pw = bcrypt.hashpw(body.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
     user_doc = {
@@ -244,8 +260,10 @@ async def register(body: RegisterRequest, request: Request, response: Response):
         "onboarded": onboarded,
         "household_id": household_id,
         "role": role,
+        "tier": user_tier,
         "display_name": name,
         "active": True,
+        "ai_usage": ai_usage,
         "created_at": now_utc(),
     }
     await db.users.insert_one(user_doc)
@@ -378,6 +396,7 @@ async def create_access_code(body: AccessCodeCreate, user: User = Depends(get_cu
         "max_uses": body.max_uses,
         "used_count": 0,
         "active": True,
+        "tier": body.tier or "pro",
         "created_by": user.email,
         "note": body.note,
         "created_at": now_utc(),
@@ -385,6 +404,43 @@ async def create_access_code(body: AccessCodeCreate, user: User = Depends(get_cu
     await db.access_codes.insert_one(doc)
     doc.pop("_id", None)
     return doc
+
+
+@router.post("/redeem-code")
+async def redeem_code(body: RedeemCodeRequest, user: User = Depends(get_current_user)):
+    """Redeem a digital license upgrade code or quota add-on code."""
+    code_raw = body.code.strip().upper()
+    ac = await db.access_codes.find_one({"code": code_raw, "active": True})
+    if not ac:
+        raise HTTPException(status_code=400, detail="Kode lisensi / voucher tidak valid atau sudah tidak aktif")
+    if ac.get("used_count", 0) >= ac.get("max_uses", 1):
+        raise HTTPException(status_code=400, detail="Kode lisensi ini sudah mencapai batas pemakaian maksimal")
+
+    tier = ac.get("tier", "pro")
+    await db.access_codes.update_one({"_id": ac["_id"]}, {"$inc": {"used_count": 1}})
+
+    from ai_quota import TIER_LIMITS
+    if tier == "addon_scan50":
+        await db.users.update_one(
+            {"user_id": user.user_id},
+            {"$inc": {"ai_usage.scans_limit": 50}}
+        )
+        msg = "Kode aktivasi berhasil! Kuota AI kamu bertambah +50 scan struk."
+    else:
+        limits = TIER_LIMITS.get(tier, TIER_LIMITS["pro"])
+        await db.users.update_one(
+            {"user_id": user.user_id},
+            {"$set": {
+                "tier": tier,
+                "ai_usage.tier": tier,
+                "ai_usage.scans_limit": limits["scans"],
+                "ai_usage.chats_limit": limits["chats"],
+            }}
+        )
+        msg = f"Selamat! Akunmu berhasil di-upgrade ke paket {tier.upper()}."
+
+    updated_user = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "password_hash": 0})
+    return {"ok": True, "message": msg, "tier": tier, "user": updated_user}
 
 
 @router.post("/google")

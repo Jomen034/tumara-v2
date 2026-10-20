@@ -24,6 +24,7 @@ import Advisor from "./pages/Advisor";
 import Reports from "./pages/Reports";
 import Bills from "./pages/Bills";
 import Household from "./pages/Household";
+import About from "./pages/About";
 
 function FullLoader() {
   const { serverWaking, wakingAttempt, connectionError, retryAuth, logout } = useAuth();
@@ -125,6 +126,7 @@ function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/about" element={<About />} />
       <Route path="/onboarding" element={<Protected><Onboarding /></Protected>} />
       <Route element={<Protected><Shell /></Protected>}>
         <Route path="/dashboard" element={<Dashboard />} />

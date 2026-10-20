@@ -1068,12 +1068,79 @@ async def dashboard(ctx: Ctx = Depends(get_ctx)):
         "spent_pct": round((expense / total_budget) * 100, 1) if total_budget > 0 else 0,
     }
 
+    # Habit Tracker & Financial Journal Metrics (WIB / Asia/Jakarta)
+    wib_now = datetime.now(timezone(timedelta(hours=7)))
+    today_day = wib_now.day
+    id_months = [
+        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ]
+    month_name = f"{id_months[wib_now.month - 1]} {wib_now.year}"
+
+    active_day_set = set()
+    day_txn_counts = defaultdict(int)
+    for t in month_txns:
+        d_str = t.get("date") or ""
+        if len(d_str) >= 10:
+            try:
+                day_int = int(d_str[8:10])
+                active_day_set.add(day_int)
+                day_txn_counts[day_int] += 1
+            except ValueError:
+                pass
+    active_days = sorted(list(active_day_set))
+    logged_today = today_day in active_day_set
+
+    # Hitung streak harian beruntun
+    streak = 0
+    check_day = today_day if logged_today else today_day - 1
+    while check_day > 0 and check_day in active_day_set:
+        streak += 1
+        check_day -= 1
+
+    days_passed = max(1, today_day)
+    logged_count = len([d for d in active_days if d <= days_passed])
+    discipline_pct = round((logged_count / days_passed) * 100)
+
+    if streak >= 7:
+        motivation = f"Luar biasa! Konsistensi {streak} hari beruntun menjaga cashflow keluarga tetap sehat 🌱"
+        motivation_tag = "On Fire 🔥"
+    elif streak >= 3:
+        motivation = f"Keren! Kamu sudah mencatat {streak} hari berturut-turut. Lanjutkan momentum ini! 🚀"
+        motivation_tag = "Disiplin Mantap ✨"
+    elif logged_today:
+        motivation = "Hari ini sudah tercatat! Disiplin kecil setiap hari membawa ketenangan finansial besar 💚"
+        motivation_tag = "Hari Ini Beres ✅"
+    elif discipline_pct >= 70:
+        motivation = f"Kedisiplinanmu {discipline_pct}% bulan ini! Catat transaksi hari ini sebelum tidur agar tetap prima 🎯"
+        motivation_tag = "Pertahankan Ritme 📈"
+    else:
+        motivation = "Yuk catat transaksi hari ini! 30 detik untuk mencatat menjaga uangmu tidak bocor halus 💡"
+        motivation_tag = "Waktunya Mencatat ✍️"
+
+    habit_tracker = {
+        "month": month,
+        "month_name": month_name,
+        "days_in_month": days_in_month,
+        "today_day": today_day,
+        "logged_today": logged_today,
+        "active_days": active_days,
+        "day_counts": dict(day_txn_counts),
+        "current_streak": streak,
+        "logged_days_count": len(active_days),
+        "days_passed": days_passed,
+        "discipline_pct": discipline_pct,
+        "motivational_copy": motivation,
+        "motivation_tag": motivation_tag,
+    }
+
     return {
         "net_worth": net_worth, "assets": assets, "debt": debt,
         "income": income, "expense": expense, "net_cash_flow": income - expense, "savings_rate": savings_rate,
         "health_score": score, "health_detail": health_detail, "wallet_count": len(wallets),
         "category_breakdown": [{"category": k, "amount": v} for k, v in sorted(cat.items(), key=lambda x: -x[1])],
         "budget_status": budget_status, "budget_summary": budget_summary,
+        "habit_tracker": habit_tracker,
         "recent_transactions": [annotate(t) for t in txns[:8]],
         "wallets": wallets, "goals": goals, "has_budget": bool(budget),
         "members": members, "member_breakdown": sorted(member_breakdown, key=lambda x: -x["amount"]),
