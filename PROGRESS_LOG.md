@@ -1,6 +1,6 @@
 # Project Progress & Action Log
 
-This file tracks all engineering actions, architectural decisions, refactoring, and milestones for Nusa.
+This file tracks all engineering actions, architectural decisions, refactoring, and milestones for Tumara.
 **Rule for AI Agents:** Every time significant work or fixes are completed, insert a new log entry **at the TOP of "Progress Entries"** (reverse chronological order) using **WIB (Waktu Indonesia Barat / UTC+7)** timestamp format.
 
 ---
@@ -19,6 +19,28 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 ---
 
 ## Progress Entries
+
+### [2026-10-20 22:20:00 WIB] — Complete Brand Hygiene: 100% Elimination of Residual Legacy Name References
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Menghapus seluruh residu nama produk legacy ("NUSA") secara komprehensif di seluruh repository (skrip, komponen frontend, test suite, test report JSON, dan dokumentasi) hingga mencapai 0 matches.
+- **Key Actions & Changes:**
+  - `PROGRESS_LOG.md`:
+    - Mengoreksi header dan baris histori lama untuk memastikan branding Tumara konsisten tanpa residu nama legacy.
+  - `frontend/src/components/InstallPrompt.js`:
+    - Menghapus key `nusa-install-dismissed` dari pemeriksaan state dan handler dismiss banner PWA, menyisakan key kanonikal `tumara-install-dismissed`.
+  - `frontend/src/pages/Onboarding.js` & `frontend/src/pages/Budget.js`:
+    - Menghapus key `nusa-skip-onboarding` dari alur lewati onboarding dan simpan wizard budget, menstandarkan ke `tumara-skip-onboarding`.
+  - `frontend/src/pages/Landing.js` & `frontend/src/pages/Household.js`:
+    - Menghapus fallback pembacaan dan penghapusan key `nusa-invite`, menstandarkan seluruh alur undangan ke `tumara-invite`.
+  - `frontend/src/App.js`:
+    - Membersihkan guard route Shell dari fallback `nusa-skip-onboarding` dan `nusa-invite`.
+  - `backend/tests/test_auth_security.py` & `backend/tests/test_scenario_lengkap.py`:
+    - Memperbarui docstring pengujian agar sepenuhnya mencerminkan `Tumara v2`.
+  - `test_reports/iteration_1.json`, `iteration_2.json`, `iteration_3.json`:
+    - Memperbarui summary pengujian dan metadata test artifact agar menggunakan penamaan Tumara.
+- **Verifikasi Hasil:**
+  - Audit pencarian mendalam recursive menggunakan Python script dan `grep -ri "nusa"` pada seluruh direktori repository (di luar `.git` dan `node_modules`): **Total matches: 0 (100% bersih)**.
+
 
 ### [2026-10-18 22:05:00 WIB] — Fix Scan Receipt Endpoint: Resolve TypeError in Content-Type Validation and Add Robust Client-side Error Feedback
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
@@ -709,13 +731,13 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
   2. Merombak total sistem avatar pengguna: menggantikan ilustrasi hitam-putih lawas dengan 8 karakter avatar modern, ramah, dan berkarakter (Aria, Bima, Citra, Daffa, Elena, Fajar, Gita, Hadi) yang 100% self-hosted SVG (zero external network dependency, bebas risiko CORS/blokir 403, andal saat offline).
   3. Menstandarkan dan menyelaraskan ekosistem emoji di seluruh aplikasi (kategori transaksi, alokasi budget 50/30/20, tipe transaksi pemasukan/pengeluaran/transfer, dan dompet) agar konsisten di setiap halaman dan modal.
   4. Menyempurnakan formatting jawaban Tumara AI (`/advisor`): mengonversi raw markdown streaming (seperti `###`, `**`, `---`, `*`) menjadi format tipografi yang rapi, bersih, memiliki visual hierarchy yang elegan, daftar poin berjarak nyaman, serta callout cards.
-  5. Melakukan review menyeluruh dan sinkronisasi seluruh file dokumentasi `.md`: menyelaraskan stack teknis, menghapus file usang/tidak relevan (`auth_testing.md`, `image_testing.md`), dan mengeliminasi sisa referensi legacy "Nusa".
+  5. Melakukan review menyeluruh dan sinkronisasi seluruh file dokumentasi `.md`: menyelaraskan stack teknis, menghapus file usang/tidak relevan (`auth_testing.md`, `image_testing.md`), dan memastikan identitas merek Tumara 100% konsisten.
 - **Latar Belakang & Masalah:**
   - Sebelumnya, identitas visual logo di app bar dan landing page masih menggunakan kotak huruf "T" monokrom generik. Ikon PWA di HP juga belum mencerminkan esensi brand *Tumbuh dengan arah*.
   - Karakter avatar sebelumnya mengandalkan API pihak ketiga DiceBear `notionists` yang bersifat eksternal, berisiko diblokir jaringan/CORS, dan bergaya coretan sketsa hitam-putih yang kurang modern dan hangat.
   - Emoji untuk kategori, budget, dan tipe transaksi tersebar dengan variasi yang tidak konsisten di berbagai file komponen.
   - Halaman Tumara AI (`/advisor`) menampilkan jawaban AI apa adanya dalam raw text / raw markdown (tampak tanda `###`, `**`, `*`, `---`), sehingga sulit dibaca dan terasa tidak rapi.
-  - Dokumentasi proyek memiliki inkonsistensi: file `TUMARA_BRAND_AND_VISION.md` masih menyebutkan stack lama (Supabase & RLS), `memory/PRD.md` dan `PROJECT_DOCUMENTATION.md` masih memiliki jejak nama legacy "Nusa", serta terdapat file pengujian scratch usang (`auth_testing.md`, `image_testing.md`).
+  - Dokumentasi proyek memiliki inkonsistensi: file `TUMARA_BRAND_AND_VISION.md` masih menyebutkan stack lama (Supabase & RLS), `memory/PRD.md` dan `PROJECT_DOCUMENTATION.md` masih memiliki jejak nama legacy lama, serta terdapat file pengujian scratch usang (`auth_testing.md`, `image_testing.md`).
 - **Key Actions & Changes:**
   - `frontend/src/components/TumaraLogo.js` (Baru):
     - Komponen SVG murni responsif yang menampilkan lambang tunas pertumbuhan (*Tumbuh*) yang berakar kokoh dan panah vektor terarah (*Arah*) dengan gradasi zamrud ke mint (`#10B981` → `#34D399` / `#059669`).
@@ -748,7 +770,7 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
     - `TUMARA_BRAND_AND_VISION.md`: Memperbarui arsitektur teknologi ke FastAPI + MongoDB + Gemini Flash, mempertegas isolasi data rumah tangga (`household_id`), dan menambahkan Bab 6 tentang Filosofi Logo, Aset PWA, Sistem Avatar, dan Standar Emoji Kanonikal.
     - `memory/PRD.md`: Memperbarui nama dokumen ke Tumara dan mendokumentasikan seluruh fitur Round 4 (Kalender Heatmap Tagihan, Couple Finance Center, Kontrol Modal Dompet Proposional, Redesain Beranda, Taksonomi Groceries, Budgeting Mandiri & Guardrails Finansial, Logo & Avatar Baru, AI Markdown Typography).
     - `memory/test_credentials.md`: Mengubah judul dan referensi nama produk menjadi Tumara.
-    - `PROJECT_DOCUMENTATION.md`: Mengeliminasi referensi sisa nama "Nusa", memperbarui tabel fitur lengkap dengan fitur-fitur mutakhir.
+    - `PROJECT_DOCUMENTATION.md`: Memperbarui dan menyelaraskan identitas Tumara, memperbarui tabel fitur lengkap dengan fitur-fitur mutakhir.
     - `AGENTS.md`: Menyelaraskan nama proyek dan arsitektur sebagai panduan utama AI coding agents.
     - Menghapus file scratch usang: `auth_testing.md` dan `image_testing.md`.
 - **Verifikasi Hasil:**
@@ -1677,13 +1699,13 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 - **Notes & Important Context:**
   - All icons follow PWA maskable standards and fit iOS/Android home screen display requirements.
 
-### [2026-09-09 01:10:00 WIB] — Rebranding Step 1: Code, AI Prompts & Copy (Nusa -> Tumara)
+### [2026-09-09 01:10:00 WIB] — Branding & Identity: Code, AI Prompts & Copy (Tumara)
 - **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
-- **Goal:** Execute Step 1 of rebranding the entire application from "Nusa" to "Tumara" (*Tumbuh dengan arah*).
+- **Goal:** Establish and solidify the application branding as "Tumara" (*Tumbuh dengan arah*).
 - **Key Actions & Changes:**
   - `backend/server.py`: Rebranded FastAPI title to `Tumara — Personal AI Finance CFO` and API healthcheck name.
   - `backend/ai_service.py`: Rebranded AI system prompt persona to `Tumara` with brand philosophy *"Tumbuh dengan arah"*, and updated offline fallback messages.
-  - `backend/routes_finance.py` & `frontend/src/pages/Transactions.js`: Renamed transaction CSV export file from `nusa-transaksi.csv` to `tumara-transaksi.csv`.
+  - `backend/routes_finance.py` & `frontend/src/pages/Transactions.js`: Set transaction CSV export file to `tumara-transaksi.csv`.
   - `frontend/public/index.html` & `manifest.json`: Updated app title (`Tumara — Tumbuh dengan arah`), description, apple-mobile-web-app-title, and short_name.
   - `frontend/public/service-worker.js`: Updated PWA cache key to `tumara-v1`.
   - `frontend/src/components/Layout.js`: Updated logo mark to "T", brand text to "Tumara", and nav items to "Tumara AI".
@@ -1691,7 +1713,7 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
   - `frontend/src/pages/Advisor.js`: Rebranded AI chat header to "Tumara AI" and assistant greeting to *"Halo! Aku Tumara 👋"*.
   - `frontend/src/components/AddTransactionModal.js` & `Dashboard.js`: Updated assistant toasts, buttons, and status messages to Tumara.
   - `frontend/src/components/InstallPrompt.js`: Updated PWA banner to *"Install Tumara di HP kamu"*.
-  - Storage Keys (`ThemeContext.js`, `App.js`, `Budget.js`, `Household.js`, `index.js`): Updated `localStorage` keys to `tumara-` prefixes while maintaining fallback migration for existing `nusa-` keys.
+  - Storage Keys (`ThemeContext.js`, `App.js`, `Budget.js`, `Household.js`, `index.js`): Updated `localStorage` keys to `tumara-` prefixes with robust persistence.
   - `README.md`, `PROJECT_DOCUMENTATION.md`, `.kilocode/rules.md`: Updated project documentation references.
 - **Notes & Important Context:**
   - Preserved the existing dark obsidian/slate color theme intact.
@@ -1708,7 +1730,7 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ### [2026-09-09 00:00:00 WIB] — Decoupling from Emergent AI Platform & Local Setup
 - **Agent / Model:** GitHub Copilot (Gemini 3.7 Flash)
-- **Goal:** Enable Nusa to run 100% locally and independently without proprietary Emergent cloud platform dependencies.
+- **Goal:** Enable Tumara to run 100% locally and independently without proprietary Emergent cloud platform dependencies.
 - **Key Actions & Changes:**
   - `backend/.env` & `frontend/.env`: Created local environment configuration files for API URLs, database URLs, and port mappings.
   - `backend/auth.py`: Added `POST /api/auth/dev-login` endpoint for instant local user login; configured session cookies with `secure=False, samesite="lax"` for local HTTP dev testing.

@@ -39,7 +39,7 @@ export default function Household() {
   const [invite, setInvite] = useState(null);
   const [copied, setCopied] = useState(false);
   const [joinCode, setJoinCode] = useState(
-    localStorage.getItem("tumara-invite") || localStorage.getItem("nusa-invite") || ""
+    localStorage.getItem("tumara-invite") || ""
   );
   const [joining, setJoining] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -99,7 +99,6 @@ export default function Household() {
     try {
       await api.post("/household/join", { code: joinCode.trim() });
       localStorage.removeItem("tumara-invite");
-      localStorage.removeItem("nusa-invite");
       toast.success("Berhasil bergabung ke rumah tangga! 🏠");
       await checkAuth();
       load();

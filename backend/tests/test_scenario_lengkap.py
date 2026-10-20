@@ -1,4 +1,4 @@
-"""SKENARIO LENGKAP E2E — semua jenis transaksi Nusa (Tumara v2).
+"""SKENARIO LENGKAP E2E — semua jenis transaksi Tumara v2.
 
 Menjalankan skenario nyata melawan backend yang sedang hidup (base URL lewat
 env SCENARIO_API_BASE / REACT_APP_BACKEND_URL, default http://localhost:8001).

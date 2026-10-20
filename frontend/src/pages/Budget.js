@@ -123,7 +123,6 @@ export default function Budget() {
 
   const skipOnboarding = async () => {
     localStorage.setItem("tumara-skip-onboarding", "1");
-    localStorage.setItem("nusa-skip-onboarding", "1");
     try {
       await api.post("/auth/complete-onboarding");
       await checkAuth();
@@ -174,7 +173,6 @@ export default function Budget() {
       bump();
       if (onboarding) {
         localStorage.setItem("tumara-skip-onboarding", "1");
-        localStorage.setItem("nusa-skip-onboarding", "1");
         await checkAuth();
         navigate("/dashboard");
       } else {

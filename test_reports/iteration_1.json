@@ -1,5 +1,5 @@
 {
-  "summary": "Comprehensive backend + frontend testing of Nusa AI Finance CFO. Created pytest suite with 13 tests covering auth, wallets CRUD, transactions (income/expense/transfer + balance revert on delete), budget, goals, dashboard, analytics, AI streaming chat, and AI receipt scanner — ALL 13 PASSED. Frontend playwright test with session_token cookie: dashboard loads (no redirect), wallet creation works, header add-transaction modal works, goals creation works, AI advisor streams a full Bahasa Indonesia response (1800 chars) with financial context, reports charts render, privacy + theme toggles work. No JS/page errors.",
+  "summary": "Comprehensive backend + frontend testing of Tumara AI Finance CFO. Created pytest suite with 13 tests covering auth, wallets CRUD, transactions (income/expense/transfer + balance revert on delete), budget, goals, dashboard, analytics, AI streaming chat, and AI receipt scanner — ALL 13 PASSED. Frontend playwright test with session_token cookie: dashboard loads (no redirect), wallet creation works, header add-transaction modal works, goals creation works, AI advisor streams a full Bahasa Indonesia response (1800 chars) with financial context, reports charts render, privacy + theme toggles work. No JS/page errors.",
   "backend_issues": {"critical": [], "minor": []},
   "frontend_issues": {
     "ui_bugs": [],

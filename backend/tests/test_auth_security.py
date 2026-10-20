@@ -1,4 +1,4 @@
-"""Comprehensive security and authentication test suite for Nusa (Tumara v2)."""
+"""Comprehensive security and authentication test suite for Tumara v2."""
 import os
 import sys
 from pathlib import Path

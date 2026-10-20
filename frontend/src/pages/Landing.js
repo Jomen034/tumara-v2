@@ -56,7 +56,7 @@ export default function Landing() {
   // Auto detect invite code from query param or localStorage
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const inv = urlParams.get("invite") || localStorage.getItem("tumara-invite") || localStorage.getItem("nusa-invite");
+    const inv = urlParams.get("invite") || localStorage.getItem("tumara-invite");
     if (inv) {
       setRegisterForm(prev => ({ ...prev, inviteCode: inv }));
       setRegisterType("partner");

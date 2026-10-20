@@ -100,8 +100,8 @@ function Shell() {
   const openAdd = (mode = "manual") => { setAddMode(typeof mode === "string" ? mode : "manual"); setAddOpen(true); };
 
   // First-run: guide brand-new users. Invited users go to Household to accept.
-  const skipped = (localStorage.getItem("tumara-skip-onboarding") || localStorage.getItem("nusa-skip-onboarding")) === "1";
-  const pendingInvite = localStorage.getItem("tumara-invite") || localStorage.getItem("nusa-invite");
+  const skipped = localStorage.getItem("tumara-skip-onboarding") === "1";
+  const pendingInvite = localStorage.getItem("tumara-invite");
   if (user && !user.onboarded && !skipped) {
     if (pendingInvite && location.pathname !== "/household") {
       return <Navigate to="/household" replace />;

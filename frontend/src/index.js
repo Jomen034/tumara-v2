@@ -9,7 +9,6 @@ try {
   const code = p.get("invite") || p.get("code");
   if (code) {
     localStorage.setItem("tumara-invite", code);
-    localStorage.setItem("nusa-invite", code);
   }
 } catch {}
 

@@ -4,8 +4,8 @@ const ThemeContext = createContext(null);
 export const useTheme = () => useContext(ThemeContext);
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => localStorage.getItem("tumara-theme") || localStorage.getItem("nusa-theme") || "dark");
-  const [privacy, setPrivacy] = useState(() => (localStorage.getItem("tumara-privacy") || localStorage.getItem("nusa-privacy")) === "1");
+  const [theme, setTheme] = useState(() => localStorage.getItem("tumara-theme") || "dark");
+  const [privacy, setPrivacy] = useState(() => localStorage.getItem("tumara-privacy") === "1");
 
   useEffect(() => {
     const root = document.documentElement;

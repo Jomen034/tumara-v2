@@ -9,7 +9,7 @@ export default function InstallPrompt() {
 
   useEffect(() => {
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
-    if (isStandalone || (localStorage.getItem("tumara-install-dismissed") || localStorage.getItem("nusa-install-dismissed")) === "1") return;
+    if (isStandalone || localStorage.getItem("tumara-install-dismissed") === "1") return;
 
     const handler = (e) => {
       e.preventDefault();
@@ -39,7 +39,6 @@ export default function InstallPrompt() {
     setShow(false);
     setIosShow(false);
     localStorage.setItem("tumara-install-dismissed", "1");
-    localStorage.setItem("nusa-install-dismissed", "1");
   };
 
   const visible = show || iosShow;

@@ -109,7 +109,6 @@ export default function Onboarding() {
     setSubmitting(true);
     try {
       localStorage.setItem("tumara-skip-onboarding", "1");
-      localStorage.setItem("nusa-skip-onboarding", "1");
       await api.post("/auth/complete-onboarding");
       await checkAuth();
       toast.success("Selamat datang di Tumara! 🎉");
@@ -124,7 +123,6 @@ export default function Onboarding() {
 
   const handleSkip = async () => {
     localStorage.setItem("tumara-skip-onboarding", "1");
-    localStorage.setItem("nusa-skip-onboarding", "1");
     try {
       await api.post("/auth/complete-onboarding");
       await checkAuth();
