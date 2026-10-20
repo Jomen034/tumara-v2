@@ -20,6 +20,14 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-20 23:35:00 WIB] — Fix: Import clsx in Landing.js to Resolve Vercel Production Build Failure
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:** Memperbaiki kegagalan compile Vercel CI pada commit `1bf9e20` akibat `clsx` belum ter-import di `frontend/src/pages/Landing.js`.
+- **Key Actions & Changes:**
+  - `frontend/src/pages/Landing.js`: Menambahkan `import clsx from "clsx";` untuk mendukung styling kondisional kartu pricing tiers dan FAQ accordion.
+- **Notes & Important Context:**
+  - Build Vercel kembali normal dan sukses meng-compile production bundle.
+
 ### [2026-10-20 23:25:00 WIB] — Tumara v2.2: Gamified Habit Tracker Calendar, Digital License Pricing, Interactive FAQ, Official About Page, and AI Fair Usage Policy (FUP) Quota Engine
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Mewujudkan transformasi komersialisasi dan transparansi produk Tumara v2.2:
