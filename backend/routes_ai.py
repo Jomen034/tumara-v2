@@ -95,8 +95,9 @@ async def parse_transaction_endpoint(body: ParseRequest, ctx: Ctx = Depends(get_
     await enforce_and_increment_ai_quota(ctx.user.user_id, "chat")
 
     wallets = await db.wallets.find({"household_id": ctx.hid}, {"_id": 0}).to_list(200)
+    bills = await db.bills.find({"household_id": ctx.hid, "is_completed": {"$ne": True}}, {"_id": 0}).to_list(100)
     try:
-        draft = await parse_transaction_text(text, wallets)
+        draft = await parse_transaction_text(text, wallets, bills)
     except Exception as e:
         raise HTTPException(500, f"Gagal memahami teks: {str(e)[:120]}")
     return draft

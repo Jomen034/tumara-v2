@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import * as Icons from "lucide-react";
 import {
@@ -39,6 +39,8 @@ const FILTERS = [
 
 export default function Transactions() {
   const { openAdd } = useOutletContext();
+  const [searchParams] = useSearchParams();
+  const dateParam = searchParams.get("date");
   const { privacy } = useTheme();
   const { version, bump } = useRefresh();
   const fileRef = useRef();
@@ -50,12 +52,20 @@ export default function Transactions() {
   // Filters state
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
-  const [period, setPeriod] = useState("all");
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState("");
+  const [period, setPeriod] = useState(dateParam ? "custom" : "all");
+  const [customStart, setCustomStart] = useState(dateParam || "");
+  const [customEnd, setCustomEnd] = useState(dateParam || "");
   const [walletFilter, setWalletFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [memberFilter, setMemberFilter] = useState("all");
+
+  useEffect(() => {
+    if (dateParam) {
+      setPeriod("custom");
+      setCustomStart(dateParam);
+      setCustomEnd(dateParam);
+    }
+  }, [dateParam]);
 
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);

@@ -205,9 +205,11 @@ async def list_transactions(
     limit: int = 1000,
     member_id: Optional[str] = None,
     goal_id: Optional[str] = None,
+    bill_id: Optional[str] = None,
     wallet_id: Optional[str] = None,
     category: Optional[str] = None,
     type: Optional[str] = None,
+    date: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     q: Optional[str] = None,
@@ -218,6 +220,8 @@ async def list_transactions(
         query["member_id"] = member_id
     if goal_id:
         query["goal_id"] = goal_id
+    if bill_id:
+        query["bill_id"] = bill_id
     if wallet_id and wallet_id != "all":
         query["$or"] = [{"wallet_id": wallet_id}, {"to_wallet_id": wallet_id}]
     if category and category != "all":
@@ -228,7 +232,9 @@ async def list_transactions(
             query["$or"] = [{"category": category}, {"items.category": category}]
     if type and type != "all":
         query["type"] = type
-    if start_date and end_date:
+    if date:
+        query["date"] = date
+    elif start_date and end_date:
         query["date"] = {"$gte": start_date, "$lte": end_date}
     elif start_date:
         query["date"] = {"$gte": start_date}
@@ -304,6 +310,12 @@ async def create_transaction(body: TransactionCreate, ctx: Ctx = Depends(get_ctx
             {"id": t.goal_id, "household_id": ctx.hid},
             {"$inc": {"saved_amount": float(t.amount)}}
         )
+    if t.bill_id and t.source != "bill":
+        try:
+            from routes_bills import mark_bill_as_paid
+            await mark_bill_as_paid(ctx.hid, t.bill_id, t.amount, t.date)
+        except Exception as e:
+            print(f"[create_transaction] mark_bill_as_paid warning: {e}")
     await _snapshot_networth(ctx.hid)
     out = t.model_dump()
     out["household_id"] = ctx.hid

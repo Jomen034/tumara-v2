@@ -34,6 +34,7 @@ import EditTransactionModal from "../components/EditTransactionModal";
 import PayBillModal from "../components/PayBillModal";
 import HabitJournalCalendar from "../components/HabitJournalCalendar";
 import AiQuotaModal from "../components/AiQuotaModal";
+import DayJournalModal from "../components/DayJournalModal";
 
 function HealthGauge({ score }) {
   const r = 52, c = 2 * Math.PI * r;
@@ -65,6 +66,7 @@ export default function Dashboard() {
   const [selectedTxn, setSelectedTxn] = useState(null);
   const [editingTxn, setEditingTxn] = useState(null);
   const [payingBill, setPayingBill] = useState(null);
+  const [dayJournalDate, setDayJournalDate] = useState(null);
   const navigate = useNavigate();
 
   const handleHealthAction = (rec) => {
@@ -324,12 +326,8 @@ export default function Dashboard() {
       {data.habit_tracker && (
         <HabitJournalCalendar
           habitTracker={data.habit_tracker}
-          onDayClick={(dateStr, isLogged) => {
-            if (isLogged) {
-              navigate("/transactions");
-            } else {
-              toast.info(`Belum ada catatan transaksi di tanggal ${dateStr}. Yuk catat sekarang!`);
-            }
+          onDayClick={(dateStr) => {
+            setDayJournalDate(dateStr);
           }}
         />
       )}
@@ -577,6 +575,20 @@ export default function Dashboard() {
         bill={payingBill}
         wallets={data.wallets || []}
         onSuccess={() => {
+          fetchDashboard();
+          bump();
+        }}
+      />
+
+      {/* Day Journal Modal */}
+      <DayJournalModal
+        open={!!dayJournalDate}
+        onClose={() => setDayJournalDate(null)}
+        date={dayJournalDate}
+        onAddTransaction={(dateStr) => {
+          openAdd("manual", dateStr);
+        }}
+        onSaved={() => {
           fetchDashboard();
           bump();
         }}

@@ -17,8 +17,10 @@ import { CATEGORIES, catMeta } from "../lib/constants";
 import { Modal, Button, Select, Spinner, Badge } from "./ui";
 import { compressReceiptImage, rotateImageBlob } from "../lib/imageCompressor";
 import AiQuotaModal from "./AiQuotaModal";
+import { useAuth } from "../context/AuthContext";
 
 export default function ScanReceiptModal({ open, onClose, onSaved }) {
+  const { aiUsage, refreshAiUsage } = useAuth();
   const galleryRef = useRef();
   const cameraRef = useRef();
 
@@ -122,6 +124,7 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
       setReceiptDate(rawDate || todayStr);
 
       toast.success("Struk berhasil dipindai!");
+      refreshAiUsage?.();
     } catch (e) {
       if (e?.response?.status === 429) {
         setQuotaData(e?.response?.data?.detail);
@@ -214,6 +217,7 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
             : "Tersimpan sebagai transaksi!"
         );
       }
+      refreshAiUsage?.();
       onSaved?.();
       onClose();
       reset();
@@ -243,6 +247,16 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
         size="md"
       >
       <div className="space-y-4">
+        {aiUsage && (
+          <div className="flex items-center justify-between text-xs text-tmuted px-1">
+            <span className="flex items-center gap-1.5 text-tsecondary">
+              <ScanLine size={13} className="text-brand" /> Sisa Kuota Scan AI (FUP):
+            </span>
+            <span className="font-semibold text-tprimary bg-surface px-2 py-0.5 rounded-lg border border-borderc">
+              {Math.max(0, (aiUsage.scans_limit || 0) - (aiUsage.scans_used || 0))} / {aiUsage.scans_limit || 0}
+            </span>
+          </div>
+        )}
         {!preview && (
           <div className="space-y-3">
             <div

@@ -127,6 +127,42 @@ async def bill_history(bill_id: str, ctx: Ctx = Depends(get_ctx)):
     }
 
 
+async def mark_bill_as_paid(hid: str, bill_id: str, payment_amount: float, paid_date: str, update_master_amount: bool = False):
+    bill = await db.bills.find_one({"id": bill_id, "household_id": hid}, {"_id": 0})
+    if not bill or bill.get("is_completed"):
+        return None
+    payment_amount_int = int(round(float(payment_amount)))
+    update_fields = {
+        "last_paid_date": paid_date,
+        "last_paid_amount": payment_amount_int,
+    }
+    if update_master_amount and payment_amount_int > 0:
+        update_fields["amount"] = payment_amount_int
+
+    # advance to next cycle or complete installment
+    if bill.get("bill_type") == "installment":
+        new_paid = (bill.get("paid_tenor") or 0) + 1
+        total_tenor = bill.get("total_tenor") or 0
+        is_completed = total_tenor > 0 and new_paid >= total_tenor
+
+        if is_completed:
+            update_fields.update({"paid_tenor": new_paid, "is_completed": True, "is_paid_current_cycle": True})
+        else:
+            nxt = _advance(bill["next_due_date"], bill.get("recurrence", "monthly"))
+            update_fields.update({"paid_tenor": new_paid, "next_due_date": nxt, "is_paid_current_cycle": False})
+    elif bill.get("recurrence") == "once":
+        update_fields.update({"is_paid_current_cycle": True, "is_completed": True})
+    else:
+        nxt = _advance(bill["next_due_date"], bill["recurrence"])
+        update_fields.update({"next_due_date": nxt, "is_paid_current_cycle": False})
+
+    await db.bills.update_one(
+        {"id": bill_id, "household_id": hid},
+        {"$set": update_fields}
+    )
+    return await db.bills.find_one({"id": bill_id, "household_id": hid}, {"_id": 0})
+
+
 @router.post("/{bill_id}/pay")
 async def pay_bill(bill_id: str, body: Optional[BillPaymentRequest] = None, ctx: Ctx = Depends(get_ctx)):
     bill = await db.bills.find_one({"id": bill_id, "household_id": ctx.hid}, {"_id": 0})
@@ -191,34 +227,8 @@ async def pay_bill(bill_id: str, body: Optional[BillPaymentRequest] = None, ctx:
         created_txn_id = t.id
 
     try:
-        update_fields = {
-            "last_paid_date": paid_date,
-            "last_paid_amount": payment_amount,
-        }
-        if body and getattr(body, "update_master_amount", False) and custom_amount and custom_amount > 0:
-            update_fields["amount"] = payment_amount
-
-        # advance to next cycle or complete installment
-        if bill.get("bill_type") == "installment":
-            new_paid = (bill.get("paid_tenor") or 0) + 1
-            total_tenor = bill.get("total_tenor") or 0
-            is_completed = total_tenor > 0 and new_paid >= total_tenor
-
-            if is_completed:
-                update_fields.update({"paid_tenor": new_paid, "is_completed": True, "is_paid_current_cycle": True})
-            else:
-                nxt = _advance(bill["next_due_date"], bill.get("recurrence", "monthly"))
-                update_fields.update({"paid_tenor": new_paid, "next_due_date": nxt, "is_paid_current_cycle": False})
-        elif bill.get("recurrence") == "once":
-            update_fields.update({"is_paid_current_cycle": True, "is_completed": True})
-        else:
-            nxt = _advance(bill["next_due_date"], bill["recurrence"])
-            update_fields.update({"next_due_date": nxt, "is_paid_current_cycle": False})
-
-        await db.bills.update_one(
-            {"id": bill_id, "household_id": ctx.hid},
-            {"$set": update_fields}
-        )
+        update_master = bool(body and getattr(body, "update_master_amount", False) and custom_amount and custom_amount > 0)
+        updated_bill = await mark_bill_as_paid(ctx.hid, bill_id, payment_amount, paid_date, update_master)
     except Exception as e:
         if created_txn:
             await ledger.apply_transaction(ctx.hid, created_txn, -1)

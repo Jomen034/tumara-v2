@@ -77,6 +77,26 @@ export function AuthProvider({ children }) {
     checkAuth();
   }, [checkAuth]);
 
+  const [aiUsage, setAiUsage] = useState(null);
+
+  const refreshAiUsage = useCallback(async () => {
+    try {
+      const res = await api.get("/ai/usage");
+      if (res.data) setAiUsage(res.data);
+      return res.data;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      refreshAiUsage();
+    } else {
+      setAiUsage(null);
+    }
+  }, [user, refreshAiUsage]);
+
   const loginWithSession = useCallback((userData, sessionToken) => {
     if (sessionToken) {
       localStorage.setItem("tumara_session_token", sessionToken);
@@ -91,6 +111,7 @@ export function AuthProvider({ children }) {
     try { await api.post("/auth/logout"); } catch {}
     localStorage.removeItem("tumara_session_token");
     setUser(null);
+    setAiUsage(null);
     setServerWaking(false);
     setConnectionError(false);
     window.location.href = "/";
@@ -106,6 +127,8 @@ export function AuthProvider({ children }) {
       value={{
         user,
         setUser,
+        aiUsage,
+        refreshAiUsage,
         loginWithSession,
         loading,
         serverWaking,

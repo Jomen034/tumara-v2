@@ -276,26 +276,31 @@ def _extract_json(text: str) -> dict:
         raise
 
 
-async def parse_transaction_text(text: str, wallets: list) -> dict:
-    """Parse a free-text Indonesian sentence into a structured transaction draft."""
+async def parse_transaction_text(text: str, wallets: list, bills: list = None) -> dict:
+    """Parse a free-text Indonesian sentence into a structured transaction draft, auto-matching wallets and registered bills."""
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     wallet_lines = "\n".join([f'- id="{w["id"]}" nama="{w["name"]}" jenis={w["type"]}' for w in wallets]) or "(belum ada dompet)"
+    bill_lines = "\n".join([f'- id="{b["id"]}" nama="{b["name"]}" nominal={b.get("amount", 0)}' for b in (bills or [])]) or "(tidak ada tagihan terdaftar)"
     prompt = (
         f"Hari ini {today}. Ubah kalimat pengguna menjadi SATU transaksi keuangan.\n"
         f"Daftar dompet pengguna:\n{wallet_lines}\n\n"
+        f"Daftar tagihan terdaftar pengguna:\n{bill_lines}\n\n"
         "Kembalikan HANYA JSON valid tanpa markdown dengan skema:\n"
         '{"type": "expense"|"income"|"transfer", "amount": number, '
         f'"category": salah satu dari {CATEGORY_LIST}, '
         '"wallet_id": id dompet paling cocok dari daftar (atau null jika tak yakin), '
         '"wallet_name": nama dompet yang kamu maksud (string, boleh tebakan), '
+        '"bill_id": id tagihan paling cocok dari daftar jika kalimat ini membayar tagihan (atau null), '
+        '"bill_name": nama tagihan yang cocok (atau null), '
         '"note": ringkasan singkat (mis. nama merchant/keterangan), '
         '"date": "YYYY-MM-DD", '
         '"confidence": angka 0-1, '
         '"understood": kalimat singkat Bahasa Indonesia yang menjelaskan interpretasimu}\n'
         "Aturan angka: '400k'/'400rb'=400000, '1.5jt'/'1,5jt'=1500000, '2m'=2000000. "
-        "Kata seperti 'isi bensin','makan','beli','bayar','top up' -> expense. "
+        "Kata seperti 'isi bensin','makan','beli','bayar','top up','tagihan' -> expense. "
         "'gaji','bonus','terima','masuk' -> income. 'transfer','pindah','tf' -> transfer. "
-        "Cocokkan dompet dari kata kunci (mis. 'debit ocbc'->dompet OCBC, 'gopay'->GoPay). "
+        "Cocokkan dompet dari kata kunci (mis. 'debit ocbc'->dompet OCBC, 'gopay'->GoPay, 'kartu kredit mandiri'->Mandiri CC). "
+        "Jika kalimat menyebut pembayaran tagihan tertentu (misal 'Halo Papa', 'listrik', 'wifi', 'bpjs'), cocokkan 'bill_id' ke daftar tagihan di atas. "
         "Jika tanggal tidak disebut, pakai hari ini. Jika 'kemarin', kurangi 1 hari.\n\n"
         f'Kalimat pengguna: "{text}"'
     )

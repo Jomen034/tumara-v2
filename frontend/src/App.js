@@ -93,12 +93,17 @@ function Protected({ children }) {
 function Shell() {
   const [addOpen, setAddOpen] = useState(false);
   const [addMode, setAddMode] = useState("manual");
+  const [addInitialDate, setAddInitialDate] = useState(null);
   const [scanOpen, setScanOpen] = useState(false);
   const { bump } = useRefresh();
   const { user } = useAuth();
   const location = useLocation();
 
-  const openAdd = (mode = "manual") => { setAddMode(typeof mode === "string" ? mode : "manual"); setAddOpen(true); };
+  const openAdd = (mode = "manual", initialDate = null) => {
+    setAddMode(typeof mode === "string" ? mode : "manual");
+    setAddInitialDate(typeof initialDate === "string" ? initialDate : null);
+    setAddOpen(true);
+  };
 
   // First-run: guide brand-new users. Invited users go to Household to accept.
   const skipped = localStorage.getItem("tumara-skip-onboarding") === "1";
@@ -115,7 +120,16 @@ function Shell() {
   return (
     <Layout onAdd={() => openAdd("manual")} onScan={() => openAdd("scan")}>
       <Outlet context={{ openAdd, openScan: () => openAdd("scan") }} />
-      <AddTransactionModal open={addOpen} onClose={() => setAddOpen(false)} onSaved={bump} initialMode={addMode} />
+      <AddTransactionModal
+        open={addOpen}
+        onClose={() => {
+          setAddOpen(false);
+          setAddInitialDate(null);
+        }}
+        onSaved={bump}
+        initialMode={addMode}
+        initialDate={addInitialDate}
+      />
       <ScanReceiptModal open={scanOpen} onClose={() => setScanOpen(false)} onSaved={bump} />
       <InstallPrompt />
     </Layout>

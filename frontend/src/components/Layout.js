@@ -29,6 +29,7 @@ import { Button } from "./ui";
 import SettingsModal from "./SettingsModal";
 import TumaraLogo from "./TumaraLogo";
 import { getUserAvatar } from "../lib/avatars";
+import AiQuotaModal from "./AiQuotaModal";
 
 const NAV = [
   { to: "/dashboard", label: "Beranda", icon: LayoutDashboard },
@@ -55,11 +56,12 @@ function Logo({ small }) {
 }
 
 export default function Layout({ children, onAdd, onScan }) {
-  const { user, logout } = useAuth();
+  const { user, logout, aiUsage, refreshAiUsage } = useAuth();
   const { theme, toggleTheme, privacy, togglePrivacy } = useTheme();
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [quotaModalOpen, setQuotaModalOpen] = useState(false);
 
   // Auto scroll to top on page / route transition
   useEffect(() => {
@@ -137,6 +139,36 @@ export default function Layout({ children, onAdd, onScan }) {
           ))}
         </nav>
         <div className="border-t border-borderc pt-4 mt-4">
+          {aiUsage && (
+            <div
+              onClick={() => setQuotaModalOpen(true)}
+              className="p-3 mb-3 rounded-xl bg-elevated/70 border border-borderc hover:border-brand/40 cursor-pointer transition-all group"
+              title="Klik untuk rincian Kuota FUP & Booster AI"
+            >
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="font-semibold text-tprimary flex items-center gap-1.5">
+                  <Sparkles size={13} className="text-brand" /> Kuota AI
+                </span>
+                <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-brand/15 text-brand">
+                  {aiUsage.tier || user?.tier || "Starter"}
+                </span>
+              </div>
+              <div className="space-y-1 text-[11px] text-tmuted">
+                <div className="flex justify-between">
+                  <span>Scan: <strong className="text-tprimary font-medium">{aiUsage.scans_used || 0}/{aiUsage.scans_limit || 0}</strong></span>
+                  <span>Teks: <strong className="text-tprimary font-medium">{aiUsage.chats_used || 0}/{aiUsage.chats_limit || 0}</strong></span>
+                </div>
+                <div className="w-full bg-borderc/60 h-1.5 rounded-full overflow-hidden mt-1">
+                  <div
+                    className="bg-brand h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(100, Math.round(((aiUsage.scans_used || 0) / Math.max(1, aiUsage.scans_limit || 1)) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           <div
             onClick={() => setSettingsOpen(true)}
             className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-elevated cursor-pointer transition-colors group mb-1.5"
@@ -215,6 +247,28 @@ export default function Layout({ children, onAdd, onScan }) {
                 ))}
               </nav>
               <div className="border-t border-borderc pt-4 mt-auto">
+                {aiUsage && (
+                  <div
+                    onClick={() => {
+                      setOpen(false);
+                      setQuotaModalOpen(true);
+                    }}
+                    className="p-3 mb-3 rounded-xl bg-elevated/70 border border-borderc hover:border-brand/40 cursor-pointer transition-all"
+                  >
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="font-semibold text-tprimary flex items-center gap-1.5">
+                        <Sparkles size={13} className="text-brand" /> Kuota AI
+                      </span>
+                      <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-brand/15 text-brand">
+                        {aiUsage.tier || user?.tier || "Starter"}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-tmuted flex justify-between">
+                      <span>Scan: <strong className="text-tprimary font-medium">{aiUsage.scans_used || 0}/{aiUsage.scans_limit || 0}</strong></span>
+                      <span>Teks: <strong className="text-tprimary font-medium">{aiUsage.chats_used || 0}/{aiUsage.chats_limit || 0}</strong></span>
+                    </div>
+                  </div>
+                )}
                 <div
                   onClick={() => {
                     setOpen(false);
@@ -267,6 +321,24 @@ export default function Layout({ children, onAdd, onScan }) {
             <div className="lg:hidden"><Logo small /></div>
           </div>
           <div className="flex items-center gap-2">
+            {aiUsage && (
+              <button
+                type="button"
+                data-testid="header-ai-quota-badge"
+                onClick={() => setQuotaModalOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-brand/10 hover:bg-brand/15 text-brand text-xs font-medium border border-brand/20 transition-all hover:scale-[1.02] cursor-pointer"
+                title="Status Kuota AI Tumara (FUP). Klik untuk rincian / booster."
+              >
+                <Sparkles size={14} className="text-brand shrink-0" />
+                <span className="font-semibold">
+                  {Math.max(0, (aiUsage.scans_limit || 0) - (aiUsage.scans_used || 0))} Scan
+                </span>
+                <span className="hidden sm:inline text-brand/50">·</span>
+                <span className="hidden sm:inline font-semibold">
+                  {Math.max(0, (aiUsage.chats_limit || 0) - (aiUsage.chats_used || 0))} Teks
+                </span>
+              </button>
+            )}
             <Button
               data-testid="scan-receipt-button"
               onClick={onScan}
@@ -310,6 +382,14 @@ export default function Layout({ children, onAdd, onScan }) {
 
       {/* Settings & Profile Modal */}
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      {/* AI Quota & Booster Modal */}
+      <AiQuotaModal
+        open={quotaModalOpen}
+        onClose={() => setQuotaModalOpen(false)}
+        quotaData={aiUsage}
+        onRedeemed={refreshAiUsage}
+      />
     </div>
   );
 }

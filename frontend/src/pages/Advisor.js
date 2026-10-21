@@ -26,7 +26,7 @@ const SUGGESTIONS = [
 const SESSION_STORAGE_KEY = "tumara_advisor_session";
 
 export default function Advisor() {
-  const { user } = useAuth();
+  const { user, aiUsage, refreshAiUsage } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -152,6 +152,7 @@ export default function Advisor() {
       });
     } finally {
       setStreaming(false);
+      refreshAiUsage?.();
     }
   };
 
@@ -166,6 +167,8 @@ export default function Advisor() {
     api.delete("/ai/chat/history").catch(() => {});
     toast.success("Sesi obrolan baru dimulai ✨");
   };
+
+  const activeQuota = aiUsage || quotaData;
 
   return (
     <div className="flex flex-col h-[calc(100vh-9rem)] lg:h-[calc(100vh-7rem)]">
@@ -184,7 +187,7 @@ export default function Advisor() {
         </div>
 
         <div className="flex items-center gap-2">
-          {quotaData && (
+          {activeQuota && (
             <button
               onClick={() => setQuotaOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand/10 hover:bg-brand/20 text-brand text-xs font-semibold border border-brand/30 transition-colors"
@@ -192,7 +195,7 @@ export default function Advisor() {
             >
               <Sparkles size={13} />
               <span>
-                FUP: {quotaData.chats_used || 0}/{quotaData.chats_limit || 100}
+                FUP: {activeQuota.chats_used || 0}/{activeQuota.chats_limit || 100} Teks
               </span>
             </button>
           )}

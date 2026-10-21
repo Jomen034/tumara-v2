@@ -25,6 +25,7 @@ import { formatRp, formatShort } from "../lib/format";
 import { Modal, Button, Input, Select, Spinner } from "./ui";
 import { compressReceiptImage, rotateImageBlob } from "../lib/imageCompressor";
 import AiQuotaModal from "./AiQuotaModal";
+import { useAuth } from "../context/AuthContext";
 
 const TYPES = [
   { value: "expense", label: "Pengeluaran", icon: ArrowUpRight, color: "var(--rose)" },
@@ -33,9 +34,9 @@ const TYPES = [
 ];
 
 const EXAMPLES = [
+  "pembayaran tagihan Halo Papa 150rb via bca",
   "isi bensin bp 92 400k pakai debit ocbc",
   "makan siang padang 35rb gopay",
-  "gaji masuk 8jt ke bca",
 ];
 
 export default function AddTransactionModal({
@@ -44,10 +45,14 @@ export default function AddTransactionModal({
   onSaved,
   initialMode = "manual",
   initialCategory,
+  initialDate,
 }) {
+  const { aiUsage, refreshAiUsage } = useAuth();
   const [wallets, setWallets] = useState([]);
   const [goals, setGoals] = useState([]);
   const [goalId, setGoalId] = useState("");
+  const [bills, setBills] = useState([]);
+  const [billId, setBillId] = useState("");
   const [mode, setMode] = useState(initialMode);
   const [type, setType] = useState("expense");
   const [amount, setAmount] = useState("");
@@ -55,7 +60,7 @@ export default function AddTransactionModal({
   const [toWalletId, setToWalletId] = useState("");
   const [category, setCategory] = useState("Groceries & Kebutuhan Rumah");
   const [note, setNote] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(initialDate || new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
   const [adminFee, setAdminFee] = useState("0");
   const [adminFeeOption, setAdminFeeOption] = useState("0"); // 0 | 2500 | 6500 | custom
@@ -101,23 +106,25 @@ export default function AddTransactionModal({
     resetScan();
     setAiText("");
     setDraft(null);
-    Promise.all([api.get("/wallets"), api.get("/goals")])
-      .then(([rw, rg]) => {
+    Promise.all([api.get("/wallets"), api.get("/goals"), api.get("/bills")])
+      .then(([rw, rg, rb]) => {
         setWallets(rw.data || []);
         setGoals(rg.data || []);
+        setBills(rb.data || []);
         if (rw.data?.[0]) setWalletId(rw.data[0].id);
         if (rw.data?.[1]) setToWalletId(rw.data[1].id);
       })
       .catch(() => {});
-  }, [open, initialMode]);
+  }, [open, initialMode, initialDate]);
 
   const resetForm = () => {
     setType("expense");
     setAmount("");
     setCategory(initialCategory || "Groceries & Kebutuhan Rumah");
     setGoalId("");
+    setBillId("");
     setNote("");
-    setDate(new Date().toISOString().slice(0, 10));
+    setDate(initialDate || new Date().toISOString().slice(0, 10));
     setSubItemsDraft(null);
     setAdminFee("0");
     setAdminFeeOption("0");
@@ -151,13 +158,20 @@ export default function AddTransactionModal({
       const matched = data.wallet_id && wallets.some((w) => w.id === data.wallet_id);
       if (matched) setWalletId(data.wallet_id);
       else if (wallets[0]) setWalletId(wallets[0].id);
+
+      if (data.bill_id) {
+        setBillId(data.bill_id);
+      }
+
       setDraft({
         understood: data.understood,
         confidence: data.confidence,
         matched,
         wallet_name: data.wallet_name,
+        bill_name: data.bill_name,
       });
       toast.success("Tumara sudah paham — cek & konfirmasi ya");
+      refreshAiUsage?.();
     } catch (e) {
       if (e?.response?.status === 429) {
         setQuotaData(e.response.data?.detail);
@@ -344,6 +358,7 @@ export default function AddTransactionModal({
             : "Transaksi struk tersimpan!"
         );
       }
+      refreshAiUsage?.();
       onSaved?.();
       onClose();
       resetScan();
@@ -382,6 +397,7 @@ export default function AddTransactionModal({
         date,
         source: draft ? (draft.source || "ai_text") : "manual",
         goal_id: (type === "expense" || type === "transfer") && goalId ? goalId : undefined,
+        bill_id: type === "expense" && billId ? billId : undefined,
         items: subItemsDraft && subItemsDraft.length > 0 ? subItemsDraft : undefined,
       });
 
@@ -402,10 +418,13 @@ export default function AddTransactionModal({
       toast.success(
         type === "transfer" && feeNum > 0
           ? `Transfer ${formatRp(amt)} + Biaya Admin ${formatRp(feeNum)} berhasil dicatat!`
+          : billId
+          ? "Transaksi tersimpan & tagihan otomatis ditandai lunas! 📋✅"
           : goalId
           ? "Transaksi tersimpan & progres tabungan bertambah! 🎯"
           : "Transaksi tersimpan!"
       );
+      refreshAiUsage?.();
       onSaved?.();
       onClose();
     } catch (err) {
@@ -422,6 +441,7 @@ export default function AddTransactionModal({
     setAmount("");
     setNote("");
     setAiText("");
+    setBillId("");
   };
 
   const showForm = mode === "manual" || (mode === "ai" && draft);
@@ -466,6 +486,16 @@ export default function AddTransactionModal({
       {/* Tab 2: AI Input */}
       {mode === "ai" && !draft && (
         <div className="space-y-4">
+          {aiUsage && (
+            <div className="flex items-center justify-between text-xs text-tmuted px-1">
+              <span className="flex items-center gap-1.5 text-tsecondary">
+                <Sparkles size={13} className="text-brand" /> Sisa Kuota Teks AI (FUP):
+              </span>
+              <span className="font-semibold text-tprimary bg-surface px-2 py-0.5 rounded-lg border border-borderc">
+                {Math.max(0, (aiUsage.chats_limit || 0) - (aiUsage.chats_used || 0))} / {aiUsage.chats_limit || 0}
+              </span>
+            </div>
+          )}
           <div>
             <span className="block text-xs font-semibold text-tsecondary uppercase tracking-wider mb-2">
               Tulis transaksimu sehari-hari
@@ -926,6 +956,12 @@ export default function AddTransactionModal({
                     {" "}
                     Dompet belum yakin{draft.wallet_name ? ` ("${draft.wallet_name}")` : ""} — pilih manual di bawah.
                   </span>
+                )}
+                {draft.bill_name && (
+                  <span className="text-brand font-medium">
+                    {" "}
+                    📋 Terhubung ke tagihan &quot;{draft.bill_name}&quot; (otomatis ditandai lunas).
+                  </span>
                 )}{" "}
                 Cek, koreksi bila perlu, lalu setujui.
               </p>
@@ -1151,6 +1187,72 @@ export default function AddTransactionModal({
                 <p className="text-[11px] text-brand flex items-center gap-1 pt-0.5">
                   <Check size={12} className="shrink-0" />
                   Progres target tujuan ini akan otomatis bertambah sebesar nominal transaksi.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Tautkan ke Tagihan Bulanan (Opsional) */}
+          {bills.length > 0 && type === "expense" && (
+            <div className="space-y-1.5 p-3 rounded-2xl bg-surface border border-borderc">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-tprimary flex items-center gap-1.5">
+                  <Receipt size={14} className="text-brand" />
+                  Tautkan ke Tagihan Bulanan
+                  <span className="text-[10px] text-tmuted font-normal">(Opsional)</span>
+                </label>
+                {billId && (
+                  <button
+                    type="button"
+                    onClick={() => setBillId("")}
+                    className="text-[11px] text-rose font-medium hover:underline"
+                  >
+                    Batal tautkan
+                  </button>
+                )}
+              </div>
+              <Select
+                value={billId}
+                onChange={(e) => {
+                  const bid = e.target.value;
+                  setBillId(bid);
+                  if (bid) {
+                    const matchedBill = bills.find((b) => b.id === bid);
+                    if (matchedBill) {
+                      if (!amount && matchedBill.amount) {
+                        setAmount(String(matchedBill.amount));
+                      }
+                      if (!note.trim()) {
+                        setNote(`Bayar tagihan: ${matchedBill.name}`);
+                      }
+                      if (matchedBill.category) {
+                        setCategory(matchedBill.category);
+                      }
+                    }
+                  }
+                }}
+                className={billId ? "border-brand/60 bg-brand/5" : ""}
+                data-testid="txn-bill-select"
+              >
+                <option value="">— Tidak ditautkan ke tagihan —</option>
+                {bills.map((b) => {
+                  const isPaidThisMonth =
+                    b.paid_this_cycle ||
+                    (b.last_paid_date &&
+                      b.last_paid_date.startsWith(
+                        date ? date.slice(0, 7) : new Date().toISOString().slice(0, 7)
+                      ));
+                  return (
+                    <option key={b.id} value={b.id}>
+                      {b.name} {b.amount ? `(${formatRp(b.amount)})` : ""} {isPaidThisMonth ? "• Sudah Lunas" : "• Belum Lunas"}
+                    </option>
+                  );
+                })}
+              </Select>
+              {billId && (
+                <p className="text-[11px] text-brand flex items-center gap-1 pt-0.5">
+                  <Check size={12} className="shrink-0" />
+                  Tagihan ini akan otomatis ditandai <strong>Lunas</strong> untuk periode tagihan aktif.
                 </p>
               )}
             </div>

@@ -161,8 +161,8 @@ export default function HabitJournalCalendar({ habitTracker, onDayClick }) {
               >
                 <span>{d}</span>
                 {isLogged && (
-                  <span className="text-[9px] leading-none opacity-80 mt-0.5">
-                    {count > 1 ? `${count}x` : "✓"}
+                  <span className="text-[9px] leading-none opacity-85 mt-0.5 font-bold">
+                    {`${count || 1}x`}
                   </span>
                 )}
               </button>
