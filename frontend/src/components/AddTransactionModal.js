@@ -151,7 +151,8 @@ export default function AddTransactionModal({
     try {
       const { data } = await api.post("/ai/parse-transaction", { text: t });
       setType(data.type || "expense");
-      setAmount(String(data.amount || ""));
+      const parsedAmt = Number(data.amount) || 0;
+      setAmount(parsedAmt > 0 ? String(parsedAmt) : "");
       setCategory(data.category || "Lainnya");
       setNote(data.note || "");
       setDate(data.date || new Date().toISOString().slice(0, 10));
@@ -170,7 +171,11 @@ export default function AddTransactionModal({
         wallet_name: data.wallet_name,
         bill_name: data.bill_name,
       });
-      toast.success("Tumara sudah paham — cek & konfirmasi ya");
+      if (parsedAmt > 0) {
+        toast.success("Tumara sudah paham — cek & konfirmasi ya");
+      } else {
+        toast.info("Aktivitas terdeteksi! Silakan masukkan nominal belanja sebelum menyimpan ya ✍️");
+      }
       refreshAiUsage?.();
     } catch (e) {
       if (e?.response?.status === 429) {

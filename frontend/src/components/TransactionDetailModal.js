@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
-import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Calendar, Wallet as WalletIcon, Tag, User, Sparkles, Trash2, Pencil, Target, Receipt, Search } from "lucide-react";
-import { formatRp, formatDate } from "../lib/format";
+import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Calendar, Clock, Wallet as WalletIcon, Tag, User, Sparkles, Trash2, Pencil, Target, Receipt, Search } from "lucide-react";
+import { formatRp, formatDate, formatDateTime } from "../lib/format";
 import { catMeta } from "../lib/constants";
 import { getUserAvatar } from "../lib/avatars";
 import api from "../lib/api";
@@ -136,10 +136,23 @@ export default function TransactionDetailModal({
           <div className="flex items-center justify-between pt-3.5">
             <span className="text-tmuted flex items-center gap-2">
               <Calendar size={16} />
-              Tanggal
+              Tanggal Transaksi
             </span>
             <span className="font-medium text-tprimary font-mono">{formatDate(t.date || t.created_at)}</span>
           </div>
+
+          {/* Recorded At Timestamp (Audit Trail) */}
+          {t.created_at && (
+            <div className="flex items-center justify-between pt-3.5" data-testid="txn-recorded-at-row">
+              <span className="text-tmuted flex items-center gap-2">
+                <Clock size={16} className="text-brand" />
+                Dicatat Pada
+              </span>
+              <span className="font-medium text-tprimary font-mono text-xs">
+                {formatDateTime(t.created_at)}
+              </span>
+            </div>
+          )}
 
           {/* Goal Link if present */}
           {t.goal_id && (

@@ -297,6 +297,7 @@ async def parse_transaction_text(text: str, wallets: list, bills: list = None) -
         '"confidence": angka 0-1, '
         '"understood": kalimat singkat Bahasa Indonesia yang menjelaskan interpretasimu}\n'
         "Aturan angka: '400k'/'400rb'=400000, '1.5jt'/'1,5jt'=1500000, '2m'=2000000. "
+        "Jika kalimat pengguna TIDAK menyebutkan nominal atau harga (misal hanya menyebut aktivitas/tempat seperti 'Makan siang di McD' atau 'Cek ke Bethsaida Clinic'), isi amount: 0. JANGAN pernah mengarang angka 1 jika nominal tidak disebutkan! "
         "Kata seperti 'isi bensin','makan','beli','bayar','top up','tagihan' -> expense. "
         "'gaji','bonus','terima','masuk' -> income. 'transfer','pindah','tf' -> transfer. "
         "Cocokkan dompet dari kata kunci (mis. 'debit ocbc'->dompet OCBC, 'gopay'->GoPay, 'kartu kredit mandiri'->Mandiri CC). "

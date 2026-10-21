@@ -48,14 +48,14 @@ export default function NetWorthDetailModal({
     0
   );
   const totalDebtSum = debtWallets.reduce(
-    (acc, w) => acc + (Number(w.balance) || 0),
+    (acc, w) => acc + Math.abs(Number(w.balance) || 0),
     0
   );
   const calculatedNetWorth = totalAssetSum - totalDebtSum;
 
-  const displayNetWorth = netWorth ?? calculatedNetWorth;
   const displayAssets = assets ?? totalAssetSum;
-  const displayDebt = debt ?? totalDebtSum;
+  const displayDebt = debt != null ? Math.abs(debt) : totalDebtSum;
+  const displayNetWorth = displayAssets - displayDebt;
 
   const monthlyNet = netCashFlow ?? (income - expense);
   const isSurplus = monthlyNet >= 0;

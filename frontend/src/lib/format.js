@@ -28,6 +28,27 @@ export const formatDate = (d) => {
   }
 };
 
+export const formatDateTime = (d) => {
+  if (!d) return "";
+  try {
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return String(d);
+    const dateStr = dt.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+    const timeStr = dt.toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    return `${dateStr}, ${timeStr} WIB`;
+  } catch {
+    return String(d);
+  }
+};
+
 export const monthLabel = (ym) => {
   if (!ym) return "";
   const [y, m] = ym.split("-");

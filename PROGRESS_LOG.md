@@ -20,6 +20,37 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-22 00:10:00 WIB] — Zero-Padding Amount & Edit Fix, Negative Debt Wallet Auto-Sanitation & Net Worth Invariance, Audit Trail "Dicatat Pada" Timestamps, and AI Text Validation
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Memperbaiki bug nominal transaksi menambah digit nol di belakang (`213.400` -> `2.134.000` dan `130.000` -> `1.300.000`) serta kegagalan ubah nominal saat diedit lewat menu "Edit Transaksi".
+  2. Mengidentifikasi dan memperbaiki anomali Total Net Worth melonjak (`Rp 121.370.720`) dan Tagihan Mandiri CC bertanda minus (`-Rp 68.566.415`): menerapkan auto-sanitasi saldo dompet utang (`abs(balance)`), mencegah perkalian minus ganda (`assets - (-debt)`), serta mengoreksi kalkulasi limit dan net worth secara matematis.
+  3. Menambahkan audit trail timestamp "Dicatat pada [Tanggal & Jam WIB]" di kartu transaksi (`TxnRow`) dan Modal Detail Transaksi (`TransactionDetailModal`) untuk membedakan antara tanggal riil transaksi/struk dan waktu aktual pencatatan ke dalam Tumara.
+  4. Mencegah input transaksi dummy tanpa nominal (`amount: 1`) saat menggunakan Teks AI untuk aktivitas tanpa harga (seperti "Makan siang di WAKANDA Maggiore"): meminta user mengisi nominal riil alih-alih mengarang nominal Rp 1.
+- **Key Actions & Changes:**
+  - `backend/ledger.py`:
+    - Menambahkan `parse_financial_number(v)` sebagai mesin parsing nominal IDR presisi: mempertahankan tipe `int`/`float` secara langsung, mendeteksi pemisah ribuan titik 3-digit vs titik desimal standard tanpa menghapus titik float (`clean.replace(".", "")`).
+    - Memperbarui `snapshot_networth`: menghitung `debt = sum(abs(w["balance"]) for w in wallets if is_debt_wallet(w))` dan melakukan auto-heal saldo dompet utang yang tersimpan minus di database.
+  - `backend/models.py`:
+    - Mengintegrasikan `parse_financial_number` pada validator `SubItem._parse_price`, `TransactionCreate._parse_amount`, dan `TransactionUpdate._parse_amount`.
+    - Menambahkan validator `@model_validator(mode="after")` pada `WalletCreate`: otomatis mengonversi `self.balance = abs(float(self.balance))` untuk dompet jenis `credit_card` dan `paylater`.
+  - `backend/routes_finance.py`:
+    - `list_wallets` & `get_wallet_detail`: menambahkan auto-heal otomatis yang membetulkan saldo dompet utang minus di MongoDB menjadi nilai positif (`abs(balance)`).
+    - `update_transaction`: mempertahankan timestamp `created_at` asli dari `old_doc` dan menambahkan `updated_at: now_utc()`.
+    - `/dashboard` & `/analytics`: auto-heal dompet utang dan menghitung `debt = sum(abs(w["balance"]))`, memastikan formula `net_worth = assets - debt` konsisten dan kebal terhadap minus ganda.
+  - `backend/ai_service.py`: Memperbarui prompt AI parser agar mengembalikan `amount: 0` (bukan 1) jika kalimat pengguna tidak menyebutkan nominal atau harga.
+  - `frontend/src/lib/format.js`: Menambahkan fungsi `formatDateTime(d)` untuk memformat tanggal dan waktu dalam standar waktu Indonesia (WIB UTC+7).
+  - `frontend/src/components/TransactionDetailModal.js`: Menampilkan baris "Dicatat Pada" lengkap dengan ikon jam (`Clock`) dan timestamp WIB di bawah baris "Tanggal Transaksi".
+  - `frontend/src/pages/Dashboard.js`:
+    - Menambahkan baris caption audit trail `🕒 Dicatat: {formatDateTime(t.created_at)}` pada komponen `TxnRow` (berlaku untuk Beranda dan Halaman Transaksi).
+    - Memastikan tampilan kartu Total Net Worth dan Utang di Beranda menggunakan `Math.abs(debt)` sehingga terbebas dari angka minus pada label Utang.
+  - `frontend/src/pages/Wallets.js`: Memastikan form input dompet kartu kredit/paylater menggunakan `Math.abs` dan kalkulasi total kewajiban selalu positif.
+  - `frontend/src/components/NetWorthDetailModal.js`: Memastikan `totalDebtSum` dan `displayDebt` menggunakan `Math.abs(balance)`.
+  - `frontend/src/components/AddTransactionModal.js`: Jika hasil parsing AI bernilai `0` / kosong, field nominal dikosongkan dan muncul notifikasi panduan agar user mengisi nominal riil.
+  - `backend/tests/test_money_integrity.py`: Menambahkan 6 unit test baru untuk `TestFinancialNumberParsing` dan `TestDebtSanitationAndNetWorth` (termasuk kasus akun Jomen dengan Mandiri CC dan OCBC CC). Seluruh 23 unit test lulus (`OK`).
+- **Notes & Important Context:**
+  - Terverifikasi 100% lulus testing lokal, tidak ada regresi pada ledger, dan zero matches untuk kata legacy.
+
 ### [2026-10-21 23:38:00 WIB] — FUP Quota Visibility in Receipt Tab & Net Worth Calculation Transparency Modal
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**

@@ -87,7 +87,14 @@ _snapshot_networth = ledger.snapshot_networth
 # ---------------- Wallets ----------------
 @router.get("/wallets")
 async def list_wallets(ctx: Ctx = Depends(get_ctx)):
-    return await db.wallets.find({"household_id": ctx.hid}, {"_id": 0}).sort("name", 1).to_list(500)
+    wallets = await db.wallets.find({"household_id": ctx.hid}, {"_id": 0}).sort("name", 1).to_list(500)
+    # Auto-heal dompet utang (kartu kredit/paylater) yang saldo tagihannya tersimpan minus
+    for w in wallets:
+        if ledger.is_debt_wallet(w) and w.get("balance", 0) < 0:
+            fixed = abs(w["balance"])
+            w["balance"] = fixed
+            await db.wallets.update_one({"id": w["id"], "household_id": ctx.hid}, {"$set": {"balance": fixed}})
+    return wallets
 
 
 @router.post("/wallets")
@@ -128,6 +135,10 @@ async def get_wallet_detail(wallet_id: str, limit: int = 10, ctx: Ctx = Depends(
     wallet = await db.wallets.find_one({"id": wallet_id, "household_id": ctx.hid}, {"_id": 0})
     if not wallet:
         raise HTTPException(404, "Wallet not found")
+    if ledger.is_debt_wallet(wallet) and wallet.get("balance", 0) < 0:
+        fixed = abs(wallet["balance"])
+        wallet["balance"] = fixed
+        await db.wallets.update_one({"id": wallet_id, "household_id": ctx.hid}, {"$set": {"balance": fixed}})
 
     txn_query = {
         "household_id": ctx.hid,
@@ -367,6 +378,9 @@ async def update_transaction(txn_id: str, body: TransactionUpdate, ctx: Ctx = De
     doc = new_txn.model_dump()
     doc["household_id"] = ctx.hid
     doc["member_id"] = old_doc.get("member_id", ctx.user.user_id)
+    if old_doc.get("created_at"):
+        doc["created_at"] = old_doc["created_at"]
+    doc["updated_at"] = now_utc()
     await db.transactions.update_one({"id": txn_id, "household_id": ctx.hid}, {"$set": doc})
     await _snapshot_networth(ctx.hid)
     return doc
@@ -830,8 +844,14 @@ async def dashboard(ctx: Ctx = Depends(get_ctx)):
     members = await household_members(hid)
     mmap = {m["user_id"]: m for m in members}
 
-    assets = sum(w["balance"] for w in wallets if w["type"] not in ("credit_card", "paylater"))
-    debt = sum(w["balance"] for w in wallets if w["type"] in ("credit_card", "paylater"))
+    for w in wallets:
+        if ledger.is_debt_wallet(w) and w.get("balance", 0) < 0:
+            fixed = abs(w["balance"])
+            w["balance"] = fixed
+            await db.wallets.update_one({"id": w["id"], "household_id": hid}, {"$set": {"balance": fixed}})
+
+    assets = sum(w["balance"] for w in wallets if not ledger.is_debt_wallet(w))
+    debt = sum(abs(w["balance"]) for w in wallets if ledger.is_debt_wallet(w))
     net_worth = assets - debt
 
     month_txns = [t for t in txns if (t.get("date") or "").startswith(month)]
@@ -1208,8 +1228,14 @@ async def analytics(
     wallets = await db.wallets.find({"household_id": ctx.hid}, {"_id": 0}).to_list(500)
     wmap = {w["id"]: w for w in wallets}
 
+    for w in wallets:
+        if ledger.is_debt_wallet(w) and w.get("balance", 0) < 0:
+            fixed = abs(w["balance"])
+            w["balance"] = fixed
+            await db.wallets.update_one({"id": w["id"], "household_id": ctx.hid}, {"$set": {"balance": fixed}})
+
     assets = sum(w["balance"] for w in wallets if not ledger.is_debt_wallet(w))
-    debt = sum(w["balance"] for w in wallets if ledger.is_debt_wallet(w))
+    debt = sum(abs(w["balance"]) for w in wallets if ledger.is_debt_wallet(w))
     current_net_worth = assets - debt
 
     period_txns = []

@@ -91,7 +91,7 @@ export default function Wallets() {
     const payload = {
       name: form.name.trim(),
       type: form.type,
-      balance: parseFloat(form.balance) || 0,
+      balance: isDebt ? Math.abs(parseFloat(form.balance) || 0) : (parseFloat(form.balance) || 0),
       credit_limit: isDebt && !isNaN(parsedLimit) && parsedLimit > 0 ? parsedLimit : null,
       color: form.color,
       icon: walletMeta(form.type).icon,
@@ -123,10 +123,10 @@ export default function Wallets() {
 
   const totalAssets = wallets
     .filter((w) => !["credit_card", "paylater"].includes(w.type))
-    .reduce((a, w) => a + w.balance, 0);
+    .reduce((a, w) => a + (Number(w.balance) || 0), 0);
   const totalDebt = wallets
     .filter((w) => ["credit_card", "paylater"].includes(w.type))
-    .reduce((a, w) => a + w.balance, 0);
+    .reduce((a, w) => a + Math.abs(Number(w.balance) || 0), 0);
   const debtWallets = useMemo(
     () => wallets.filter((w) => ["credit_card", "paylater"].includes(w.type)),
     [wallets]
@@ -136,7 +136,7 @@ export default function Wallets() {
     [debtWallets]
   );
   const totalCreditUsed = useMemo(
-    () => debtWallets.reduce((a, w) => a + (Number(w.balance) || 0), 0),
+    () => debtWallets.reduce((a, w) => a + Math.abs(Number(w.balance) || 0), 0),
     [debtWallets]
   );
   const totalCreditAvailable = Math.max(0, totalCreditLimit - totalCreditUsed);

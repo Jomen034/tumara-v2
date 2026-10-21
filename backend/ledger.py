@@ -17,6 +17,52 @@ def is_debt_wallet(wallet) -> bool:
     return (wallet or {}).get("type") in DEBT_WALLET_TYPES
 
 
+def parse_financial_number(v) -> float:
+    """Konversi input nominal (angka, string berformat IDR/US, dsb) secara presisi tanpa merusak titik desimal."""
+    if v is None:
+        return 0.0
+    if isinstance(v, (int, float)):
+        return float(v)
+    try:
+        clean = str(v).replace("Rp", "").replace("IDR", "").replace(" ", "").strip()
+        if not clean:
+            return 0.0
+        # Format gabungan titik dan koma (misal 1.500.000,50 atau 1,500,000.50)
+        if "." in clean and "," in clean:
+            last_dot = clean.rfind(".")
+            last_comma = clean.rfind(",")
+            if last_comma > last_dot:
+                clean = clean.replace(".", "").replace(",", ".")
+            else:
+                clean = clean.replace(",", "")
+            return float(clean)
+        # Format koma saja
+        if "," in clean:
+            parts = clean.split(",")
+            if len(parts) == 2 and len(parts[1]) != 3:
+                clean = clean.replace(",", ".")
+            else:
+                clean = clean.replace(",", "")
+            return float(clean)
+        # Format titik saja
+        if "." in clean:
+            parts = clean.split(".")
+            if len(parts) > 2:
+                # Titik ribuan berulang (misal 2.134.000)
+                clean = clean.replace(".", "")
+            elif len(parts) == 2:
+                # Titik tunggal: jika 3 digit di belakang titik (misal 213.400), itu pemisah ribuan IDR
+                # Jika bukan 3 digit (misal 213400.0 atau 213400.5), itu titik desimal float murni
+                if len(parts[1]) == 3:
+                    clean = parts[0] + parts[1]
+                else:
+                    pass
+            return float(clean)
+        return float(clean)
+    except Exception:
+        return 0.0
+
+
 async def get_wallet(hid: str, wallet_id: str):
     return await db.wallets.find_one({"id": wallet_id, "household_id": hid}, {"_id": 0})
 
@@ -55,8 +101,13 @@ async def apply_transaction(hid: str, txn, sign: int = 1) -> None:
 async def snapshot_networth(hid: str) -> None:
     from datetime import datetime, timezone
     wallets = await db.wallets.find({"household_id": hid}, {"_id": 0}).to_list(500)
+    for w in wallets:
+        if is_debt_wallet(w) and w.get("balance", 0) < 0:
+            fixed = abs(w["balance"])
+            w["balance"] = fixed
+            await db.wallets.update_one({"id": w["id"], "household_id": hid}, {"$set": {"balance": fixed}})
     assets = sum(w["balance"] for w in wallets if not is_debt_wallet(w))
-    debt = sum(w["balance"] for w in wallets if is_debt_wallet(w))
+    debt = sum(abs(w["balance"]) for w in wallets if is_debt_wallet(w))
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     await db.networth_snapshots.update_one(
         {"household_id": hid, "date": today},

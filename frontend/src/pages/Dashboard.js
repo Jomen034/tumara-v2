@@ -18,13 +18,14 @@ import {
   Scale,
   Target,
   CalendarClock,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
 import api from "../lib/api";
 import { useRefresh } from "../context/RefreshContext";
 import { useTheme } from "../context/ThemeContext";
-import { formatRp, formatShort, formatDate } from "../lib/format";
+import { formatRp, formatShort, formatDate, formatDateTime } from "../lib/format";
 import { catMeta, walletMeta } from "../lib/constants";
 import { Card, Progress, Badge, Spinner, EmptyState, Button } from "../components/ui";
 import FinancialHealthModal from "../components/FinancialHealthModal";
@@ -165,7 +166,7 @@ export default function Dashboard() {
             title="Ketuk untuk melihat rincian aset vs utang"
           >
             <p className={`text-4xl sm:text-5xl font-head font-extrabold font-mono mt-2 group-hover/val:text-brand transition-colors ${privacy ? "privacy-blur" : ""}`}>
-              {formatRp(data.net_worth, privacy)}
+              {formatRp((data.assets ?? 0) - Math.abs(data.debt ?? 0), privacy)}
             </p>
           </div>
           <div className="flex flex-wrap gap-x-8 gap-y-3 mt-6">
@@ -183,7 +184,7 @@ export default function Dashboard() {
               title="Ketuk untuk rincian utang"
             >
               <p className="text-xs text-tmuted font-semibold flex items-center gap-1"><TrendingDown size={13} className="text-rose" /> Utang</p>
-              <p className={`font-mono font-semibold text-rose group-hover/stat:underline ${privacy ? "privacy-blur" : ""}`}>{formatRp(data.debt, privacy)}</p>
+              <p className={`font-mono font-semibold text-rose group-hover/stat:underline ${privacy ? "privacy-blur" : ""}`}>{formatRp(Math.abs(data.debt || 0), privacy)}</p>
             </div>
             <div>
               <p className="text-xs text-tmuted font-semibold flex items-center gap-1"><TrendingUp size={13} className="text-brand" /> Pemasukan (bln)</p>
@@ -626,9 +627,9 @@ export default function Dashboard() {
       <NetWorthDetailModal
         open={netWorthModalOpen}
         onClose={() => setNetWorthModalOpen(false)}
-        netWorth={data.net_worth}
+        netWorth={(data.assets ?? 0) - Math.abs(data.debt ?? 0)}
         assets={data.assets}
-        debt={data.debt}
+        debt={Math.abs(data.debt || 0)}
         wallets={data.wallets || []}
         income={data.income}
         expense={data.expense}
@@ -789,6 +790,12 @@ export function TxnRow({ t, privacy, onDelete, onEdit, onSelect, memberMap, wall
           <span className="shrink-0 text-tmuted/70">·</span>
           <span className="shrink-0 text-tmuted">{formatDate(t.date) || t.date}</span>
         </p>
+        {t.created_at && (
+          <p className="text-[10px] sm:text-[11px] text-tmuted/70 flex items-center gap-1 truncate mt-0.5 min-w-0" title={`Dicatat aktual pada ${formatDateTime(t.created_at)}`}>
+            <Clock size={11} className="shrink-0 text-tmuted/60" />
+            <span>Dicatat: {formatDateTime(t.created_at)}</span>
+          </p>
+        )}
       </div>
 
       <div className="text-right shrink-0 pl-1 sm:pl-2">

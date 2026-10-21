@@ -313,5 +313,75 @@ class TestIntegerPrecisionAndRoundingSafety(unittest.TestCase):
         self.assertIsInstance(total_needs, int)
 
 
+class TestFinancialNumberParsing(unittest.TestCase):
+    """Pengujian fungsi parse_financial_number untuk mengeliminasi penambahan nol dan kegagalan edit."""
+
+    def test_float_input_does_not_add_zero(self):
+        """Memastikan float 213400.0 tidak berubah menjadi 2134000.0 (bug strip dot)."""
+        from ledger import parse_financial_number
+        self.assertEqual(parse_financial_number(213400.0), 213400.0)
+        self.assertEqual(parse_financial_number(130000.0), 130000.0)
+        self.assertEqual(parse_financial_number("213400.0"), 213400.0)
+
+    def test_indonesian_thousand_separator(self):
+        """Format ribuan Indonesia titik 3-digit: '213.400' -> 213400.0."""
+        from ledger import parse_financial_number
+        self.assertEqual(parse_financial_number("213.400"), 213400.0)
+        self.assertEqual(parse_financial_number("130.000"), 130000.0)
+        self.assertEqual(parse_financial_number("Rp 213.400"), 213400.0)
+
+    def test_multiple_thousand_dots(self):
+        """Format jutaan titik berulang: '2.134.000' -> 2134000.0."""
+        from ledger import parse_financial_number
+        self.assertEqual(parse_financial_number("2.134.000"), 2134000.0)
+        self.assertEqual(parse_financial_number("Rp 2.134.000"), 2134000.0)
+
+    def test_comma_decimal_handling(self):
+        """Format desimal koma: '213.400,50' -> 213400.5."""
+        from ledger import parse_financial_number
+        self.assertEqual(parse_financial_number("213.400,50"), 213400.5)
+        self.assertEqual(parse_financial_number("50,5"), 50.5)
+
+
+class TestDebtSanitationAndNetWorth(unittest.TestCase):
+    """Pengujian sanitasi saldo dompet utang dan kalkulasi net worth agar tidak terjadi perkalian minus ganda."""
+
+    def test_debt_wallet_negative_balance_sanitation(self):
+        """Dompet utang (kartu kredit/paylater) yang diinput minus (-68566415) wajib di-abs menjadi positif."""
+        from ledger import is_debt_wallet
+        raw_wallet = {"type": "credit_card", "balance": -68566415}
+        sanitized_balance = abs(raw_wallet["balance"]) if is_debt_wallet(raw_wallet) else raw_wallet["balance"]
+        self.assertEqual(sanitized_balance, 68566415.0)
+
+    def test_jomen_mandiri_cc_net_worth_case(self):
+        """Simulasi kasus user Jomen:
+        Aset: 53.909.505
+        Mandiri CC: -68.566.415 (tersimpan minus dari input m-banking)
+        OCBC CC: 1.105.200 (tersimpan normal positif)
+        Net Worth harus bernilai -13.551.710 (defisit), BUKAN +121.370.720.
+        """
+        from ledger import is_debt_wallet
+        wallets = [
+            {"id": "w1", "name": "Mama - JAGO Debit", "type": "bank", "balance": 53_909_505},
+            {"id": "w2", "name": "Papa - Mandiri CC", "type": "credit_card", "balance": -68_566_415},
+            {"id": "w3", "name": "Papa - OCBC CC", "type": "credit_card", "balance": 1_105_200},
+        ]
+        # Auto-heal sanitasi
+        for w in wallets:
+            if is_debt_wallet(w) and w["balance"] < 0:
+                w["balance"] = abs(w["balance"])
+
+        assets = sum(w["balance"] for w in wallets if not is_debt_wallet(w))
+        debt = sum(abs(w["balance"]) for w in wallets if is_debt_wallet(w))
+        net_worth = assets - debt
+
+        self.assertEqual(assets, 53_909_505)
+        # Total Utang: Mandiri (68.566.415) + OCBC (1.105.200) = 69.671.615
+        self.assertEqual(debt, 69_671_615)
+        self.assertEqual(net_worth, 53_909_505 - 69_671_615)
+        self.assertLess(net_worth, 0, "Net worth harus defisit karena utang lebih besar dari aset")
+        self.assertNotEqual(net_worth, 121_370_720, "Net worth tidak boleh melonjak akibat minus ganda")
+
+
 if __name__ == "__main__":
     unittest.main()

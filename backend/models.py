@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Literal, Union
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 
 
 def now_utc() -> datetime:
@@ -140,11 +140,65 @@ class WalletCreate(BaseModel):
     color: str = "#00E676"
     icon: str = "wallet"
 
+    @model_validator(mode="after")
+    def _sanitize_debt_balance(self):
+        # Dompet utang (kartu kredit & paylater) saldo tagihannya selalu non-negatif
+        if self.type in ("credit_card", "paylater") and self.balance is not None:
+            self.balance = abs(float(self.balance))
+        return self
+
 
 class Wallet(WalletCreate):
     id: str = Field(default_factory=lambda: new_id("wal"))
     user_id: str
     created_at: datetime = Field(default_factory=now_utc)
+
+
+# ---------- Financial Number Parser ----------
+def parse_financial_number(v) -> float:
+    """Konversi input nominal (angka, string berformat IDR/US, dsb) secara presisi tanpa merusak titik desimal."""
+    if v is None:
+        return 0.0
+    if isinstance(v, (int, float)):
+        return float(v)
+    try:
+        clean = str(v).replace("Rp", "").replace("IDR", "").replace(" ", "").strip()
+        if not clean:
+            return 0.0
+        # Format gabungan titik dan koma (misal 1.500.000,50 atau 1,500,000.50)
+        if "." in clean and "," in clean:
+            last_dot = clean.rfind(".")
+            last_comma = clean.rfind(",")
+            if last_comma > last_dot:
+                clean = clean.replace(".", "").replace(",", ".")
+            else:
+                clean = clean.replace(",", "")
+            return float(clean)
+        # Format koma saja
+        if "," in clean:
+            parts = clean.split(",")
+            if len(parts) == 2 and len(parts[1]) != 3:
+                clean = clean.replace(",", ".")
+            else:
+                clean = clean.replace(",", "")
+            return float(clean)
+        # Format titik saja
+        if "." in clean:
+            parts = clean.split(".")
+            if len(parts) > 2:
+                # Titik ribuan berulang (misal 2.134.000)
+                clean = clean.replace(".", "")
+            elif len(parts) == 2:
+                # Titik tunggal: jika 3 digit di belakang titik (misal 213.400), itu pemisah ribuan IDR
+                # Jika bukan 3 digit (misal 213400.0 atau 213400.5), itu titik desimal float murni
+                if len(parts[1]) == 3:
+                    clean = parts[0] + parts[1]
+                else:
+                    pass
+            return float(clean)
+        return float(clean)
+    except Exception:
+        return 0.0
 
 
 # ---------- Transactions ----------
@@ -173,18 +227,7 @@ class SubItem(BaseModel):
     @field_validator("price", mode="before")
     @classmethod
     def _parse_price(cls, v):
-        if v is None:
-            return 0.0
-        try:
-            clean = str(v).replace("Rp", "").replace("IDR", "").strip()
-            if "." in clean and "," not in clean:
-                parts = clean.split(".")
-                if len(parts) == 2 and len(parts[1]) == 3:
-                    clean = "".join(parts)
-            clean = clean.replace(".", "").replace(",", ".")
-            return float(clean)
-        except Exception:
-            return 0.0
+        return parse_financial_number(v)
 
 
 class TransactionCreate(BaseModel):
@@ -203,18 +246,7 @@ class TransactionCreate(BaseModel):
     @field_validator("amount", mode="before")
     @classmethod
     def _parse_amount(cls, v):
-        if v is None:
-            return 0.0
-        try:
-            clean = str(v).replace("Rp", "").replace("IDR", "").strip()
-            if "." in clean and "," not in clean:
-                parts = clean.split(".")
-                if len(parts) == 2 and len(parts[1]) == 3:
-                    clean = "".join(parts)
-            clean = clean.replace(".", "").replace(",", ".")
-            return float(clean)
-        except Exception:
-            return 0.0
+        return parse_financial_number(v)
 
 
 class TransactionUpdate(BaseModel):
@@ -228,6 +260,13 @@ class TransactionUpdate(BaseModel):
     goal_id: Optional[str] = None
     bill_id: Optional[str] = None
     items: Optional[List[SubItem]] = None
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def _parse_amount(cls, v):
+        if v is None:
+            return None
+        return parse_financial_number(v)
 
 
 class Transaction(TransactionCreate):
