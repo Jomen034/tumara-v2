@@ -552,6 +552,16 @@ export default function AddTransactionModal({
       {/* Tab 3: Receipt Scanner */}
       {mode === "scan" && (
         <div className="space-y-4">
+          {aiUsage && !preview && (
+            <div className="flex items-center justify-between text-xs text-tmuted px-1">
+              <span className="flex items-center gap-1.5 text-tsecondary">
+                <Sparkles size={13} className="text-brand" /> Sisa Kuota Scan AI (FUP):
+              </span>
+              <span className="font-semibold text-tprimary bg-surface px-2 py-0.5 rounded-lg border border-borderc">
+                {Math.max(0, (aiUsage.scans_limit || 0) - (aiUsage.scans_used || 0))} / {aiUsage.scans_limit || 0}
+              </span>
+            </div>
+          )}
           {!preview && (
             <div className="space-y-3">
               <div

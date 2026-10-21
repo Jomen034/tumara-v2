@@ -35,6 +35,7 @@ import PayBillModal from "../components/PayBillModal";
 import HabitJournalCalendar from "../components/HabitJournalCalendar";
 import AiQuotaModal from "../components/AiQuotaModal";
 import DayJournalModal from "../components/DayJournalModal";
+import NetWorthDetailModal from "../components/NetWorthDetailModal";
 
 function HealthGauge({ score }) {
   const r = 52, c = 2 * Math.PI * r;
@@ -67,6 +68,7 @@ export default function Dashboard() {
   const [editingTxn, setEditingTxn] = useState(null);
   const [payingBill, setPayingBill] = useState(null);
   const [dayJournalDate, setDayJournalDate] = useState(null);
+  const [netWorthModalOpen, setNetWorthModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleHealthAction = (rec) => {
@@ -144,18 +146,44 @@ export default function Dashboard() {
       <div className="grid lg:grid-cols-3 gap-4">
         <Card data-testid="net-worth-card" className="lg:col-span-2 relative overflow-hidden">
           <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full opacity-10 blur-2xl" style={{ background: "var(--brand)" }} />
-          <p className="text-xs font-semibold text-tmuted uppercase tracking-wider">Total Net Worth</p>
-          <p className={`text-4xl sm:text-5xl font-head font-extrabold font-mono mt-2 ${privacy ? "privacy-blur" : ""}`}>
-            {formatRp(data.net_worth, privacy)}
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-tmuted uppercase tracking-wider">Total Net Worth</p>
+            <button
+              type="button"
+              data-testid="net-worth-info-btn"
+              onClick={() => setNetWorthModalOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-elevated/70 hover:bg-elevated border border-borderc text-xs font-medium text-tsecondary hover:text-brand transition-colors cursor-pointer group"
+              title="Ketuk untuk melihat cara Tumara menghitung Total Net Worth"
+            >
+              <Icons.Info size={14} className="text-brand group-hover:scale-110 transition-transform" />
+              <span>Detail & Cara Hitung</span>
+            </button>
+          </div>
+          <div
+            onClick={() => setNetWorthModalOpen(true)}
+            className="cursor-pointer group/val inline-block"
+            title="Ketuk untuk melihat rincian aset vs utang"
+          >
+            <p className={`text-4xl sm:text-5xl font-head font-extrabold font-mono mt-2 group-hover/val:text-brand transition-colors ${privacy ? "privacy-blur" : ""}`}>
+              {formatRp(data.net_worth, privacy)}
+            </p>
+          </div>
           <div className="flex flex-wrap gap-x-8 gap-y-3 mt-6">
-            <div>
+            <div
+              onClick={() => setNetWorthModalOpen(true)}
+              className="cursor-pointer group/stat"
+              title="Ketuk untuk rincian aset"
+            >
               <p className="text-xs text-tmuted font-semibold flex items-center gap-1"><TrendingUp size={13} className="text-brand" /> Aset</p>
-              <p className={`font-mono font-semibold text-brand ${privacy ? "privacy-blur" : ""}`}>{formatRp(data.assets, privacy)}</p>
+              <p className={`font-mono font-semibold text-brand group-hover/stat:underline ${privacy ? "privacy-blur" : ""}`}>{formatRp(data.assets, privacy)}</p>
             </div>
-            <div>
+            <div
+              onClick={() => setNetWorthModalOpen(true)}
+              className="cursor-pointer group/stat"
+              title="Ketuk untuk rincian utang"
+            >
               <p className="text-xs text-tmuted font-semibold flex items-center gap-1"><TrendingDown size={13} className="text-rose" /> Utang</p>
-              <p className={`font-mono font-semibold text-rose ${privacy ? "privacy-blur" : ""}`}>{formatRp(data.debt, privacy)}</p>
+              <p className={`font-mono font-semibold text-rose group-hover/stat:underline ${privacy ? "privacy-blur" : ""}`}>{formatRp(data.debt, privacy)}</p>
             </div>
             <div>
               <p className="text-xs text-tmuted font-semibold flex items-center gap-1"><TrendingUp size={13} className="text-brand" /> Pemasukan (bln)</p>
@@ -592,6 +620,20 @@ export default function Dashboard() {
           fetchDashboard();
           bump();
         }}
+      />
+
+      {/* Net Worth Detail Modal */}
+      <NetWorthDetailModal
+        open={netWorthModalOpen}
+        onClose={() => setNetWorthModalOpen(false)}
+        netWorth={data.net_worth}
+        assets={data.assets}
+        debt={data.debt}
+        wallets={data.wallets || []}
+        income={data.income}
+        expense={data.expense}
+        netCashFlow={data.net_cash_flow}
+        privacy={privacy}
       />
     </div>
   );
