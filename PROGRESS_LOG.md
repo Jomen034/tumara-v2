@@ -20,6 +20,42 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-21 23:38:00 WIB] — FUP Quota Visibility in Receipt Tab & Net Worth Calculation Transparency Modal
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Menampilkan badge FUP kuota scan di tab "Foto Struk" pada Modal Tambah Transaksi agar simetris dan transparan seperti halnya di tab "Teks AI".
+  2. Memberikan transparansi perhitungan Total Net Worth (Kekayaan Bersih = Aset − Utang) serta membedakan konsep Neraca Akumulatif vs Arus Kas Bersih Bulanan (Pemasukan − Pengeluaran).
+  3. Membangun modal detail kalkulasi Net Worth (`NetWorthDetailModal`) yang dapat diakses langsung melalui tombol "Detail & Cara Hitung" di Beranda.
+- **Key Actions & Changes:**
+  - `frontend/src/components/AddTransactionModal.js`: Menambahkan badge sisa kuota scan AI (FUP) di atas dropzone pada tab "Foto Struk" (`mode === "scan"`).
+  - `frontend/src/components/NetWorthDetailModal.js` (Baru): Modal interaktif yang menyajikan formula standar akuntansi Tumara (`Aset − Utang = Net Worth`), rincian saldo per dompet aset (bank, e-wallet, tunai, investasi), rincian tagihan per dompet kewajiban (kartu kredit, paylater), penjelasan edukasi membedakan Net Worth vs Net Cash Flow bulanan, serta tombol cepat ke `/wallets`.
+  - `frontend/src/pages/Dashboard.js`: Menambahkan tombol `[ℹ️ Detail & Cara Hitung]` di kartu Total Net Worth, serta menjadikan nominal Net Worth, subtotal Aset, dan Utang klikabel untuk membuka `NetWorthDetailModal`.
+- **Notes & Important Context:**
+  - Terverifikasi pada data riil akun `jomenpardede@gmail.com`: Total Aset (Rp 42.209.505) − Total Utang (Rp 9.362.785) = Total Net Worth Rp 32.846.720 (100% presisi matematis).
+
+### [2026-10-21 18:07:00 WIB] — Bill Payment Linking, App-Wide FUP Quota Synchronization, and Daily Journal Modal for Habit Calendar
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Menghubungkan pencatatan transaksi pengeluaran langsung ke tagihan bulanan (`bill_id`), baik secara manual maupun otomatis via ekstraksi teks AI ("pembayaran tagihan Halo Papa via Tokopedia..."), dan menandai tagihan lunas secara otomatis saat transaksi disimpan.
+  2. Menampilkan dan menyinkronkan indikator sisa kuota FUP AI di seluruh aplikasi (Header, Sidebar desktop, Drawer mobile, Modal Tambah Transaksi, Modal Scan Struk, dan Advisor).
+  3. Menyeragamkan label frekuensi hari pada Habit Tracker Calendar (`1x`, `2x`, `4x`, `8x`) dan membuka `DayJournalModal` interaktif saat tanggal diklik alih-alih langsung redirect ke halaman transaksi.
+- **Key Actions & Changes:**
+  - `backend/routes_bills.py`: Mengekspor fungsi `mark_bill_as_paid` untuk memajukan siklus tagihan atau menandai lunas installment/sekali bayar.
+  - `backend/routes_finance.py`: Mengintegrasikan `mark_bill_as_paid` pada `create_transaction` ketika ada `t.bill_id`, serta mendukung filter `date` dan `bill_id` pada `list_transactions`.
+  - `backend/ai_service.py` & `backend/routes_ai.py`: Menyertakan kandidat tagihan aktif pada prompt LLM parser transaksi teks bebas untuk mencocokkan `bill_id` dan `bill_name`.
+  - `frontend/src/context/AuthContext.js`: Menyediakan state `aiUsage` dan fungsi `refreshAiUsage` secara terpusat untuk seluruh aplikasi.
+  - `frontend/src/components/Layout.js`: Menampilkan widget FUP kuota di Header dan Sidebar/Drawer, serta memicu `AiQuotaModal`.
+  - `frontend/src/components/AddTransactionModal.js`: Mengambil data tagihan, menambahkan dropdown "Tautkan ke Tagihan Bulanan", auto-pilih tagihan dari hasil deteksi AI, dan mengirimkan `bill_id`.
+  - `frontend/src/components/ScanReceiptModal.js`: Menampilkan sisa kuota scan dan me-refresh kuota setelah scan/simpan.
+  - `frontend/src/pages/Advisor.js`: Menyinkronkan kuota FUP teks AI secara real-time setelah respon AI selesai di-stream.
+  - `frontend/src/components/HabitJournalCalendar.js`: Menyeragamkan notasi hari aktif menjadi format konsisten `{count}x`.
+  - `frontend/src/components/DayJournalModal.js` (Baru): Modal pop-up di Beranda yang menampilkan daftar transaksi harian, total pengeluaran/pemasukan, dan tombol "+ Catat di Tanggal Ini" / "Lihat di Halaman Transaksi".
+  - `frontend/src/pages/Dashboard.js`: Mengaitkan klik tanggal kalender ke `DayJournalModal`.
+  - `frontend/src/pages/Transactions.js`: Mendukung query parameter `?date=YYYY-MM-DD` untuk pre-filter transaksi tanggal yang dipilih dari jurnal.
+  - `frontend/src/App.js`: Mendukung penerusan `initialDate` ke `AddTransactionModal`.
+- **Notes & Important Context:**
+  - Seluruh unit test lulus. Zero matches untuk kata legacy.
+
 ### [2026-10-21 00:10:00 WIB] — Commercialization Refinement: Winning Pricing Matrix, AI Architecture Transparency, Non-Expiring Booster Packs, and Prorated Tier Upgrades
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:** Menghaluskan model monetisasi dan transparansi produk Tumara v2.2.1:
