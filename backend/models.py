@@ -231,6 +231,8 @@ class SubItem(BaseModel):
 
 
 class TransactionCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     type: Literal["expense", "income", "transfer"]
     amount: float = Field(gt=0)
     wallet_id: str
@@ -250,6 +252,8 @@ class TransactionCreate(BaseModel):
 
 
 class TransactionUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     type: Optional[Literal["expense", "income", "transfer"]] = None
     amount: Optional[float] = Field(default=None, gt=0)
     wallet_id: Optional[str] = None
@@ -270,11 +274,15 @@ class TransactionUpdate(BaseModel):
 
 
 class Transaction(TransactionCreate):
+    model_config = ConfigDict(extra="ignore")
+
     id: str = Field(default_factory=lambda: new_id("txn"))
-    user_id: str
+    user_id: Optional[str] = "system"
     household_id: Optional[str] = None
     member_id: Optional[str] = None
-    created_at: datetime = Field(default_factory=now_utc)
+    amount: float = Field(default=0.0, ge=0)
+    created_at: Optional[Union[datetime, str]] = Field(default_factory=now_utc)
+    updated_at: Optional[Union[datetime, str]] = None
 
 
 # ---------- Budget ----------

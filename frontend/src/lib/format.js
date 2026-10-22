@@ -31,14 +31,21 @@ export const formatDate = (d) => {
 export const formatDateTime = (d) => {
   if (!d) return "";
   try {
-    const dt = new Date(d);
+    let s = String(d).trim();
+    // If ISO timestamp without explicit timezone offset or Z, assume UTC
+    if (s.includes("T") && !s.endsWith("Z") && !s.slice(10).includes("+") && !s.slice(10).includes("-")) {
+      s += "Z";
+    }
+    const dt = new Date(s);
     if (isNaN(dt.getTime())) return String(d);
     const dateStr = dt.toLocaleDateString("id-ID", {
+      timeZone: "Asia/Jakarta",
       day: "numeric",
       month: "short",
       year: "numeric",
     });
     const timeStr = dt.toLocaleTimeString("id-ID", {
+      timeZone: "Asia/Jakarta",
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,

@@ -62,6 +62,7 @@ def _distribute_txn_categories(t: dict) -> dict:
     """Distributes an expense transaction's amount across categories based on sub-items if present."""
     items = t.get("items")
     parent_cat = _canonical_category(t.get("category") or "Lainnya")
+    total_amount = float(t.get("amount", 0))
     if items and isinstance(items, list) and len(items) > 0:
         dist = defaultdict(float)
         item_total = 0.0
@@ -73,12 +74,15 @@ def _distribute_txn_categories(t: dict) -> dict:
                     dist[c] += p
                     item_total += p
         # If there is a positive remainder (e.g. tax, tip, service charge), credit to parent category
-        remainder = float(t.get("amount", 0)) - item_total
+        remainder = total_amount - item_total
         if remainder > 0:
             dist[parent_cat] += remainder
+        elif remainder < 0 and item_total > 0:
+            scale = total_amount / item_total
+            dist = {k: v * scale for k, v in dist.items()}
         if dist:
             return dict(dist)
-    return {parent_cat: float(t.get("amount", 0))}
+    return {parent_cat: total_amount}
 
 
 _snapshot_networth = ledger.snapshot_networth
@@ -345,6 +349,9 @@ async def update_transaction(txn_id: str, body: TransactionUpdate, ctx: Ctx = De
         if v is not None:
             data[k] = v
 
+    if "amount" in data and data["amount"] is not None:
+        data["amount"] = int(round(float(data["amount"])))
+
     if not data.get("date"):
         data["date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
@@ -354,36 +361,35 @@ async def update_transaction(txn_id: str, body: TransactionUpdate, ctx: Ctx = De
     await _validate_wallets(ctx.hid, data.get("type"), data.get("wallet_id"), data.get("to_wallet_id"))
 
     # 1. Reverse old ledger movement
-    old_txn = Transaction(**old_doc)
-    await _apply_txn(ctx.hid, old_txn, -1)
+    await ledger.apply_transaction(ctx.hid, old_doc, -1)
 
     # If old txn was linked to a goal, reverse saved_amount
     if old_doc.get("goal_id"):
         await db.goals.update_one(
             {"id": old_doc["goal_id"], "household_id": ctx.hid},
-            {"$inc": {"saved_amount": -float(old_doc["amount"])}}
+            {"$inc": {"saved_amount": -float(old_doc.get("amount", 0))}}
         )
 
     # 2. Apply new ledger movement
-    new_txn = Transaction(**data)
-    await _apply_txn(ctx.hid, new_txn, +1)
+    await ledger.apply_transaction(ctx.hid, data, +1)
 
     # If new txn is linked to a goal, apply saved_amount
     if data.get("goal_id"):
         await db.goals.update_one(
             {"id": data["goal_id"], "household_id": ctx.hid},
-            {"$inc": {"saved_amount": float(data["amount"])}}
+            {"$inc": {"saved_amount": float(data.get("amount", 0))}}
         )
 
-    doc = new_txn.model_dump()
-    doc["household_id"] = ctx.hid
-    doc["member_id"] = old_doc.get("member_id", ctx.user.user_id)
+    data["household_id"] = ctx.hid
+    data["member_id"] = old_doc.get("member_id", ctx.user.user_id)
+    if not data.get("user_id"):
+        data["user_id"] = old_doc.get("user_id", ctx.user.user_id)
     if old_doc.get("created_at"):
-        doc["created_at"] = old_doc["created_at"]
-    doc["updated_at"] = now_utc()
-    await db.transactions.update_one({"id": txn_id, "household_id": ctx.hid}, {"$set": doc})
+        data["created_at"] = old_doc["created_at"]
+    data["updated_at"] = now_utc()
+    await db.transactions.update_one({"id": txn_id, "household_id": ctx.hid}, {"$set": data})
     await _snapshot_networth(ctx.hid)
-    return doc
+    return data
 
 
 @router.delete("/transactions/{txn_id}")
@@ -391,11 +397,11 @@ async def delete_transaction(txn_id: str, ctx: Ctx = Depends(get_ctx)):
     doc = await db.transactions.find_one({"id": txn_id, "household_id": ctx.hid}, {"_id": 0})
     if not doc:
         raise HTTPException(404, "Not found")
-    await _apply_txn(ctx.hid, Transaction(**doc), -1)
+    await ledger.apply_transaction(ctx.hid, doc, -1)
     if doc.get("goal_id"):
         await db.goals.update_one(
             {"id": doc["goal_id"], "household_id": ctx.hid},
-            {"$inc": {"saved_amount": -float(doc["amount"])}}
+            {"$inc": {"saved_amount": -float(doc.get("amount", 0))}}
         )
     await db.transactions.delete_one({"id": txn_id, "household_id": ctx.hid})
     await _snapshot_networth(ctx.hid)
@@ -410,10 +416,7 @@ TYPE_ALIASES = {
 
 
 def _parse_amount(s):
-    s = str(s or "").strip().replace("Rp", "").replace(" ", "")
-    s = s.replace(".", "").replace(",", "") if s.count(",") <= 1 else s
-    s = "".join(ch for ch in s if ch.isdigit() or ch == "-")
-    return float(s) if s else 0.0
+    return ledger.parse_financial_number(s)
 
 
 def _parse_date(s):

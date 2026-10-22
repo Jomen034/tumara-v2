@@ -87,15 +87,27 @@ async def apply_transaction(hid: str, txn, sign: int = 1) -> None:
     """Terapkan dampak sebuah transaksi ke dompet-dompet terkait.
 
     sign = +1 saat transaksi dibuat, -1 saat transaksi dihapus (reversal).
+    Mendukung baik Pydantic Transaction object maupun dictionary dari MongoDB.
     """
-    amount = int(round(txn.amount * sign))
-    if txn.type == "income":
-        await apply_movement(hid, txn.wallet_id, amount)
-    elif txn.type == "expense":
-        await apply_movement(hid, txn.wallet_id, -amount)
-    elif txn.type == "transfer" and txn.to_wallet_id:
-        await apply_movement(hid, txn.wallet_id, -amount)
-        await apply_movement(hid, txn.to_wallet_id, amount)
+    if isinstance(txn, dict):
+        amount_val = parse_financial_number(txn.get("amount", 0))
+        ttype = txn.get("type", "expense")
+        wallet_id = txn.get("wallet_id")
+        to_wallet_id = txn.get("to_wallet_id")
+    else:
+        amount_val = parse_financial_number(getattr(txn, "amount", 0))
+        ttype = getattr(txn, "type", "expense")
+        wallet_id = getattr(txn, "wallet_id", None)
+        to_wallet_id = getattr(txn, "to_wallet_id", None)
+
+    amount = int(round(amount_val * sign))
+    if ttype == "income" and wallet_id:
+        await apply_movement(hid, wallet_id, amount)
+    elif ttype == "expense" and wallet_id:
+        await apply_movement(hid, wallet_id, -amount)
+    elif ttype == "transfer" and wallet_id and to_wallet_id:
+        await apply_movement(hid, wallet_id, -amount)
+        await apply_movement(hid, to_wallet_id, amount)
 
 
 async def snapshot_networth(hid: str) -> None:

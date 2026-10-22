@@ -20,6 +20,35 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-22 07:10:00 WIB] — Resilient Direct Ledger Application on Edit/Delete, Strict Asia/Jakarta Timezone Audit Trail, Pydantic Extra Ignorance, and Proportional Category Scaling
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Mengatasi error "Gagal menyimpan perubahan" pada menu Edit Transaksi: mengganti instansiasi Pydantic objek perantara saat reversal/update dengan aplikasi mutasi langsung (`ledger.apply_transaction(..., old_doc, -1)` & `ledger.apply_transaction(..., data, +1)`), serta melengkapi model `Transaction` dengan `extra="ignore"`, `updated_at`, dan default `user_id`/`amount` yang aman.
+  2. Memastikan format zona waktu pada info audit trail "Dicatat Pada" 100% konsisten mengacu pada WIB / Asia/Jakarta (`timeZone: "Asia/Jakarta"`) di semua browser/perangkat pengguna, bukan waktu lokal perangkat atau UTC.
+  3. Memastikan error feedback di `EditTransactionModal` meng-unpack array detail error dari FastAPI secara terstruktur dan informatif bagi user.
+  4. Menjaga invariansi matematis pada distribusi kategori struk belanja (`_distribute_txn_categories`): menyelaraskan penskalaan proporsional jika nominal transaksi diedit lebih kecil dari total sub-items.
+  5. Menghilangkan sisa-sisa fungsi parsing manual lawas (`_parse_amount` di CSV import dan `_clean_num` di scan struk) dengan mengintegrasikan `parse_financial_number` secara menyeluruh.
+- **Key Actions & Changes:**
+  - `backend/ledger.py`:
+    - Mengupgrade `apply_transaction` agar mendukung baik dictionary MongoDB maupun Pydantic Transaction object, memproses nominal melalui `parse_financial_number`.
+  - `backend/models.py`:
+    - Menambahkan `model_config = ConfigDict(extra="ignore")` pada `TransactionCreate`, `TransactionUpdate`, dan `Transaction`.
+    - Melengkapi `Transaction` dengan `user_id: Optional[str] = "system"`, `amount: float = Field(default=0.0, ge=0)`, `created_at`, dan `updated_at`.
+  - `backend/routes_finance.py`:
+    - `update_transaction` & `delete_transaction`: memanggil `ledger.apply_transaction(ctx.hid, old_doc, -1)` langsung tanpa re-instansiasi model perantara yang rentan validasi, dan memastikan pembulatan nominal integer Rupiah.
+    - Mengganti fungsi `_parse_amount` warisan dengan `ledger.parse_financial_number`.
+    - `_distribute_txn_categories`: menambahkan penskalaan proporsional otomatis saat `remainder < 0` agar total kategori selalu identik dengan nominal transaksi.
+  - `backend/ai_service.py`:
+    - Mengganti `_clean_num` pada receipt scan dengan `parse_financial_number` (menghilangkan risiko 10x multiplier dari `replace(".", "")`).
+    - Menormalkan `data["amount"]` pada `parse_transaction_text` dengan `parse_financial_number`.
+    - Menggunakan `abs(balance)` pada perhitungan total utang di `build_financial_context`.
+  - `frontend/src/lib/format.js`:
+    - Mengonfigurasi `formatDateTime` secara eksplisit dengan opsi `timeZone: "Asia/Jakarta"` untuk tanggal dan jam, serta menormalkan string ISO UTC agar jam yang ditampilkan selalu tepat WIB (UTC+7).
+  - `frontend/src/components/EditTransactionModal.js`:
+    - Memperbaiki penanganan error catch block agar meng-unpack array pesan validasi dari server (`Array.isArray(msg) ? msg.map(m => m.msg).join(...) : ...`).
+  - `backend/tests/test_money_integrity.py`:
+    - Menambahkan pengujian `TestDictLedgerApplication` dan `TestProportionalCategoryDistribution`. 25/25 unit tests passed (OK).
+
 ### [2026-10-22 00:10:00 WIB] — Zero-Padding Amount & Edit Fix, Negative Debt Wallet Auto-Sanitation & Net Worth Invariance, Audit Trail "Dicatat Pada" Timestamps, and AI Text Validation
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**

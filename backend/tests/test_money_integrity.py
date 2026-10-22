@@ -383,5 +383,56 @@ class TestDebtSanitationAndNetWorth(unittest.TestCase):
         self.assertNotEqual(net_worth, 121_370_720, "Net worth tidak boleh melonjak akibat minus ganda")
 
 
+class TestDictLedgerApplication(unittest.TestCase):
+    """Pengujian apply_transaction yang menerima dictionary langsung dari MongoDB."""
+
+    def test_apply_transaction_dict_support(self):
+        """Memastikan dictionary transaksi dapat diterapkan langsung ke ledger."""
+        import asyncio
+        from ledger import apply_transaction
+
+        doc = {
+            "id": "txn_mock_01",
+            "type": "expense",
+            "amount": 213400.0,
+            "wallet_id": "wal_01",
+        }
+
+        # Mock apply_movement
+        movements = []
+        async def mock_movement(hid, wid, delta):
+            movements.append((hid, wid, delta))
+            return True
+
+        with patch("ledger.apply_movement", side_effect=mock_movement):
+            asyncio.run(apply_transaction("hh_01", doc, sign=+1))
+            self.assertEqual(len(movements), 1)
+            self.assertEqual(movements[0], ("hh_01", "wal_01", -213400))
+
+            # Test reversal with sign=-1
+            movements.clear()
+            asyncio.run(apply_transaction("hh_01", doc, sign=-1))
+            self.assertEqual(len(movements), 1)
+            self.assertEqual(movements[0], ("hh_01", "wal_01", 213400))
+
+
+class TestProportionalCategoryDistribution(unittest.TestCase):
+    """Pengujian penskalaan proporsional pada _distribute_txn_categories jika amount diedit lebih kecil dari sub-item."""
+
+    def test_proportional_scaling_when_amount_reduced(self):
+        from routes_finance import _distribute_txn_categories
+        t = {
+            "amount": 50_000,
+            "category": "Makanan & Minuman",
+            "items": [
+                {"name": "Nasi Goreng", "price": 60_000, "category": "Makanan & Minuman"},
+                {"name": "Es Teh", "price": 40_000, "category": "Makanan & Minuman"},
+            ]
+        }
+        dist = _distribute_txn_categories(t)
+        total_dist = sum(dist.values())
+        self.assertEqual(total_dist, 50_000, "Total distribusi kategori harus persis sama dengan amount transaksi")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -73,7 +73,14 @@ export default function EditTransactionModal({ open, onClose, transaction: t, wa
       onSaved?.();
       onClose();
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Gagal menyimpan perubahan");
+      const msg = err?.response?.data?.detail;
+      const detailStr =
+        typeof msg === "string"
+          ? msg
+          : Array.isArray(msg)
+          ? msg.map((m) => m.msg || m).join(", ")
+          : err?.message || "Gagal menyimpan perubahan";
+      toast.error(detailStr);
     } finally {
       setSaving(false);
     }

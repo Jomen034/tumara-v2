@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import re
 from PIL import Image, ImageOps
 from db import db
+from ledger import parse_financial_number
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "").strip()
@@ -48,7 +49,7 @@ async def build_financial_context(user_id: str) -> str:
     budget = await db.budgets.find_one({"household_id": hid, "month": month}, {"_id": 0})
 
     total_balance = sum(w.get("balance", 0) for w in wallets if w.get("type") not in ("credit_card", "paylater"))
-    debt = sum(w.get("balance", 0) for w in wallets if w.get("type") in ("credit_card", "paylater"))
+    debt = sum(abs(w.get("balance", 0)) for w in wallets if w.get("type") in ("credit_card", "paylater"))
 
     income = sum(t["amount"] for t in txns if t["type"] == "income")
     expense = sum(t["amount"] for t in txns if t["type"] == "expense")
@@ -407,7 +408,7 @@ async def parse_transaction_text(text: str, wallets: list, bills: list = None) -
 
     data = _extract_json(raw)
     data.setdefault("type", "expense")
-    data.setdefault("amount", 0)
+    data["amount"] = int(round(parse_financial_number(data.get("amount", 0))))
     if data.get("type") == "transfer":
         data["category"] = "Transfer"
     else:
@@ -591,16 +592,9 @@ async def scan_receipt(raw: bytes) -> dict:
     def _clean_num(val, default=0):
         if val is None:
             return default
-        if isinstance(val, (int, float)):
-            return int(round(val))
         try:
-            s = str(val).replace("Rp", "").replace("IDR", "").strip()
-            if "." in s and "," not in s:
-                parts = s.split(".")
-                if len(parts) == 2 and len(parts[1]) == 3:
-                    s = "".join(parts)
-            s = s.replace(".", "").replace(",", ".")
-            return int(round(float(s)))
+            p = parse_financial_number(val)
+            return int(round(p)) if p > 0 else default
         except Exception:
             return default
 
