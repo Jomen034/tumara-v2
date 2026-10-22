@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
-import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Calendar, Clock, Wallet as WalletIcon, Tag, User, Sparkles, Trash2, Pencil, Target, Receipt, Search } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Calendar, Clock, Wallet as WalletIcon, Tag, User, Sparkles, Trash2, Pencil, Target, Receipt, Search, History } from "lucide-react";
 import { formatRp, formatDate, formatDateTime } from "../lib/format";
 import { catMeta } from "../lib/constants";
 import { getUserAvatar } from "../lib/avatars";
@@ -150,6 +150,22 @@ export default function TransactionDetailModal({
               </span>
               <span className="font-medium text-tprimary font-mono text-xs">
                 {formatDateTime(t.created_at)}
+              </span>
+            </div>
+          )}
+
+          {/* Last Updated Timestamp (Audit Trail) */}
+          {t.updated_at && String(t.updated_at).slice(0, 19) !== String(t.created_at).slice(0, 19) && (
+            <div className="flex items-center justify-between pt-3.5" data-testid="txn-updated-at-row">
+              <span className="text-tmuted flex items-center gap-2">
+                <History size={16} className="text-amber-400" />
+                Terakhir Diperbarui
+              </span>
+              <span className="font-medium text-tprimary font-mono text-xs flex items-center gap-1.5">
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-400/15 text-amber-400 font-sans font-medium">
+                  Diedit
+                </span>
+                {formatDateTime(t.updated_at)}
               </span>
             </div>
           )}

@@ -791,9 +791,24 @@ export function TxnRow({ t, privacy, onDelete, onEdit, onSelect, memberMap, wall
           <span className="shrink-0 text-tmuted">{formatDate(t.date) || t.date}</span>
         </p>
         {t.created_at && (
-          <p className="text-[10px] sm:text-[11px] text-tmuted/70 flex items-center gap-1 truncate mt-0.5 min-w-0" title={`Dicatat aktual pada ${formatDateTime(t.created_at)}`}>
+          <p
+            className="text-[10px] sm:text-[11px] text-tmuted/70 flex items-center gap-1 truncate mt-0.5 min-w-0"
+            title={`Dicatat aktual pada ${formatDateTime(t.created_at)}${
+              t.updated_at && String(t.updated_at).slice(0, 19) !== String(t.created_at).slice(0, 19)
+                ? ` · Terakhir diperbarui pada ${formatDateTime(t.updated_at)}`
+                : ""
+            }`}
+          >
             <Clock size={11} className="shrink-0 text-tmuted/60" />
             <span>Dicatat: {formatDateTime(t.created_at)}</span>
+            {t.updated_at && String(t.updated_at).slice(0, 19) !== String(t.created_at).slice(0, 19) && (
+              <>
+                <span className="shrink-0 text-tmuted/50">·</span>
+                <span className="text-amber-400/90 font-medium shrink-0">
+                  Diedit: {formatDateTime(t.updated_at)}
+                </span>
+              </>
+            )}
           </p>
         )}
       </div>

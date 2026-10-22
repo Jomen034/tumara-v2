@@ -20,7 +20,19 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
-### [2026-10-22 12:12:00 WIB] — Import now_utc in routes_finance and Direct UpdateTransaction Verification
+### [2026-10-22 12:22:00 WIB] — Display "Terakhir Diperbarui" Audit Trail in TransactionDetailModal and TxnRow
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Menambahkan audit trail baris "Terakhir Diperbarui" pada `TransactionDetailModal` yang hanya muncul secara kondisional jika transaksi pernah disunting (`t.updated_at` ada dan berbeda dari `t.created_at`).
+  2. Menampilkan badge status "Diedit" dengan warna aksen amber dan format waktu Asia/Jakarta (WIB) pada modal detail.
+  3. Menyertakan label "Diedit: [Waktu WIB]" secara subtil pada baris kartu transaksi (`TxnRow` di `Dashboard.js` dan `Transactions.js`) beserta tooltip komprehensif agar pengguna dapat langsung mengenali transaksi yang pernah direvisi.
+- **Key Actions & Changes:**
+  - `frontend/src/components/TransactionDetailModal.js`:
+    - Mengimpor icon `History` dari `lucide-react`.
+    - Menambahkan baris kondisional "Terakhir Diperbarui" dengan badge "Diedit" dan timestamp `formatDateTime(t.updated_at)`.
+  - `frontend/src/pages/Dashboard.js`:
+    - Memperbarui `TxnRow` untuk menampilkan penanda ringkas `· Diedit: [Waktu WIB]` serta memperkaya atribut tooltip saat di-hover.
+
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**
   1. Memperbaiki error `NameError: name 'now_utc' is not defined` yang muncul di menu Edit Transaksi dengan mengimpor fungsi `now_utc` dari `models` ke dalam `backend/routes_finance.py`.
