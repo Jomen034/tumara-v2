@@ -39,6 +39,7 @@ export default function EditTransactionModal({ open, onClose, transaction: t, wa
   }, [open, t, wallets]);
 
   const save = async () => {
+    if (saving) return;
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return toast.error("Masukkan jumlah yang valid");
     if (!walletId) return toast.error("Pilih dompet dulu");
@@ -79,6 +80,8 @@ export default function EditTransactionModal({ open, onClose, transaction: t, wa
           ? msg
           : Array.isArray(msg)
           ? msg.map((m) => m.msg || m).join(", ")
+          : err?.response?.status === 500
+          ? "Terjadi kendala pada server saat menyimpan. Silakan coba kembali."
           : err?.message || "Gagal menyimpan perubahan";
       toast.error(detailStr);
     } finally {

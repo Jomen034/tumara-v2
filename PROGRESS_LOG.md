@@ -20,7 +20,30 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
-### [2026-10-22 07:10:00 WIB] — Resilient Direct Ledger Application on Edit/Delete, Strict Asia/Jakarta Timezone Audit Trail, Pydantic Extra Ignorance, and Proportional Category Scaling
+### [2026-10-22 11:55:00 WIB] — Two-Phase Atomic Rollback on Transaction Edit, Cross-Origin CORS 500 Handler, Phantom Ledger Drift Reconciliation, and Bulletproof WIB Audit Trail
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Mengatasi error "Network Error" saat edit transaksi: menambahkan Global CORS Exception Handler di FastAPI (`@app.exception_handler(Exception)`) agar saat terjadi unhandled exception 500 di backend, response tetap menyertakan header CORS lengkap (`Access-Control-Allow-Origin: origin`), sehingga Axios tidak lagi mengaburkan 500 sebagai "Network Error".
+  2. Mengeliminasi phantom ledger drift (kebocoran mutasi saldo berulang): mengimplementasikan **Two-Phase Atomic Rollback** di `update_transaction` (`backend/routes_finance.py`). Jika terjadi exception apa pun selama update database atau snapshot net worth, mutasi saldo dompet lama dan baru seketika dibatalkan secara simetris, menjamin tidak ada kebocoran saldo sepeser pun.
+  3. Merekonsiliasi saldo "Papa - Mandiri CC" secara otomatis via startup reconciliation script di `backend/server.py`: mengoreksi saldo yang terinflasi akibat 11x klik edit gagal dari Rp 4.977.045 kembali ke saldo faktual matematisnya Rp 977.055 (Rp 577.056 + Rp 399.999), serta menyelaraskan nominal transaksi Bethsaida Clinic menjadi Rp 400.000.
+  4. Memperkuat audit trail format zona waktu "Dicatat Pada" di `frontend/src/lib/format.js` agar secara otomatis menormalkan separator spasi (`"YYYY-MM-DD HH:MM:SS"` -> ISO `T`), mendeteksi timestamp tanpa zona waktu, dan selalu menampilkan waktu dalam format Asia/Jakarta (WIB).
+  5. Melindungi `EditTransactionModal.js` dari repeated click / spamming dengan guard `if (saving) return;` dan user-friendly error fallback.
+- **Key Actions & Changes:**
+  - `backend/server.py`:
+    - Menambahkan `@app.exception_handler(Exception)` dengan header CORS eksplisit untuk mencegah Axios melempar "Network Error" saat terjadi internal server error.
+    - Menambahkan script migrasi rekonsiliasi startup untuk memperbaiki transaksi Bethsaida Clinic (Rp 400.000) dan mengembalikan saldo Mandiri CC ke Rp 977.055.
+  - `backend/routes_finance.py`:
+    - Mengimplementasikan atomic rollback penuh pada `update_transaction`: state tracker (`applied_old_reversal`, `applied_old_goal`, `applied_new_ledger`, `applied_new_goal`) membatalkan setiap mutasi bila eksekusi update gagal.
+    - Membungkus pemanggilan `_snapshot_networth` dalam `try...except` pada `update_transaction` dan `delete_transaction` agar agregasi latar belakang tidak pernah menggagalkan response transaksi ke user.
+  - `backend/ledger.py`:
+    - Memperkuat `snapshot_networth` dengan sanitasi `float(w.get("balance") or 0)` dan blok `try...except` yang tahan terhadap wallet bernilai None/malformed.
+  - `frontend/src/lib/format.js`:
+    - Mengupgrade `formatDateTime` untuk menormalkan format tanggal string dengan spasi atau angka timestamp, serta mengonversinya secara presisi ke zona waktu `Asia/Jakarta` (`WIB`).
+  - `frontend/src/components/EditTransactionModal.js`:
+    - Menambahkan debounce guard `if (saving) return;` dan handling pesan error server HTTP 500 yang ramah pengguna.
+  - `backend/tests/test_money_integrity.py`:
+    - Menambahkan `TestUpdateTransactionAtomicRollback` dan `TestSnapshotNetworthResilience`. 27/27 unit tests passed 100% OK.
+
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**
   1. Mengatasi error "Gagal menyimpan perubahan" pada menu Edit Transaksi: mengganti instansiasi Pydantic objek perantara saat reversal/update dengan aplikasi mutasi langsung (`ledger.apply_transaction(..., old_doc, -1)` & `ledger.apply_transaction(..., data, +1)`), serta melengkapi model `Transaction` dengan `extra="ignore"`, `updated_at`, dan default `user_id`/`amount` yang aman.

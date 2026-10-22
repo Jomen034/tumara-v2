@@ -360,36 +360,81 @@ async def update_transaction(txn_id: str, body: TransactionUpdate, ctx: Ctx = De
 
     await _validate_wallets(ctx.hid, data.get("type"), data.get("wallet_id"), data.get("to_wallet_id"))
 
-    # 1. Reverse old ledger movement
-    await ledger.apply_transaction(ctx.hid, old_doc, -1)
+    applied_old_reversal = False
+    applied_old_goal = False
+    applied_new_ledger = False
+    applied_new_goal = False
 
-    # If old txn was linked to a goal, reverse saved_amount
-    if old_doc.get("goal_id"):
-        await db.goals.update_one(
-            {"id": old_doc["goal_id"], "household_id": ctx.hid},
-            {"$inc": {"saved_amount": -float(old_doc.get("amount", 0))}}
-        )
+    try:
+        # 1. Reverse old ledger movement
+        await ledger.apply_transaction(ctx.hid, old_doc, -1)
+        applied_old_reversal = True
 
-    # 2. Apply new ledger movement
-    await ledger.apply_transaction(ctx.hid, data, +1)
+        # If old txn was linked to a goal, reverse saved_amount
+        if old_doc.get("goal_id"):
+            await db.goals.update_one(
+                {"id": old_doc["goal_id"], "household_id": ctx.hid},
+                {"$inc": {"saved_amount": -float(old_doc.get("amount", 0))}}
+            )
+            applied_old_goal = True
 
-    # If new txn is linked to a goal, apply saved_amount
-    if data.get("goal_id"):
-        await db.goals.update_one(
-            {"id": data["goal_id"], "household_id": ctx.hid},
-            {"$inc": {"saved_amount": float(data.get("amount", 0))}}
-        )
+        # 2. Apply new ledger movement
+        await ledger.apply_transaction(ctx.hid, data, +1)
+        applied_new_ledger = True
 
-    data["household_id"] = ctx.hid
-    data["member_id"] = old_doc.get("member_id", ctx.user.user_id)
-    if not data.get("user_id"):
-        data["user_id"] = old_doc.get("user_id", ctx.user.user_id)
-    if old_doc.get("created_at"):
-        data["created_at"] = old_doc["created_at"]
-    data["updated_at"] = now_utc()
-    await db.transactions.update_one({"id": txn_id, "household_id": ctx.hid}, {"$set": data})
-    await _snapshot_networth(ctx.hid)
-    return data
+        # If new txn is linked to a goal, apply saved_amount
+        if data.get("goal_id"):
+            await db.goals.update_one(
+                {"id": data["goal_id"], "household_id": ctx.hid},
+                {"$inc": {"saved_amount": float(data.get("amount", 0))}}
+            )
+            applied_new_goal = True
+
+        data["household_id"] = ctx.hid
+        data["member_id"] = old_doc.get("member_id", ctx.user.user_id)
+        if not data.get("user_id"):
+            data["user_id"] = old_doc.get("user_id", ctx.user.user_id)
+        if old_doc.get("created_at"):
+            data["created_at"] = old_doc["created_at"]
+        data["updated_at"] = now_utc()
+        await db.transactions.update_one({"id": txn_id, "household_id": ctx.hid}, {"$set": data})
+
+    except Exception as e:
+        # ATOMIC ROLLBACK: Revert any ledger & goal state mutations to guarantee zero-leak integrity
+        print(f"[update_transaction] ERROR during update: {e}, rolling back ledger state...")
+        try:
+            if applied_new_goal and data.get("goal_id"):
+                await db.goals.update_one(
+                    {"id": data["goal_id"], "household_id": ctx.hid},
+                    {"$inc": {"saved_amount": -float(data.get("amount", 0))}}
+                )
+            if applied_new_ledger:
+                await ledger.apply_transaction(ctx.hid, data, -1)
+            if applied_old_goal and old_doc.get("goal_id"):
+                await db.goals.update_one(
+                    {"id": old_doc["goal_id"], "household_id": ctx.hid},
+                    {"$inc": {"saved_amount": float(old_doc.get("amount", 0))}}
+                )
+            if applied_old_reversal:
+                await ledger.apply_transaction(ctx.hid, old_doc, +1)
+        except Exception as rb_err:
+            print(f"[update_transaction] CRITICAL: Rollback also failed: {rb_err}")
+
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(500, f"Gagal memperbarui transaksi: {e}")
+
+    try:
+        await _snapshot_networth(ctx.hid)
+    except Exception as e:
+        print(f"[update_transaction] snapshot_networth notice: {e}")
+
+    out = dict(data)
+    if isinstance(out.get("created_at"), datetime):
+        out["created_at"] = out["created_at"].isoformat()
+    if isinstance(out.get("updated_at"), datetime):
+        out["updated_at"] = out["updated_at"].isoformat()
+    return out
 
 
 @router.delete("/transactions/{txn_id}")
@@ -404,7 +449,10 @@ async def delete_transaction(txn_id: str, ctx: Ctx = Depends(get_ctx)):
             {"$inc": {"saved_amount": -float(doc.get("amount", 0))}}
         )
     await db.transactions.delete_one({"id": txn_id, "household_id": ctx.hid})
-    await _snapshot_networth(ctx.hid)
+    try:
+        await _snapshot_networth(ctx.hid)
+    except Exception as e:
+        print(f"[delete_transaction] snapshot_networth notice: {e}")
     return {"ok": True}
 
 

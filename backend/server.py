@@ -127,6 +127,43 @@ async def on_startup():
     except Exception as e:
         print(f"[Startup Migration] Warning updating car loan categories: {e}")
 
+    # One-time reconciliation for Bethsaida Clinic transaction and Mandiri CC phantom ledger drift
+    try:
+        bethsaida_txn = await db.transactions.find_one({"note": {"$regex": "bethsaida", "$options": "i"}})
+        if bethsaida_txn and float(bethsaida_txn.get("amount", 0)) == 1:
+            await db.transactions.update_one({"id": bethsaida_txn["id"]}, {"$set": {"amount": 400000}})
+            print("[Startup Reconciliation] Corrected Bethsaida Clinic transaction to Rp 400.000.")
+
+        # Reconcile Mandiri CC if inflated by the 11-click phantom leak (around 4.977.045 -> 977.055)
+        mandiri_wal = await db.wallets.find_one({"name": {"$regex": "mandiri cc", "$options": "i"}})
+        if mandiri_wal and (mandiri_wal.get("balance", 0) in (3377049, 4977045) or mandiri_wal.get("balance", 0) > 3000000):
+            # Correct balance: initial 577.056 + legitimate 1x edit (400.000 - 1) = 977.055
+            await db.wallets.update_one({"id": mandiri_wal["id"]}, {"$set": {"balance": 977055}})
+            from ledger import snapshot_networth
+            if mandiri_wal.get("household_id"):
+                await snapshot_networth(mandiri_wal["household_id"])
+            print("[Startup Reconciliation] Corrected Mandiri CC balance to Rp 977.055.")
+    except Exception as e:
+        print(f"[Startup Reconciliation] Notice: {e}")
+
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    traceback.print_exc()
+    origin = request.headers.get("origin") or "https://tumara-v2.vercel.app"
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Terjadi kesalahan di server: {str(exc)[:120]}"},
+        headers={
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
 raw_origins = os.environ.get("CORS_ORIGINS", "")
 parsed_origins = [o.strip().rstrip("/") for o in raw_origins.split(",") if o.strip() and o.strip() != "*"]
 for default_origin in ("https://tumara-v2.vercel.app", "https://tumara.vercel.app", "http://localhost:3000"):

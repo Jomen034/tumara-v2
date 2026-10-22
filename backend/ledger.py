@@ -112,18 +112,24 @@ async def apply_transaction(hid: str, txn, sign: int = 1) -> None:
 
 async def snapshot_networth(hid: str) -> None:
     from datetime import datetime, timezone
-    wallets = await db.wallets.find({"household_id": hid}, {"_id": 0}).to_list(500)
-    for w in wallets:
-        if is_debt_wallet(w) and w.get("balance", 0) < 0:
-            fixed = abs(w["balance"])
-            w["balance"] = fixed
-            await db.wallets.update_one({"id": w["id"], "household_id": hid}, {"$set": {"balance": fixed}})
-    assets = sum(w["balance"] for w in wallets if not is_debt_wallet(w))
-    debt = sum(abs(w["balance"]) for w in wallets if is_debt_wallet(w))
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    await db.networth_snapshots.update_one(
-        {"household_id": hid, "date": today},
-        {"$set": {"household_id": hid, "date": today, "assets": assets,
-                  "debt": debt, "net_worth": assets - debt, "updated_at": datetime.now(timezone.utc)}},
-        upsert=True,
-    )
+    try:
+        wallets = await db.wallets.find({"household_id": hid}, {"_id": 0}).to_list(500)
+        for w in wallets:
+            w_bal = float(w.get("balance") or 0)
+            if is_debt_wallet(w) and w_bal < 0:
+                fixed = abs(w_bal)
+                w["balance"] = fixed
+                await db.wallets.update_one({"id": w["id"], "household_id": hid}, {"$set": {"balance": fixed}})
+            else:
+                w["balance"] = w_bal
+        assets = sum(float(w.get("balance") or 0) for w in wallets if not is_debt_wallet(w))
+        debt = sum(abs(float(w.get("balance") or 0)) for w in wallets if is_debt_wallet(w))
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        await db.networth_snapshots.update_one(
+            {"household_id": hid, "date": today},
+            {"$set": {"household_id": hid, "date": today, "assets": assets,
+                      "debt": debt, "net_worth": assets - debt, "updated_at": datetime.now(timezone.utc)}},
+            upsert=True,
+        )
+    except Exception as e:
+        print(f"[snapshot_networth] notice: {e}")

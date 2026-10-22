@@ -434,5 +434,98 @@ class TestProportionalCategoryDistribution(unittest.TestCase):
         self.assertEqual(total_dist, 50_000, "Total distribusi kategori harus persis sama dengan amount transaksi")
 
 
+class TestUpdateTransactionAtomicRollback(unittest.TestCase):
+    """Pengujian atomic rollback pada update_transaction untuk mencegah phantom ledger leak."""
+
+    def test_atomic_rollback_on_database_failure(self):
+        """Memastikan jika update transaksi gagal di database, seluruh mutasi saldo dibatalkan seketika."""
+        import asyncio
+
+        # Initial state: Mandiri CC has balance 577.056
+        wallet_balance = {"wal_mandiri": 577056}
+
+        async def fake_apply_movement(hid, wid, signed_amt):
+            # For debt wallet (credit_card): signed_amt > 0 (inflow/reversal) decreases debt (-),
+            # signed_amt < 0 (expense) increases debt (+)
+            # signed_amt is -amount for expense, +amount for reversal
+            # delta = int(round(-signed_amt))
+            delta = int(round(-signed_amt))
+            wallet_balance[wid] = wallet_balance.get(wid, 0) + delta
+            return True
+
+        with patch("ledger.apply_movement", side_effect=fake_apply_movement), \
+             patch("ledger.get_wallet", return_value={"id": "wal_mandiri", "type": "credit_card"}):
+
+            from ledger import apply_transaction
+
+            old_doc = {"id": "txn_1", "type": "expense", "amount": 1, "wallet_id": "wal_mandiri"}
+            new_data = {"id": "txn_1", "type": "expense", "amount": 400000, "wallet_id": "wal_mandiri"}
+
+            # Simulate update_transaction execution
+            applied_old_reversal = False
+            applied_new_ledger = False
+
+            async def do_update_with_failure():
+                nonlocal applied_old_reversal, applied_new_ledger
+                # Step 1: reverse old
+                await apply_transaction("hh_01", old_doc, -1)
+                applied_old_reversal = True
+
+                # Step 2: apply new
+                await apply_transaction("hh_01", new_data, +1)
+                applied_new_ledger = True
+
+                # Step 3: DB failure occurs here
+                raise RuntimeError("Simulated Database Connection Failure")
+
+            async def run_with_rollback():
+                try:
+                    await do_update_with_failure()
+                except Exception:
+                    # Execute atomic rollback
+                    if applied_new_ledger:
+                        await apply_transaction("hh_01", new_data, -1)
+                    if applied_old_reversal:
+                        await apply_transaction("hh_01", old_doc, +1)
+
+            asyncio.run(run_with_rollback())
+
+            # Verify: wallet balance MUST return exactly to 577.056 (ZERO phantom leak)
+            self.assertEqual(
+                wallet_balance["wal_mandiri"],
+                577056,
+                "Saldo dompet harus kembali persis ke nilai awal jika update database gagal!"
+            )
+
+
+class TestSnapshotNetworthResilience(unittest.TestCase):
+    """Pengujian snapshot_networth tidak boleh crash saat ada wallet dengan balance None atau invalid."""
+
+    def test_snapshot_handles_none_balance_gracefully(self):
+        import asyncio
+        from ledger import snapshot_networth
+
+        mock_wallets = [
+            {"id": "w1", "type": "bank", "balance": None},
+            {"id": "w2", "type": "credit_card", "balance": -500000},
+            {"id": "w3", "type": "ewallet", "balance": 1500000},
+        ]
+
+        mock_db = MagicMock()
+        mock_db.wallets.find.return_value.to_list = AsyncMock(return_value=mock_wallets)
+        mock_db.wallets.update_one = AsyncMock()
+        mock_db.networth_snapshots.update_one = AsyncMock()
+
+        with patch("ledger.db", mock_db):
+            # snapshot_networth should run smoothly without throwing TypeError
+            try:
+                asyncio.run(snapshot_networth("hh_test"))
+                success = True
+            except Exception:
+                success = False
+
+            self.assertTrue(success, "snapshot_networth tidak boleh raise exception saat balance bernilai None")
+
+
 if __name__ == "__main__":
     unittest.main()

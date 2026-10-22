@@ -32,11 +32,15 @@ export const formatDateTime = (d) => {
   if (!d) return "";
   try {
     let s = String(d).trim();
+    // Normalize space separator to ISO "T" if missing
+    if (s.includes(" ") && !s.includes("T")) {
+      s = s.replace(" ", "T");
+    }
     // If ISO timestamp without explicit timezone offset or Z, assume UTC
     if (s.includes("T") && !s.endsWith("Z") && !s.slice(10).includes("+") && !s.slice(10).includes("-")) {
       s += "Z";
     }
-    const dt = new Date(s);
+    const dt = new Date(/^\d+$/.test(s) ? Number(s) : s);
     if (isNaN(dt.getTime())) return String(d);
     const dateStr = dt.toLocaleDateString("id-ID", {
       timeZone: "Asia/Jakarta",
