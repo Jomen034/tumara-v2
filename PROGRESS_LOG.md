@@ -20,7 +20,20 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
-### [2026-10-22 12:22:00 WIB] — Display "Terakhir Diperbarui" Audit Trail in TransactionDetailModal and TxnRow
+### [2026-10-22 12:48:00 WIB] — Audit Trail "Diedit Oleh" (Multi-User Household Tracking) in Backend & Frontend
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Menambahkan pencatatan dan atribut audit trail `updated_by` (ID anggota keluarga yang melakukan penyuntingan) pada transaksi.
+  2. Di backend (`backend/routes_finance.py`): merekam `data["updated_by"] = ctx.user.user_id` saat `update_transaction`.
+  3. Di frontend (`frontend/src/components/TransactionDetailModal.js`): menampilkan baris "Diedit Oleh" dengan foto avatar dan nama penyunting jika transaksi diedit oleh anggota keluarga yang berbeda dari pembuat awal (`updated_by !== member_id`). Jika diedit oleh diri sendiri, UI tetap bersih tanpa duplikasi nama.
+  4. Di baris transaksi (`Dashboard.js` `TxnRow`): menyertakan nama editor secara ringkas `Diedit: [Waktu] ([Nama])` bila diedit oleh anggota keluarga lain.
+- **Key Actions & Changes:**
+  - `backend/models.py`: Menambahkan field `updated_by: Optional[str] = None` pada model `Transaction`.
+  - `backend/routes_finance.py`: Merekam `data["updated_by"] = ctx.user.user_id` di `update_transaction`.
+  - `frontend/src/components/TransactionDetailModal.js`: Mengimpor `UserCheck`, meresolusi `updatedMember = memberMap[t.updated_by]`, dan merender baris kondisional "Diedit Oleh".
+  - `frontend/src/pages/Dashboard.js`: Menampilkan nama editor pada `TxnRow` dan tooltip jika penyunting berbeda dari pembuat.
+  - `backend/tests/test_money_integrity.py`: Menambahkan asersi `updated_by` pada unit test. 28/28 unit tests passed (OK).
+
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**
   1. Menambahkan audit trail baris "Terakhir Diperbarui" pada `TransactionDetailModal` yang hanya muncul secara kondisional jika transaksi pernah disunting (`t.updated_at` ada dan berbeda dari `t.created_at`).

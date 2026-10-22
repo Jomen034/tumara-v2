@@ -595,6 +595,7 @@ class TestUpdateTransactionDirectExecution(unittest.TestCase):
             self.assertEqual(result["amount"], 193300)
             self.assertIn("updated_at", result)
             self.assertIsInstance(result["updated_at"], str)
+            self.assertEqual(result.get("updated_by"), "user_01")
             mock_db.transactions.update_one.assert_awaited_once()
 
 

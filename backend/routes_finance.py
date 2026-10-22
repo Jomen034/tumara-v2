@@ -397,6 +397,7 @@ async def update_transaction(txn_id: str, body: TransactionUpdate, ctx: Ctx = De
         if old_doc.get("created_at"):
             data["created_at"] = old_doc["created_at"]
         data["updated_at"] = now_utc()
+        data["updated_by"] = ctx.user.user_id
         await db.transactions.update_one({"id": txn_id, "household_id": ctx.hid}, {"$set": data})
 
     except Exception as e:

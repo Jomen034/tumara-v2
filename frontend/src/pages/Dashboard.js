@@ -795,7 +795,9 @@ export function TxnRow({ t, privacy, onDelete, onEdit, onSelect, memberMap, wall
             className="text-[10px] sm:text-[11px] text-tmuted/70 flex items-center gap-1 truncate mt-0.5 min-w-0"
             title={`Dicatat aktual pada ${formatDateTime(t.created_at)}${
               t.updated_at && String(t.updated_at).slice(0, 19) !== String(t.created_at).slice(0, 19)
-                ? ` · Terakhir diperbarui pada ${formatDateTime(t.updated_at)}`
+                ? ` · Terakhir diperbarui pada ${formatDateTime(t.updated_at)}${
+                    t.updated_by && memberMap?.[t.updated_by] ? ` oleh ${memberMap[t.updated_by].name}` : ""
+                  }`
                 : ""
             }`}
           >
@@ -804,8 +806,13 @@ export function TxnRow({ t, privacy, onDelete, onEdit, onSelect, memberMap, wall
             {t.updated_at && String(t.updated_at).slice(0, 19) !== String(t.created_at).slice(0, 19) && (
               <>
                 <span className="shrink-0 text-tmuted/50">·</span>
-                <span className="text-amber-400/90 font-medium shrink-0">
+                <span className="text-amber-400/90 font-medium shrink-0 flex items-center gap-1">
                   Diedit: {formatDateTime(t.updated_at)}
+                  {t.updated_by && t.updated_by !== t.member_id && memberMap?.[t.updated_by] && (
+                    <span className="text-tsecondary font-normal">
+                      ({memberMap[t.updated_by].name})
+                    </span>
+                  )}
                 </span>
               </>
             )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
-import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Calendar, Clock, Wallet as WalletIcon, Tag, User, Sparkles, Trash2, Pencil, Target, Receipt, Search, History } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Calendar, Clock, Wallet as WalletIcon, Tag, User, UserCheck, Sparkles, Trash2, Pencil, Target, Receipt, Search, History } from "lucide-react";
 import { formatRp, formatDate, formatDateTime } from "../lib/format";
 import { catMeta } from "../lib/constants";
 import { getUserAvatar } from "../lib/avatars";
@@ -41,8 +41,8 @@ export default function TransactionDetailModal({
   const Ic = isTransfer ? Icons.ArrowLeftRight : (Icons[m.icon] || Icons.MoreHorizontal);
 
   const walletFrom = wallets.find((w) => w.id === t.wallet_id);
-  const walletTo = wallets.find((w) => w.id === t.to_wallet_id);
   const member = memberMap?.[t.member_id];
+  const updatedMember = memberMap?.[t.updated_by];
 
   const typeConfig = {
     expense: { label: "Pengeluaran", color: "var(--rose)", icon: ArrowUpRight, bg: "bg-rose/10 text-rose" },
@@ -183,7 +183,7 @@ export default function TransactionDetailModal({
             </div>
           )}
 
-          {/* Member (Household) */}
+          {/* Member (Household) - Created By */}
           {member && (
             <div className="flex items-center justify-between pt-3.5">
               <span className="text-tmuted flex items-center gap-2">
@@ -193,6 +193,20 @@ export default function TransactionDetailModal({
               <span className="font-medium flex items-center gap-2 text-tprimary">
                 <img src={getUserAvatar(member)} alt="" className="w-5 h-5 rounded-full object-cover shadow-sm" />
                 {member.name}
+              </span>
+            </div>
+          )}
+
+          {/* Edited By Member (Household) - Shown when edited by a different member */}
+          {updatedMember && t.updated_by && (!t.member_id || t.updated_by !== t.member_id) && (
+            <div className="flex items-center justify-between pt-3.5" data-testid="txn-updated-by-row">
+              <span className="text-tmuted flex items-center gap-2">
+                <UserCheck size={16} className="text-amber-400" />
+                Diedit Oleh
+              </span>
+              <span className="font-medium flex items-center gap-2 text-tprimary">
+                <img src={getUserAvatar(updatedMember)} alt="" className="w-5 h-5 rounded-full object-cover shadow-sm" />
+                {updatedMember.name}
               </span>
             </div>
           )}

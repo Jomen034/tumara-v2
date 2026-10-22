@@ -283,6 +283,7 @@ class Transaction(TransactionCreate):
     amount: float = Field(default=0.0, ge=0)
     created_at: Optional[Union[datetime, str]] = Field(default_factory=now_utc)
     updated_at: Optional[Union[datetime, str]] = None
+    updated_by: Optional[str] = None
 
 
 # ---------- Budget ----------
