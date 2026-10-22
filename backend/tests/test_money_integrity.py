@@ -18,18 +18,46 @@ from unittest.mock import AsyncMock, patch, MagicMock
 # Environment flag for test mode
 os.environ["TESTING"] = "true"
 
-# Stub external dependencies if not present in the runtime environment
-for m in [
-    'certifi', 'motor', 'motor.motor_asyncio', 'dotenv', 'pymongo',
-    'mongomock_motor', 'fastapi', 'fastapi.responses', 'models', 'deps', 'db'
-]:
-    if m not in sys.modules:
-        sys.modules[m] = MagicMock()
-
 # Ensure backend directory is in sys.path
 backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
+
+# Stub external dependencies if not present in the runtime environment
+mock_fastapi = MagicMock()
+def _passthrough_dec(*a, **kw):
+    return lambda fn: fn
+mock_fastapi.APIRouter.return_value.get = _passthrough_dec
+mock_fastapi.APIRouter.return_value.post = _passthrough_dec
+mock_fastapi.APIRouter.return_value.put = _passthrough_dec
+mock_fastapi.APIRouter.return_value.delete = _passthrough_dec
+mock_fastapi.APIRouter.return_value.patch = _passthrough_dec
+
+if 'pydantic' not in sys.modules:
+    mock_pydantic = MagicMock()
+    class MockBaseModel:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+        def model_dump(self, *a, **k):
+            return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
+    mock_pydantic.BaseModel = MockBaseModel
+    mock_pydantic.Field = lambda *a, **kw: None
+    mock_pydantic.ConfigDict = lambda *a, **kw: None
+    mock_pydantic.field_validator = lambda *a, **kw: lambda fn: fn
+    mock_pydantic.model_validator = lambda *a, **kw: lambda fn: fn
+    sys.modules['pydantic'] = mock_pydantic
+
+for m in [
+    'certifi', 'motor', 'motor.motor_asyncio', 'dotenv', 'pymongo',
+    'mongomock_motor', 'deps', 'db'
+]:
+    if m not in sys.modules:
+        sys.modules[m] = MagicMock()
+
+if 'fastapi' not in sys.modules:
+    sys.modules['fastapi'] = mock_fastapi
+    sys.modules['fastapi.responses'] = MagicMock()
 
 
 class TestLedgerMathAndDebtInversion(unittest.TestCase):
@@ -525,6 +553,49 @@ class TestSnapshotNetworthResilience(unittest.TestCase):
                 success = False
 
             self.assertTrue(success, "snapshot_networth tidak boleh raise exception saat balance bernilai None")
+
+
+class TestUpdateTransactionDirectExecution(unittest.TestCase):
+    """Pengujian eksekusi langsung fungsi update_transaction untuk memverifikasi seluruh simbol terdefinisi."""
+
+    def test_update_transaction_success(self):
+        import asyncio
+        from routes_finance import update_transaction
+        from models import TransactionUpdate
+
+        mock_old_doc = {
+            "id": "txn_bp_01",
+            "type": "expense",
+            "amount": 1,
+            "wallet_id": "wal_mandiri",
+            "date": "2026-10-20",
+            "note": "BP Ultimate 10L di BP GS",
+            "household_id": "hh_01",
+            "created_at": datetime.now(timezone.utc)
+        }
+
+        mock_db = MagicMock()
+        mock_db.transactions.find_one = AsyncMock(return_value=mock_old_doc)
+        mock_db.transactions.update_one = AsyncMock(return_value=MagicMock(matched_count=1, modified_count=1))
+        mock_db.goals.update_one = AsyncMock()
+
+        mock_ctx = MagicMock()
+        mock_ctx.hid = "hh_01"
+        mock_ctx.user = MagicMock()
+        mock_ctx.user.user_id = "user_01"
+
+        with patch("routes_finance.db", mock_db), \
+             patch("routes_finance.ledger.get_wallet", AsyncMock(return_value={"id": "wal_mandiri", "type": "credit_card"})), \
+             patch("routes_finance.ledger.apply_transaction", AsyncMock()), \
+             patch("routes_finance._snapshot_networth", AsyncMock()):
+
+            body = TransactionUpdate(amount=193300)
+            result = asyncio.run(update_transaction("txn_bp_01", body, mock_ctx))
+
+            self.assertEqual(result["amount"], 193300)
+            self.assertIn("updated_at", result)
+            self.assertIsInstance(result["updated_at"], str)
+            mock_db.transactions.update_one.assert_awaited_once()
 
 
 if __name__ == "__main__":

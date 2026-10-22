@@ -20,7 +20,19 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
-### [2026-10-22 11:55:00 WIB] — Two-Phase Atomic Rollback on Transaction Edit, Cross-Origin CORS 500 Handler, Phantom Ledger Drift Reconciliation, and Bulletproof WIB Audit Trail
+### [2026-10-22 12:12:00 WIB] — Import now_utc in routes_finance and Direct UpdateTransaction Verification
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Memperbaiki error `NameError: name 'now_utc' is not defined` yang muncul di menu Edit Transaksi dengan mengimpor fungsi `now_utc` dari `models` ke dalam `backend/routes_finance.py`.
+  2. Memverifikasi bahwa mekanisme Atomic Rollback berhasil melindungi integritas saldo dompet (seperti yang terlihat pada tangkapan layar user, saldo dompet Mandiri CC tetap aman di Rp 977.055 dan tidak bocor saat terjadi error).
+  3. Menambahkan unit test eksekusi langsung `update_transaction` ke dalam `test_money_integrity.py` untuk menguji alur secara menyeluruh.
+- **Key Actions & Changes:**
+  - `backend/routes_finance.py`:
+    - Mengimpor `now_utc` dari `models`.
+  - `backend/tests/test_money_integrity.py`:
+    - Menambahkan stub `pydantic` dan mock decorator FastAPI agar `models.py` dapat diuji langsung.
+    - Menambahkan `TestUpdateTransactionDirectExecution` yang mengeksekusi langsung `update_transaction` dan memverifikasi `updated_at` bertipe string ISO tanpa melempar NameError. Seluruh 28/28 unit tests passed (OK).
+
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**
   1. Mengatasi error "Network Error" saat edit transaksi: menambahkan Global CORS Exception Handler di FastAPI (`@app.exception_handler(Exception)`) agar saat terjadi unhandled exception 500 di backend, response tetap menyertakan header CORS lengkap (`Access-Control-Allow-Origin: origin`), sehingga Axios tidak lagi mengaburkan 500 sebagai "Network Error".
