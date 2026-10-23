@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 from db import db
 import ledger
 from models import (
-    Wallet, WalletCreate, Transaction, TransactionCreate, TransactionUpdate,
+    Wallet, WalletCreate, WalletDueDayUpdate, Transaction, TransactionCreate, TransactionUpdate,
     Budget, BudgetCreate, CategoryLimitUpdate, BudgetIncomeUpdate, Goal, GoalCreate, GoalDeposit, new_id, now_utc,
 )
 from deps import get_ctx, Ctx, household_members
@@ -121,6 +121,18 @@ async def update_wallet(wallet_id: str, body: WalletCreate, ctx: Ctx = Depends(g
         raise HTTPException(404, "Wallet not found")
     await _snapshot_networth(ctx.hid)
     return await db.wallets.find_one({"id": wallet_id, "household_id": ctx.hid}, {"_id": 0})
+
+
+@router.patch("/wallets/{wallet_id}/due-day")
+async def update_wallet_due_day(wallet_id: str, body: WalletDueDayUpdate, ctx: Ctx = Depends(get_ctx)):
+    res = await db.wallets.update_one(
+        {"id": wallet_id, "household_id": ctx.hid},
+        {"$set": {"due_day": body.due_day}}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Wallet not found")
+    return await db.wallets.find_one({"id": wallet_id, "household_id": ctx.hid}, {"_id": 0})
+
 
 
 @router.delete("/wallets/{wallet_id}")

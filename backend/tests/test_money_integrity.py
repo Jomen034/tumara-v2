@@ -599,5 +599,76 @@ class TestUpdateTransactionDirectExecution(unittest.TestCase):
             mock_db.transactions.update_one.assert_awaited_once()
 
 
+class TestCreditCardDueDayAndPayment(unittest.TestCase):
+    """Pengujian due_day pada dompet utang dan endpoint bayar tagihan kartu kredit."""
+
+    def test_wallet_create_due_day_validation(self):
+        from models import WalletCreate
+        # Valid due day 1-31
+        self.assertEqual(WalletCreate._validate_due_day(5), 5)
+        self.assertEqual(WalletCreate._validate_due_day("10"), 10)
+        self.assertEqual(WalletCreate._validate_due_day("31"), 31)
+        # Invalid / out of range should return None
+        self.assertIsNone(WalletCreate._validate_due_day(32))
+        self.assertIsNone(WalletCreate._validate_due_day(0))
+        self.assertIsNone(WalletCreate._validate_due_day(-5))
+        self.assertIsNone(WalletCreate._validate_due_day(""))
+        self.assertIsNone(WalletCreate._validate_due_day(None))
+
+    def test_pay_credit_card_endpoint_creates_transfer(self):
+        import asyncio
+        from routes_bills import pay_credit_card
+        from models import PayCreditCardRequest
+
+        mock_db = MagicMock()
+        mock_cc = {"id": "wal_cc_bca", "name": "BCA Card", "type": "credit_card", "balance": 1_500_000, "household_id": "hh_01"}
+        mock_bank = {"id": "wal_bank_bca", "name": "BCA Tabungan", "type": "bank", "balance": 5_000_000, "household_id": "hh_01"}
+
+        async def mock_find_one(q, *a, **kw):
+            wid = q.get("id")
+            if wid == "wal_cc_bca":
+                return mock_cc
+            if wid == "wal_bank_bca":
+                return mock_bank
+            return None
+
+        mock_db.wallets.find_one = AsyncMock(side_effect=mock_find_one)
+        mock_db.transactions.insert_one = AsyncMock()
+
+        mock_ctx = MagicMock()
+        mock_ctx.hid = "hh_01"
+        mock_ctx.user = MagicMock()
+        mock_ctx.user.user_id = "user_01"
+
+        inserted_txns = []
+        async def capture_insert(doc):
+            inserted_txns.append(doc)
+        mock_db.transactions.insert_one = AsyncMock(side_effect=capture_insert)
+
+        with patch("routes_bills.db", mock_db), \
+             patch("routes_bills.ledger.apply_transaction", AsyncMock()) as mock_apply, \
+             patch("routes_bills.ledger.snapshot_networth", AsyncMock()):
+
+            req = PayCreditCardRequest(
+                credit_card_wallet_id="wal_cc_bca",
+                from_wallet_id="wal_bank_bca",
+                amount=1_500_000,
+                paid_date="2026-10-23",
+                note="Pelunasan CC BCA Oktober",
+            )
+            res = asyncio.run(pay_credit_card(req, mock_ctx))
+
+            self.assertTrue(res["ok"])
+            self.assertEqual(res["amount_paid"], 1_500_000)
+            self.assertEqual(len(inserted_txns), 1)
+            t = inserted_txns[0]
+            self.assertEqual(t["type"], "transfer", "Pembayaran tagihan CC WAJIB bertipe transfer")
+            self.assertEqual(t["wallet_id"], "wal_bank_bca")
+            self.assertEqual(t["to_wallet_id"], "wal_cc_bca")
+            self.assertEqual(t["amount"], 1_500_000)
+            self.assertEqual(t["category"], "Tagihan & Utilitas")
+            mock_apply.assert_awaited_once()
+
+
 if __name__ == "__main__":
     unittest.main()

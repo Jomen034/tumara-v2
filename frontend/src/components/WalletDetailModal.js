@@ -97,6 +97,11 @@ export default function WalletDetailModal({
                       : "Utilisasi Sehat"}
                   </Badge>
                 )}
+                {isDebt && wallet.due_day && (
+                  <Badge color="var(--brand)">
+                    Tempo tgl {wallet.due_day}
+                  </Badge>
+                )}
               </div>
             </div>
           </div>

@@ -20,6 +20,39 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-23 23:40:00 WIB] — Seamless Credit Card & PayLater Bill Integration with Heatmap Calendar & Atomic Debt Settlement
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Menjawab dan mengeksekusi kebutuhan user terkait integrasi dompet Kartu Kredit (BCA, Mandiri, OCBC, PayLater) ke halaman Tagihan (`/bills`).
+  2. Memastikan akuntansi saldo kartu kredit dan pelunasan tagihan tetap 100% disiplin pembukuan ganda (double-entry ledger): belanja kartu kredit dicatat sebagai `expense` yang menaikkan utang berjalan, sedangkan pelunasan tagihan kartu kredit dicatat sebagai `transfer` dari rekening bank/kas ke dompet kartu kredit (sehingga saldo utang berkurang tanpa menduplikasi pos pengeluaran keluarga).
+  3. Menyediakan konfigurasi tanggal jatuh tempo bulanan (`due_day`: 1–31) pada dompet kartu kredit & paylater di `Wallets.js`.
+  4. Menampilkan kartu tagihan kredit aktif di halaman Tagihan (`/bills`), memproyeksikannya secara otomatis ke dalam **Kalender Heatmap Tagihan (`BillCalendar.js`)**, dan menyediakan modal pelunasan instan 1-klik (`PayCreditCardModal.js`).
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Menambahkan field `due_day: Optional[int] = None` dan validator `_validate_due_day` (1–31) ke `WalletCreate` dan `Wallet`.
+    - Menambahkan model `WalletDueDayUpdate` untuk pembaruan cepat tanggal jatuh tempo.
+    - Menambahkan model `PayCreditCardRequest` (`credit_card_wallet_id`, `from_wallet_id`, `amount`, `paid_date`, `note`).
+  - `backend/routes_bills.py`:
+    - Membuat endpoint `POST /bills/pay-credit-card` yang memvalidasi dompet utang & dompet sumber, mencatat transaksi bertipe `transfer` (`category="Tagihan & Utilitas"`), mengeksekusi perpindahan dana melalui `ledger.apply_transaction()`, serta menyinkronkan snapshot kekayaan bersih (`snapshot_networth`).
+  - `backend/routes_finance.py`:
+    - Menambahkan endpoint `PATCH /wallets/{wallet_id}/due-day` untuk mengubah tanggal tempo bulanan secara instan.
+  - `backend/tests/test_money_integrity.py`:
+    - Menambahkan test suite `TestCreditCardDueDayAndPayment` (30 test assertions lulus 100%).
+  - `frontend/src/components/PayCreditCardModal.js`:
+    - Membuat modal pelunasan tagihan kartu kredit khusus dengan pilihan rekening sumber dana non-utang, input nominal dengan shortcut chip ("Bayar Penuh", nominal bertahap), kalkulasi sisa utang dan saldo rekening realtime, peringatan saldo tidak mencukupi, serta edukasi integritas transfer vs expense.
+  - `frontend/src/pages/Wallets.js`:
+    - Menambahkan input `due_day` di modal tambah/edit dompet kartu kredit & paylater.
+    - Menampilkan status jatuh tempo bulanan dan tombol instan *"Bayar Tagihan"* pada kartu dompet utang.
+  - `frontend/src/components/WalletDetailModal.js`:
+    - Menampilkan badge tanggal jatuh tempo bulanan di kartu detail dompet.
+  - `frontend/src/pages/Bills.js`:
+    - Menambahkan seksi khusus: **"💳 Tagihan Kartu Kredit & PayLater"** dengan indikator sisa limit, rasio pemakaian, dan status jatuh tempo dinamis (Lewat Tempo, Hari Ini, ≤ 3 Hari, Aman).
+    - Memproyeksikan tagihan kartu kredit dengan `due_day` ke dalam `BillCalendar` bulanan secara otomatis.
+    - Menambahkan modal cepat untuk mengatur tanggal tempo kartu kredit langsung dari halaman Tagihan.
+- **Notes & Important Context:**
+  - Konservasi Net Worth terjamin: pelunasan tagihan menurunkan aset kas dan menurunkan liabilitas kartu kredit secara simetris, menghasilkan dampak laba-rugi nol (bebas *double-counting*).
+
+
 ### [2026-10-23 10:07:00 WIB] — Fix Vercel Build (walletTo no-undef) & Full Landing Page Copywriting Audit
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**

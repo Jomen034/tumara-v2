@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import { motion } from "framer-motion";
 import * as Icons from "lucide-react";
-import { Plus, Trash2, Pencil, CreditCard, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Pencil, CreditCard, ShieldCheck, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "../lib/api";
 import { useRefresh } from "../context/RefreshContext";
@@ -21,6 +21,7 @@ import {
   Progress,
 } from "../components/ui";
 import WalletDetailModal from "../components/WalletDetailModal";
+import PayCreditCardModal from "../components/PayCreditCardModal";
 
 export default function Wallets() {
   const { privacy } = useTheme();
@@ -33,11 +34,13 @@ export default function Wallets() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [selectedWallet, setSelectedWallet] = useState(null);
+  const [payingCard, setPayingCard] = useState(null);
   const [form, setForm] = useState({
     name: "",
     type: "bank",
     balance: "",
     credit_limit: "",
+    due_day: "",
     color: "#00E676",
   });
 
@@ -67,6 +70,7 @@ export default function Wallets() {
       type: t,
       balance: "",
       credit_limit: "",
+      due_day: "",
       color: walletMeta(t).color,
     });
     setOpen(true);
@@ -79,6 +83,7 @@ export default function Wallets() {
       type: w.type,
       balance: String(w.balance ?? ""),
       credit_limit: w.credit_limit != null ? String(w.credit_limit) : "",
+      due_day: w.due_day != null ? String(w.due_day) : "",
       color: w.color,
     });
     setOpen(true);
@@ -88,11 +93,14 @@ export default function Wallets() {
     if (!form.name.trim()) return toast.error("Nama dompet wajib diisi");
     const isDebt = ["credit_card", "paylater"].includes(form.type);
     const parsedLimit = parseFloat(form.credit_limit);
+    const parsedDueDay = parseInt(form.due_day, 10);
+    const validDueDay = isDebt && !isNaN(parsedDueDay) && parsedDueDay >= 1 && parsedDueDay <= 31 ? parsedDueDay : null;
     const payload = {
       name: form.name.trim(),
       type: form.type,
       balance: isDebt ? Math.abs(parseFloat(form.balance) || 0) : (parseFloat(form.balance) || 0),
       credit_limit: isDebt && !isNaN(parsedLimit) && parsedLimit > 0 ? parsedLimit : null,
+      due_day: validDueDay,
       color: form.color,
       icon: walletMeta(form.type).icon,
     };
@@ -590,6 +598,43 @@ export default function Wallets() {
                           </button>
                         </div>
                       )}
+
+                      <div className="pt-2 flex items-center justify-between text-xs border-t border-borderc/30">
+                        <span className="text-[11px] text-tmuted flex items-center gap-1.5">
+                          {w.due_day ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-brand" />
+                              <span>Jatuh tempo tgl {w.due_day}</span>
+                            </>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEdit(w);
+                              }}
+                              className="text-tmuted hover:text-brand transition-colors flex items-center gap-1"
+                            >
+                              <span>+ Atur tgl tempo</span>
+                            </button>
+                          )}
+                        </span>
+                        {w.balance > 0 ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPayingCard(w);
+                            }}
+                            className="text-xs font-semibold text-brand hover:underline flex items-center gap-1 bg-brand/10 hover:bg-brand/20 px-2.5 py-1 rounded-lg transition-colors"
+                            title="Bayar tagihan kartu ini"
+                          >
+                            <CheckCircle2 size={12} /> Bayar Tagihan
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-brand font-medium flex items-center gap-1">
+                            <CheckCircle2 size={12} /> Lunas
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-2 pt-2.5 border-t border-borderc/40 mt-auto">
@@ -708,6 +753,22 @@ export default function Wallets() {
                 data-testid="wallet-balance-input"
               />
 
+              <div className="space-y-1">
+                <Input
+                  label="Jatuh Tempo Tiap Tanggal (1–31)"
+                  type="number"
+                  min="1"
+                  max="31"
+                  placeholder="cth. 5 (tiap tgl 5)"
+                  value={form.due_day}
+                  onChange={(e) => setForm({ ...form, due_day: e.target.value })}
+                  data-testid="wallet-due-day-input"
+                />
+                <p className="text-[11px] text-tmuted">
+                  💡 Tanggal ini akan otomatis memunculkan jadwal tagihan kartu di halaman Tagihan setiap bulan.
+                </p>
+              </div>
+
               <div className="rounded-xl p-3.5 bg-surface border border-borderc space-y-2.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-tmuted font-medium">Kalkulasi Otomatis Plafon</span>
@@ -807,6 +868,18 @@ export default function Wallets() {
         onEdit={(w) => openEdit(w)}
         onAddTransaction={(w) => {
           if (openAdd) openAdd("manual");
+        }}
+      />
+
+      {/* Quick Pay Credit Card Modal */}
+      <PayCreditCardModal
+        open={!!payingCard}
+        creditCard={payingCard}
+        wallets={wallets}
+        onClose={() => setPayingCard(null)}
+        onSuccess={() => {
+          load();
+          bump();
         }}
       />
     </div>

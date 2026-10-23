@@ -137,8 +137,20 @@ class WalletCreate(BaseModel):
     type: Literal["bank", "ewallet", "credit_card", "paylater", "cash", "investment"]
     balance: float = 0
     credit_limit: Optional[float] = None
+    due_day: Optional[int] = None
     color: str = "#00E676"
     icon: str = "wallet"
+
+    @field_validator("due_day", mode="before")
+    @classmethod
+    def _validate_due_day(cls, v):
+        if v is None or v == "":
+            return None
+        try:
+            iv = int(v)
+            return iv if 1 <= iv <= 31 else None
+        except Exception:
+            return None
 
     @model_validator(mode="after")
     def _sanitize_debt_balance(self):
@@ -152,6 +164,21 @@ class Wallet(WalletCreate):
     id: str = Field(default_factory=lambda: new_id("wal"))
     user_id: str
     created_at: datetime = Field(default_factory=now_utc)
+
+
+class WalletDueDayUpdate(BaseModel):
+    due_day: Optional[int] = None
+
+    @field_validator("due_day", mode="before")
+    @classmethod
+    def _validate_due_day(cls, v):
+        if v is None or v == "":
+            return None
+        try:
+            iv = int(v)
+            return iv if 1 <= iv <= 31 else None
+        except Exception:
+            return None
 
 
 # ---------- Financial Number Parser ----------
@@ -199,6 +226,19 @@ def parse_financial_number(v) -> float:
         return float(clean)
     except Exception:
         return 0.0
+
+
+class PayCreditCardRequest(BaseModel):
+    credit_card_wallet_id: str
+    from_wallet_id: str
+    amount: float = Field(gt=0)
+    paid_date: Optional[str] = None  # YYYY-MM-DD
+    note: Optional[str] = None
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def _parse_amount(cls, v):
+        return parse_financial_number(v)
 
 
 # ---------- Transactions ----------

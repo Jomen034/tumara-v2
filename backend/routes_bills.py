@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from db import db
 import ledger
-from models import Bill, BillCreate, BillPaymentRequest, Transaction, now_utc
+from models import Bill, BillCreate, BillPaymentRequest, PayCreditCardRequest, Transaction, now_utc
 from deps import get_ctx, Ctx
 
 router = APIRouter(prefix="/bills", tags=["bills"])
@@ -243,3 +243,56 @@ async def pay_bill(bill_id: str, body: Optional[BillPaymentRequest] = None, ctx:
         "transaction_id": created_txn_id,
         "wallet_id_used": chosen_wallet,
     }
+
+
+@router.post("/pay-credit-card")
+async def pay_credit_card(body: PayCreditCardRequest, ctx: Ctx = Depends(get_ctx)):
+    cc_wal = await db.wallets.find_one({"id": body.credit_card_wallet_id, "household_id": ctx.hid})
+    if not cc_wal:
+        raise HTTPException(404, "Kartu kredit / paylater tidak ditemukan")
+    if not ledger.is_debt_wallet(cc_wal):
+        raise HTTPException(400, "Dompet tujuan bukan kartu kredit atau paylater")
+
+    from_wal = await db.wallets.find_one({"id": body.from_wallet_id, "household_id": ctx.hid})
+    if not from_wal:
+        raise HTTPException(404, "Dompet sumber pembayaran tidak ditemukan")
+    if body.from_wallet_id == body.credit_card_wallet_id:
+        raise HTTPException(400, "Dompet sumber pembayaran tidak boleh sama dengan kartu kredit")
+
+    payment_amount = int(round(float(body.amount)))
+    if payment_amount <= 0:
+        raise HTTPException(400, "Nominal pembayaran harus lebih dari 0")
+
+    paid_date = body.paid_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    note_text = (body.note or "").strip() or f"Bayar tagihan {cc_wal.get('name', 'Kartu Kredit')}"
+
+    # Catat transaksi kategori transfer
+    t = Transaction(
+        user_id=ctx.user.user_id,
+        household_id=ctx.hid,
+        member_id=ctx.user.user_id,
+        type="transfer",
+        amount=payment_amount,
+        wallet_id=body.from_wallet_id,
+        to_wallet_id=body.credit_card_wallet_id,
+        category="Tagihan & Utilitas",
+        note=note_text,
+        date=paid_date,
+        source="bill",
+    )
+    await db.transactions.insert_one(t.model_dump())
+    await ledger.apply_transaction(ctx.hid, t, +1)
+    await ledger.snapshot_networth(ctx.hid)
+
+    updated_cc = await db.wallets.find_one({"id": body.credit_card_wallet_id, "household_id": ctx.hid}, {"_id": 0})
+    updated_from = await db.wallets.find_one({"id": body.from_wallet_id, "household_id": ctx.hid}, {"_id": 0})
+
+    return {
+        "ok": True,
+        "transaction_id": t.id,
+        "credit_card_wallet": updated_cc,
+        "from_wallet": updated_from,
+        "amount_paid": payment_amount,
+        "date": paid_date,
+    }
+

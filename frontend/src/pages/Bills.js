@@ -12,6 +12,7 @@ import {
   Wallet,
   Sparkles,
   Layers,
+  CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
@@ -19,7 +20,7 @@ import api from "../lib/api";
 import { useRefresh } from "../context/RefreshContext";
 import { useTheme } from "../context/ThemeContext";
 import { formatRp } from "../lib/format";
-import { CATEGORIES } from "../lib/constants";
+import { CATEGORIES, walletMeta } from "../lib/constants";
 import {
   Card,
   Button,
@@ -33,6 +34,7 @@ import {
 } from "../components/ui";
 import BillDetailModal from "../components/BillDetailModal";
 import PayBillModal from "../components/PayBillModal";
+import PayCreditCardModal from "../components/PayCreditCardModal";
 import BillCalendar from "../components/BillCalendar";
 
 const RECUR = {
@@ -53,6 +55,9 @@ export default function Bills() {
   const [selectedBill, setSelectedBill] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [payingBill, setPayingBill] = useState(null);
+  const [payingCard, setPayingCard] = useState(null);
+  const [quickDueDayWallet, setQuickDueDayWallet] = useState(null);
+  const [quickDueDayValue, setQuickDueDayValue] = useState("");
 
   const [form, setForm] = useState({
     name: "",
@@ -71,6 +76,11 @@ export default function Bills() {
 
   const todayMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
 
+  const debtWallets = useMemo(
+    () => wallets.filter((w) => ["credit_card", "paylater"].includes(w.type)),
+    [wallets]
+  );
+
   const isPaidThisMonth = (b) => {
     if (b.is_completed) return true;
     if (b.last_paid_date && b.last_paid_date.startsWith(todayMonth)) return true;
@@ -81,6 +91,146 @@ export default function Bills() {
   const walletMap = useMemo(() => {
     return Object.fromEntries(wallets.map((w) => [w.id, w]));
   }, [wallets]);
+
+  // Helper due date calculation
+  const getDueStatus = (dueDay, balance) => {
+    if (!dueDay || dueDay < 1 || dueDay > 31) {
+      return {
+        hasDueDay: false,
+        label: "Tempo belum diatur",
+        color: "var(--tmuted)",
+        daysUntil: null,
+      };
+    }
+
+    const now = new Date();
+    const todayDate = now.getDate();
+    let targetYear = now.getFullYear();
+    let targetMonth = now.getMonth();
+
+    const isOverdue = balance > 0 && todayDate > dueDay;
+
+    let actualTargetMonth = targetMonth;
+    let actualTargetYear = targetYear;
+    if (todayDate > dueDay && balance <= 0) {
+      actualTargetMonth += 1;
+      if (actualTargetMonth > 11) {
+        actualTargetMonth = 0;
+        actualTargetYear += 1;
+      }
+    }
+
+    const daysInMonth = new Date(actualTargetYear, actualTargetMonth + 1, 0).getDate();
+    const actualDay = Math.min(dueDay, daysInMonth);
+    const target = new Date(actualTargetYear, actualTargetMonth, actualDay);
+    target.setHours(0, 0, 0, 0);
+
+    const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffDays = Math.round((target - todayZero) / (1000 * 60 * 60 * 24));
+
+    const monthNames = [
+      "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+      "Jul", "Agu", "Sep", "Okt", "Nov", "Des"
+    ];
+    const formattedDate = `${actualDay} ${monthNames[actualTargetMonth]}`;
+
+    if (balance <= 0) {
+      return {
+        hasDueDay: true,
+        label: `Tempo tgl ${actualDay} tiap bln`,
+        color: "var(--brand)",
+        daysUntil: diffDays,
+        formattedDate,
+        isLunas: true,
+      };
+    }
+
+    if (isOverdue) {
+      const lateDays = todayDate - dueDay;
+      return {
+        hasDueDay: true,
+        label: `⚠️ Lewat tempo ${lateDays} hari (${actualDay} ${monthNames[targetMonth]})`,
+        color: "var(--rose)",
+        daysUntil: -lateDays,
+        formattedDate,
+        isOverdue: true,
+      };
+    }
+
+    if (diffDays === 0) {
+      return {
+        hasDueDay: true,
+        label: "⚡ Jatuh tempo hari ini!",
+        color: "var(--rose)",
+        daysUntil: 0,
+        formattedDate,
+        isUrgent: true,
+      };
+    }
+
+    if (diffDays <= 3) {
+      return {
+        hasDueDay: true,
+        label: `⏳ ${diffDays} hari lagi (${formattedDate})`,
+        color: "var(--amber)",
+        daysUntil: diffDays,
+        formattedDate,
+        isUrgent: true,
+      };
+    }
+
+    return {
+      hasDueDay: true,
+      label: `Tempo ${formattedDate} (${diffDays} hari lagi)`,
+      color: "var(--brand)",
+      daysUntil: diffDays,
+      formattedDate,
+    };
+  };
+
+  // Synthesize credit card & paylater bills into calendar
+  const calendarBills = useMemo(() => {
+    const list = [...bills];
+    const today = new Date();
+    const curYear = today.getFullYear();
+    const curMonth = today.getMonth() + 1;
+    const curMonthPrefix = `${curYear}-${String(curMonth).padStart(2, "0")}`;
+    const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    debtWallets.forEach((w) => {
+      if (w.due_day && w.due_day >= 1 && w.due_day <= 31) {
+        const dueDayStr = String(w.due_day).padStart(2, "0");
+        const dueDate = `${curMonthPrefix}-${dueDayStr}`;
+        const bal = Math.max(0, Number(w.balance) || 0);
+        const targetDate = new Date(curYear, curMonth - 1, w.due_day);
+        const daysUntil = Math.round((targetDate - todayZero) / (1000 * 60 * 60 * 24));
+
+        list.push({
+          id: `cc_wallet_${w.id}`,
+          name: `Tagihan ${w.name}`,
+          amount: bal,
+          category: "Tagihan & Utilitas",
+          recurrence: "monthly",
+          next_due_date: dueDate,
+          wallet_id: w.id,
+          bill_type: "credit_card",
+          is_credit_card: true,
+          credit_card_wallet: w,
+          days_until: daysUntil,
+          is_completed: false,
+          is_paid_current_cycle: bal <= 0,
+        });
+      }
+    });
+    return list;
+  }, [bills, debtWallets]);
+
+  // Debt wallets filtered by selected date
+  const displayedDebtWallets = useMemo(() => {
+    if (!selectedDate) return debtWallets;
+    const selDay = parseInt(selectedDate.slice(8, 10), 10);
+    return debtWallets.filter((w) => w.due_day === selDay);
+  }, [debtWallets, selectedDate]);
 
   const displayedBills = useMemo(() => {
     let list = bills;
@@ -112,6 +262,23 @@ export default function Bills() {
     }
     return sorted;
   }, [bills, selectedDate, sortBy, todayMonth]);
+
+  const handleSaveQuickDueDay = async () => {
+    if (!quickDueDayWallet) return;
+    const day = parseInt(quickDueDayValue, 10);
+    if (isNaN(day) || day < 1 || day > 31) {
+      return toast.error("Masukkan tanggal antara 1 sampai 31");
+    }
+    try {
+      await api.patch(`/wallets/${quickDueDayWallet.id}/due-day`, { due_day: day });
+      toast.success(`Jatuh tempo ${quickDueDayWallet.name} berhasil diatur ke tanggal ${day} tiap bulan!`);
+      setQuickDueDayWallet(null);
+      load();
+      bump();
+    } catch {
+      toast.error("Gagal menyimpan tanggal jatuh tempo");
+    }
+  };
 
   const load = () =>
     Promise.all([api.get("/bills"), api.get("/wallets")])
@@ -227,7 +394,7 @@ export default function Bills() {
         <div className="flex justify-center py-16">
           <Spinner className="text-brand" size={28} />
         </div>
-      ) : bills.length === 0 ? (
+      ) : bills.length === 0 && debtWallets.length === 0 ? (
         <Card>
           <EmptyState
             icon={CalendarClock}
@@ -244,21 +411,193 @@ export default function Bills() {
         <div className="space-y-6">
           {/* Interactive Bill Calendar */}
           <BillCalendar
-            bills={bills}
+            bills={calendarBills}
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
             privacy={privacy}
             walletMap={walletMap}
           />
 
-          {/* Section Header & Sorting Controls */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+          {/* Credit Card & PayLater Bills Section */}
+          {debtWallets.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                <div>
+                  <h3 className="font-head font-bold text-base sm:text-lg text-tprimary flex items-center gap-2">
+                    <CreditCard size={18} className="text-cyan" />
+                    Tagihan Kartu Kredit & PayLater ({debtWallets.length})
+                  </h3>
+                  <p className="text-xs text-tmuted">
+                    Tagihan otomatis tersinkronisasi dari saldo kartu kredit & paylater Anda. Bayar tagihan dicatat sebagai transfer antar-dompet.
+                  </p>
+                </div>
+              </div>
+
+              {selectedDate && displayedDebtWallets.length === 0 ? (
+                <div className="p-3.5 rounded-xl bg-elevated/40 border border-borderc/60 text-xs text-tmuted flex items-center justify-between">
+                  <span>Tidak ada tagihan kartu kredit yang jatuh tempo pada tanggal {selectedDate}.</span>
+                  <button
+                    onClick={() => setSelectedDate(null)}
+                    className="text-brand font-semibold hover:underline ml-2"
+                  >
+                    Tampilkan Semua Kartu
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {displayedDebtWallets.map((w) => {
+                    const m = walletMeta(w.type);
+                    const Ic = Icons[m.icon] || CreditCard;
+                    const curDebt = Math.max(0, Number(w.balance) || 0);
+                    const due = getDueStatus(w.due_day, curDebt);
+                    const hasLimit = (Number(w.credit_limit) || 0) > 0;
+                    const sisaLimit = hasLimit ? Math.max(0, w.credit_limit - curDebt) : 0;
+                    const utilPct = hasLimit
+                      ? Math.min(100, Math.round((curDebt / w.credit_limit) * 100))
+                      : 0;
+                    const utilColor =
+                      utilPct > 70 ? "var(--rose)" : utilPct > 30 ? "#F59E0B" : "var(--brand)";
+
+                    return (
+                      <Card
+                        key={w.id}
+                        className="p-4 sm:p-5 flex flex-col justify-between space-y-3.5 transition-all hover:border-brand/40 bg-card border-borderc"
+                      >
+                        {/* Header: Icon, Name, Type, Due Date */}
+                        <div className="flex items-start justify-between gap-2.5">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div
+                              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: `${w.color}22` }}
+                            >
+                              <Ic size={20} style={{ color: w.color }} />
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="font-bold text-sm sm:text-base text-tprimary truncate">
+                                {w.name}
+                              </h4>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge color={w.color}>{m.label}</Badge>
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickDueDayWallet(w);
+                              setQuickDueDayValue(w.due_day ? String(w.due_day) : "");
+                            }}
+                            className="shrink-0 text-left"
+                            title="Klik untuk mengubah tanggal jatuh tempo"
+                          >
+                            <Badge color={due.color} className="cursor-pointer hover:opacity-85">
+                              {due.isOverdue && <AlertTriangle size={11} />}
+                              {due.isUrgent && <AlertTriangle size={11} />}
+                              {due.isLunas && <CheckCircle2 size={11} />}
+                              {due.label}
+                            </Badge>
+                          </button>
+                        </div>
+
+                        {/* Balance & Utilization */}
+                        <div className="space-y-1.5 pt-1 border-t border-borderc/40">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <div>
+                              <span className="text-[11px] text-tmuted uppercase font-semibold tracking-wider block">
+                                Tagihan Terpakai
+                              </span>
+                              <p
+                                className={`font-mono font-bold text-lg sm:text-xl ${
+                                  curDebt > 0 ? "text-rose" : "text-brand"
+                                } ${privacy ? "privacy-blur" : ""}`}
+                              >
+                                {curDebt > 0 ? formatRp(curDebt, privacy) : "LUNAS (Rp 0)"}
+                              </p>
+                            </div>
+
+                            {hasLimit && (
+                              <div className="text-right">
+                                <span className="text-[11px] text-tmuted uppercase font-semibold tracking-wider block">
+                                  Sisa Limit
+                                </span>
+                                <p
+                                  className={`font-mono font-bold text-xs sm:text-sm text-cyan ${
+                                    privacy ? "privacy-blur" : ""
+                                  }`}
+                                >
+                                  {formatRp(sisaLimit, privacy)}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          {hasLimit && curDebt > 0 && (
+                            <div className="space-y-1 pt-1">
+                              <div className="flex justify-between items-center text-[10px] text-tmuted font-mono">
+                                <span>
+                                  Utilisasi:{" "}
+                                  <span className="font-bold" style={{ color: utilColor }}>
+                                    {utilPct}%
+                                  </span>
+                                </span>
+                                <span>Plafon {formatRp(w.credit_limit, privacy)}</span>
+                              </div>
+                              <Progress
+                                value={utilPct}
+                                color={utilColor}
+                                className="h-1"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Footer / Actions */}
+                        <div className="pt-2 border-t border-borderc/40 flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickDueDayWallet(w);
+                              setQuickDueDayValue(w.due_day ? String(w.due_day) : "");
+                            }}
+                            className="text-[11px] text-tmuted hover:text-brand transition-colors flex items-center gap-1 font-medium"
+                          >
+                            <CalendarClock size={12} />
+                            {w.due_day ? `Tempo tgl ${w.due_day}` : "Atur tgl tempo"}
+                          </button>
+
+                          {curDebt > 0 ? (
+                            <Button
+                              size="sm"
+                              onClick={() => setPayingCard(w)}
+                              data-testid={`pay-cc-btn-${w.id}`}
+                              className="text-xs px-3 py-1.5"
+                            >
+                              <CheckCircle2 size={13} />
+                              Bayar Tagihan
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-brand font-semibold flex items-center gap-1 bg-brand/10 px-2.5 py-1 rounded-full">
+                              <CheckCircle2 size={12} /> Lunas
+                            </span>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Section Header & Sorting Controls for Regular Bills */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-borderc/40">
             <h3 className="font-head font-bold text-base sm:text-lg text-tprimary flex items-center gap-2">
               <ReceiptText size={18} className="text-brand" />
               {selectedDate ? (
                 <>Tagihan Terfilter ({displayedBills.length})</>
               ) : (
-                <>Daftar Tagihan ({bills.length})</>
+                <>Daftar Tagihan Rutin & Cicilan ({bills.length})</>
               )}
             </h3>
 
@@ -321,12 +660,22 @@ export default function Bills() {
             <Card className="p-8 text-center space-y-3">
               <EmptyState
                 icon={CalendarClock}
-                title="Tidak ada tagihan di tanggal ini"
-                subtitle={`Tidak ada jadwal pembayaran tagihan yang jatuh tempo pada tanggal ${selectedDate}.`}
+                title={selectedDate ? "Tidak ada tagihan di tanggal ini" : "Belum ada tagihan rutin non-kartu"}
+                subtitle={
+                  selectedDate
+                    ? `Tidak ada jadwal pembayaran tagihan yang jatuh tempo pada tanggal ${selectedDate}.`
+                    : "Tambahkan tagihan bulanan keluarga seperti listrik PLN, WiFi, air PAM, BPJS, atau cicilan kendaraan di sini."
+                }
                 action={
-                  <Button onClick={() => setSelectedDate(null)} size="sm" variant="secondary">
-                    Tampilkan Semua Tagihan
-                  </Button>
+                  selectedDate ? (
+                    <Button onClick={() => setSelectedDate(null)} size="sm" variant="secondary">
+                      Tampilkan Semua Tagihan
+                    </Button>
+                  ) : (
+                    <Button onClick={openNew} size="sm">
+                      <Plus size={14} /> Tambah Tagihan
+                    </Button>
+                  )
                 }
               />
             </Card>
@@ -672,6 +1021,59 @@ export default function Bills() {
           >
             {editing ? "Simpan Perubahan" : "Tambah Tagihan"}
           </Button>
+        </div>
+      </Modal>
+
+      {/* Pay Credit Card Modal */}
+      <PayCreditCardModal
+        open={!!payingCard}
+        creditCard={payingCard}
+        wallets={wallets}
+        onClose={() => setPayingCard(null)}
+        onSuccess={() => {
+          load();
+          bump();
+        }}
+      />
+
+      {/* Quick Edit Due Day Modal */}
+      <Modal
+        open={!!quickDueDayWallet}
+        onClose={() => setQuickDueDayWallet(null)}
+        title={`Atur Jatuh Tempo ${quickDueDayWallet?.name || ""}`}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-tmuted leading-relaxed">
+            Pilih tanggal jatuh tempo bulanan (1–31). Tumara akan otomatis mengingatkan pembayaran tagihan kartu ini di kalender setiap bulan.
+          </p>
+
+          <Input
+            label="Tanggal Jatuh Tempo Tiap Bulan"
+            type="number"
+            min="1"
+            max="31"
+            placeholder="cth. 5 (tiap tgl 5)"
+            value={quickDueDayValue}
+            onChange={(e) => setQuickDueDayValue(e.target.value)}
+            autoFocus
+          />
+
+          <div className="flex items-center gap-2 pt-1">
+            <Button
+              variant="secondary"
+              onClick={() => setQuickDueDayWallet(null)}
+              className="flex-1"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleSaveQuickDueDay}
+              className="flex-1"
+            >
+              Simpan
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>
