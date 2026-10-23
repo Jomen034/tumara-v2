@@ -20,6 +20,28 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-23 09:50:00 WIB] — Automated E2E Test Suite 100% PASS (Starter -> Pro -> Family Tier Lifecycle & Mathematical Invariants)
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Melaksanakan pengujian otomatis menyeluruh (Automated E2E Test Suite) step-by-step terhadap live backend Tumara v2 (`https://tumara-backend.onrender.com/api`).
+  2. Menguji seluruh siklus hak akses dan batasan kuota bertahap: **Paket Starter $\rightarrow$ Paket Pro $\rightarrow$ Paket Family Partner**.
+  3. Memverifikasi keabsahan proteksi kuota AI (3/5 vs 50/100 vs 120/250), isolasi rumah tangga (Family 2-member cap), kode undangan pasangan, dan hak akses fitur eksklusif (Weekly Recap, Invite Household).
+  4. Memverifikasi presisi matematis dan konservasi Net Worth di seluruh variasi tipe dompet: Bank, E-Wallet, Cash, Investasi, Kartu Kredit, dan PayLater (aturan +swipe, -payoff).
+  5. Memvalidasi fitur simulasi transaksi manual, parsing teks pintar AI, siklus auto-advancing tagihan bulanan (bills), sinkronisasi setoran target tabungan (goals), audit trail multi-user (`updated_at` & `updated_by`), serta ekspor CSV.
+- **Key Actions & Changes:**
+  - `scripts/run_automation_suite.mjs`:
+    - Membuat suite pengujian mandiri 40 skenario pengujian dengan autentikasi native Node.js fetch, dynamic token isolation, dan automated teardown tanpa menyentuh data akun produksi user.
+    - Menyelaraskan endpoint dashboard (`GET /dashboard`), parsing transaksi AI (`POST /ai/parse-transaction`), weekly recap starter guard (`GET /ai/weekly-recap`), dan field siklus jatuh tempo tagihan (`next_due_date`).
+  - **Hasil Pengujian Otomatis Live Backend:**
+    - Total Skenario Diuji : 40
+    - Lulus (PASS) : 40
+    - Gagal (FAIL) : 0
+    - Tingkat Keberhasilan : **100.0%**
+- **Notes & Invariants Verified:**
+  - Net worth awal: Aset Rp 15.700.000, Utang Rp 0 = Net Worth Rp 15.700.000 (Akurat).
+  - Net worth pasca belanja CC & PayLater: Aset Rp 23.650.000, Utang Rp 700.000 = Net Worth Rp 22.950.000 (Akurat).
+  - Seluruh data uji dompet, tagihan, dan target berhasil di-cleanup (teardown) otomatis dari database.
+
 ### [2026-10-22 12:48:00 WIB] — Audit Trail "Diedit Oleh" (Multi-User Household Tracking) in Backend & Frontend
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**
