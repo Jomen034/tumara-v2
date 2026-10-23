@@ -17,9 +17,9 @@ except ImportError:
     db = None
 
 TIER_LIMITS = {
-    "starter": {"scans": 3, "chats": 5},
-    "pro": {"scans": 50, "chats": 100},
-    "family": {"scans": 120, "chats": 250},
+    "starter": {"scans": 10, "chats": 20},
+    "pro": {"scans": 60, "chats": 150},
+    "family": {"scans": 150, "chats": 300},
 }
 
 ID_MONTHS = [

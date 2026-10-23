@@ -6,7 +6,7 @@ import pytest
 import requests
 from PIL import Image
 
-BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://1acc03c7-b948-45f2-bdc6-c2c36a3cbc26.preview.emergentagent.com").rstrip("/")
+BASE = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001").rstrip("/")
 API = f"{BASE}/api"
 TOKEN = "test_session_cfo_001"
 H = {"Authorization": f"Bearer {TOKEN}"}

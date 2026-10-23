@@ -10,7 +10,7 @@ This file serves as the definitive onboarding guide for AI agents (GitHub Copilo
 - **Frontend:** React 18 (SPA), Tailwind CSS, Framer Motion, Recharts, Lucide Icons, Axios.
 - **Backend:** FastAPI (Python 3.9+ / 3.10+), Uvicorn, Motor (Async MongoDB), Pydantic v2.
 - **Database:** MongoDB (Local or MongoDB Atlas) — Database name: `fincfo_db`.
-- **AI Service:** Google Gemini (`gemini-3.6-flash` via `google-generativeai`) with graceful local fallback and legacy `emergentintegrations` support.
+- **AI Service:** Google Gemini (`gemini-3.8-flash` via official `google-genai` / `google-generativeai`) with graceful local offline fallback.
 
 ---
 

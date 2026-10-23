@@ -2045,3 +2045,25 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
   - Zero disruption to existing production users (`jomenpardede@gmail.com`).
   - Brand compliance verified: 0 matches for legacy brand "Nusa".
   - Syntax validated via `node -c` and `py_compile`.
+
+### [2026-10-23 21:10:00 WIB] — Complete Emergent Removal, Documentation Overhaul, GTM Preparation & Quota Recalibration
+- **Agent / Model:** Antigravity (Claude 3.7 Sonnet)
+- **Goal:** Completely eradicate all lingering Emergent platform traces across codebase, audit and modernize all documentation, create a strategic Go-To-Market checklist (`GO_TO_MARKET_CHECKLIST.md`), and recalibrate AI quota limits to ensure high user satisfaction without stinginess.
+- **Key Actions & Changes:**
+  - `backend/ai_service.py`: Completely purged all `EMERGENT_LLM_KEY` and fallback `emergentintegrations` blocks across `advisor_stream`, `parse_transaction_text`, `generate_weekly_recap`, and `scan_receipt`. AI service now exclusively relies on official Google Gemini SDKs (`google-genai` / `google-generativeai`) with clean offline fallbacks.
+  - `backend/tests/backend_test.py`: Replaced old `preview.emergentagent.com` base URL with `http://localhost:8001`.
+  - `.gitconfig`: Removed `emergent-agent-e1` and updated to `Tumara Team <dev@tumara.app>`.
+  - `.kilocode/rules.md`: Modernized rules, removing obsolete Emergent OAuth and supervisor references.
+  - `AGENTS.md`: Updated AI service description to official Gemini SDK.
+  - `memory/test_credentials.md` & `memory/PRD.md`: Completely updated to reflect current independent auth architecture and Round 5 milestones.
+  - `README.md` & `PROJECT_DOCUMENTATION.md`: Fully rewritten to present Tumara v2's modern architecture, clean setup instructions, and feature matrix without any legacy Emergent traces.
+  - Obsolete files cleaned: Removed `render-log-error.txt` and `test_reports/iteration_1.json`.
+  - `backend/ai_quota.py`: Recalibrated monthly AI FUP quotas:
+    - Starter: 10 Scans & 20 Teks AI / bulan (up from 3 & 5).
+    - Pro: 60 Scans & 150 Teks AI / bulan (up from 50 & 100).
+    - Family: 150 Scans & 300 Teks AI / bulan (up from 120 & 250).
+  - `frontend/src/pages/Landing.js` & `frontend/src/components/CheckoutModal.js`: Synchronized pricing tier features with recalibrated quotas.
+  - `GO_TO_MARKET_CHECKLIST.md`: Created comprehensive 6-phase Go-To-Market preparation guide covering Dev vs Prod environment isolation, free Vercel custom domain setup vs registrar costs, Midtrans live cutover, legal/compliance (non-OJK disclaimer, privacy, terms), and support/launch funnels.
+- **Notes & Verification:**
+  - Codebase is 100% clean of all Emergent mentions (verified via global recursive grep).
+  - Syntax validated cleanly with `py_compile` and `node -c`.
