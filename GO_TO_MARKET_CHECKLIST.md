@@ -187,11 +187,10 @@ Agar peluncuran aman dari risiko regulasi maupun kesalahpahaman pengguna:
 Hal-hal teknis yang sering kali menjadi "batu sandungan tak terduga" bagi pembuat aplikasi di hari peluncuran:
 
 ### A. Mengatasi Masalah "Cold Start" Backend di Render Free Tier
-- **Potensi Kendala:** Di paket gratis Render, server backend akan otomatis "tidur" (*spin down*) jika tidak ada request selama 15 menit. Saat calon pembeli membuka website dan klik checkout, mereka bisa mengalami loading 30–50 detik. Beberapa calon pembeli bisa mengira website rusak atau tidak terpercaya.
-- **Solusi Trik Cerdas (Tanpa Biaya):**
-  - [ ] Pasang layanan uptime monitor gratis seperti **UptimeRobot** (uptimerobot.com) atau **Cron-Job.org**.
-  - [ ] Atur HTTP GET ping ke `https://tumara-backend.onrender.com/api/health` setiap 10–12 menit khusus pada jam aktif belanja (pukul 07.00 – 23.00 WIB). Server akan selalu "hangat" (*warm*) dan instan merespons pembeli.
-  - [ ] *(Alternatif saat peluncuran besar)*: Upgrade Render ke paket **Starter (\$7/bulan $\approx$ Rp 110.000)** untuk mematikan mode tidur sepenuhnya.
+- **Status:** **SUDAH AKTIF & SELESAI (100% Resolved)** ✅
+  - [x] Pinger otomatis di **cron-job.org** sudah aktif berjalan mem-ping `https://tumara-backend.onrender.com/api/health` setiap 10 menit.
+  - [x] Riwayat eksekusi terverifikasi konsisten sukses (`200 OK`, latency ~1.03 detik), sehingga server backend Render selalu dalam kondisi hangat (*warm*) dan siap merespons checkout seketika.
+  - [ ] *(Opsional masa depan)*: Jika kelak trafik harian sudah sangat tinggi, bisa upgrade ke Render Starter (\$7/bulan) untuk RAM dan CPU dedicated yang lebih besar.
 
 ### B. Pratinjau Tautan Media Sosial (Social Share Card / Open Graph)
 - **Potensi Kendala:** Saat link `tumara.id` dibagikan di grup WhatsApp, Twitter/X, atau bio Instagram, link hanya muncul berupa teks polos tanpa gambar pratinjau yang memikat.
