@@ -154,9 +154,9 @@ class WalletCreate(BaseModel):
 
     @model_validator(mode="after")
     def _sanitize_debt_balance(self):
-        # Dompet utang (kartu kredit & paylater) saldo tagihannya selalu non-negatif
+        # Dompet utang (kartu kredit & paylater) saldo tagihan tidak boleh minus; jika lunas maka 0
         if self.type in ("credit_card", "paylater") and self.balance is not None:
-            self.balance = abs(float(self.balance))
+            self.balance = max(0.0, float(self.balance))
         return self
 
 

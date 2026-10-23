@@ -20,6 +20,26 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-24 00:13:00 WIB] — Root Cause Elimination: Remove Obsolete Mandiri CC Startup Balance Reset & Negative Debt Clamp
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  - Mengidentifikasi dan membasmi akar masalah (*root cause*) penyebab saldo dompet kartu kredit "Papa - Mandiri CC" berulang kali ter-reset kembali ke angka `Rp 977.055` meskipun user sudah mengoreksi saldonya berkali-kali.
+- **Root Cause Analysis:**
+  1. Pada iterasi sebelumnya (reconciliasi bug klik ganda transaksi lama), sebuah skrip startup ditinggalkan di dalam fungsi `lifespan()` pada `backend/server.py` (baris 139–147) yang memiliki kondisi:
+     `if mandiri_wal and (... or mandiri_wal.get("balance", 0) > 3000000): await db.wallets.update_one(..., {"$set": {"balance": 977055}})`.
+     Setiap kali server backend Render me-restart (setiap push commit git, deploy otomatis, atau cold start reboot), skrip startup tersebut secara paksa menimpa kembali saldo Mandiri CC ke `977055` jika saldo berjalan berada di atas Rp 3.000.000 (yang merupakan saldo wajar tagihan kartu kredit user, misal pelunasan Rp 7.132.994).
+  2. Selain itu, terdapat mekanisme auto-heal di `routes_finance.py` dan `ledger.py` yang menggunakan `abs(balance)` ketika saldo kartu kredit negatif (misal saat pelunasan tagihan melebihi saldo tercatat atau pembayaran tercatat mendahului mutasi). Fungsi `abs(-X)` secara fatal membalikkan status lunas/surplus menjadi utang baru sebesar `+X`, yang kemudian memicu ambang batas `> 3.000.000` di startup script.
+- **Key Actions & Changes:**
+  - `backend/server.py`:
+    - Menghapus tuntas skrip rekonsiliasi lama di `lifespan()` yang secara paksa me-reset saldo Mandiri CC ke `Rp 977.055`.
+  - `backend/models.py`:
+    - Memperbarui `_sanitize_debt_balance`: mengganti `abs(balance)` menjadi `max(0.0, float(balance))` sehingga pelunasan tagihan tidak pernah berbalik menjadi tagihan utang baru.
+  - `backend/routes_finance.py` & `backend/ledger.py`:
+    - Mengganti logika `abs(w["balance"])` menjadi `w["balance"] = 0` pada penanganan dompet utang dengan saldo minus, memastikan status kartu kredit yang lunas tetap bersih di angka Rp 0.
+- **Verification:**
+  - `test_money_integrity.py`: 30/30 unit tests pass 100%. Kompilasi python clean tanpa error.
+
+
 ### [2026-10-23 23:40:00 WIB] — Seamless Credit Card & PayLater Bill Integration with Heatmap Calendar & Atomic Debt Settlement
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**

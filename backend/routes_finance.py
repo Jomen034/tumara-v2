@@ -92,12 +92,11 @@ _snapshot_networth = ledger.snapshot_networth
 @router.get("/wallets")
 async def list_wallets(ctx: Ctx = Depends(get_ctx)):
     wallets = await db.wallets.find({"household_id": ctx.hid}, {"_id": 0}).sort("name", 1).to_list(500)
-    # Auto-heal dompet utang (kartu kredit/paylater) yang saldo tagihannya tersimpan minus
+    # Dompet utang (kartu kredit/paylater) jika saldonya minus (lunas / lebih bayar), tagihan terpakai adalah 0
     for w in wallets:
         if ledger.is_debt_wallet(w) and w.get("balance", 0) < 0:
-            fixed = abs(w["balance"])
-            w["balance"] = fixed
-            await db.wallets.update_one({"id": w["id"], "household_id": ctx.hid}, {"$set": {"balance": fixed}})
+            w["balance"] = 0
+            await db.wallets.update_one({"id": w["id"], "household_id": ctx.hid}, {"$set": {"balance": 0}})
     return wallets
 
 
@@ -152,9 +151,8 @@ async def get_wallet_detail(wallet_id: str, limit: int = 10, ctx: Ctx = Depends(
     if not wallet:
         raise HTTPException(404, "Wallet not found")
     if ledger.is_debt_wallet(wallet) and wallet.get("balance", 0) < 0:
-        fixed = abs(wallet["balance"])
-        wallet["balance"] = fixed
-        await db.wallets.update_one({"id": wallet_id, "household_id": ctx.hid}, {"$set": {"balance": fixed}})
+        wallet["balance"] = 0
+        await db.wallets.update_one({"id": wallet_id, "household_id": ctx.hid}, {"$set": {"balance": 0}})
 
     txn_query = {
         "household_id": ctx.hid,

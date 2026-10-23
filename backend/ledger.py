@@ -117,9 +117,8 @@ async def snapshot_networth(hid: str) -> None:
         for w in wallets:
             w_bal = float(w.get("balance") or 0)
             if is_debt_wallet(w) and w_bal < 0:
-                fixed = abs(w_bal)
-                w["balance"] = fixed
-                await db.wallets.update_one({"id": w["id"], "household_id": hid}, {"$set": {"balance": fixed}})
+                w["balance"] = 0
+                await db.wallets.update_one({"id": w["id"], "household_id": hid}, {"$set": {"balance": 0}})
             else:
                 w["balance"] = w_bal
         assets = sum(float(w.get("balance") or 0) for w in wallets if not is_debt_wallet(w))
