@@ -52,14 +52,14 @@ Saat ini alur perubahan langsung menyentuh `main` (Render & Vercel). Sebelum ada
   - Saat repositori diubah menjadi private, pastikan di menu GitHub: *Settings* $\rightarrow$ *Applications* $\rightarrow$ *Vercel* / *Render* $\rightarrow$ Centang akses ke repositori `tumara-v2` (biasanya otomatis langsung aktif jika opsi default "All repositories" dipilih).
 
 ### C. Akun Google Terpusat (Single Source of Truth)
-- [ ] **Buat Akun Gmail Khusus Tumara** (Contoh: `tumara.finance@gmail.com` atau `official.tumara@gmail.com`):
-  - **Tujuan:** Memisahkan seluruh aset digital bisnis dari email pribadi Anda agar terstruktur, profesional, dan aman dari kebocoran data personal.
-  - **Digunakan untuk:**
+- [x] **Akun Gmail Resmi Tumara:** `tumara.finance@gmail.com` ✅ (Sudah dibuat)
+  - **Tujuan:** Memisahkan seluruh aset digital bisnis dari email pribadi agar terstruktur, profesional, dan aman dari kebocoran data personal.
+  - **Daftar Pemanfaatan Utama:**
     1. Registrasi Akun Merchant Midtrans & Pembukaan Rekening Usaha
-    2. Registrasi Akun Media Sosial (Instagram `@tumara.app`, X/Twitter, TikTok)
-    3. Akun Pengiriman Email Transaksional (Resend / Brevo)
-    4. Google Search Console & Google Analytics
-    5. Inbox Layanan Pengguna (*Customer Care Inbox*)
+    2. Registrasi Akun Pengiriman Email Transaksional (Resend / Brevo)
+    3. Registrasi Akun Media Sosial Resmi (Instagram `@tumara.app`, X/Twitter, TikTok)
+    4. Google Search Console & Google Analytics 4
+    5. Inbox Layanan Pengguna & Dukungan Teknis (*Customer Care Inbox*)
 
 ---
 
