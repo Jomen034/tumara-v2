@@ -9,20 +9,20 @@
 
 ```mermaid
 flowchart TD
-    subgraph Fase 1: Fondasi Teknis & Akun
-        A1["Pemisahan Dev vs Prod\n(Git Branch & DB)"] --> A2["Jadikan Repo GitHub Private\n& Verifikasi PAT"]
-        A2 --> A3["Buat Akun Google Resmi\n(tumara.finance@gmail.com)"]
-        A3 --> A4["Pasang Custom Domain\n(tumara.id di Vercel - Gratis)"]
+    subgraph S1 ["Fase 1: Fondasi Teknis & Akun"]
+        A1["Pemisahan Dev vs Prod<br/>(Git Branch & DB)"] --> A2["Jadikan Repo GitHub Private<br/>& Verifikasi PAT"]
+        A2 --> A3["Buat Akun Google Resmi<br/>(tumara.finance@gmail.com)"]
+        A3 --> A4["Pasang Custom Domain<br/>(tumara.id di Vercel - Gratis)"]
     end
-    subgraph Fase 2: Payment & Unit Economics
-        B1["Daftar Midtrans Production\n(KYC KTP/NPWP/Bank)"] --> B2["Analisa Fee: QRIS 0,7% vs VA\n(Prioritaskan QRIS di UX)"]
-        B2 --> B3["Sistem Email Invoice & Kode Lisensi\n(Resend API - Cadangan Permanen)"]
+    subgraph S2 ["Fase 2: Payment & Unit Economics"]
+        B1["Daftar Midtrans Production<br/>(KYC KTP/NPWP/Bank)"] --> B2["Analisa Fee: QRIS 0,7% vs VA<br/>(Prioritaskan QRIS di UX)"]
+        B2 --> B3["Sistem Email Invoice & Kode Lisensi<br/>(Resend API - Cadangan Permanen)"]
     end
-    subgraph Fase 3: Legal, Keamanan & Distribusi
-        C1["Disclaimer Non-OJK,\nPrivacy Policy & Terms"] --> C2["Highlight Nilai Jual:\nMulti-Device & Auto Sync"]
-        C2 --> C3["Early Bird Launch Funnel\n& Customer Care WA"]
+    subgraph S3 ["Fase 3: Legal, Keamanan & Distribusi"]
+        C1["Disclaimer Non-OJK,<br/>Privacy Policy & Terms"] --> C2["Highlight Nilai Jual:<br/>Multi-Device & Auto Sync"]
+        C2 --> C3["Early Bird Launch Funnel<br/>& Customer Care WA"]
     end
-    Fase 1 --> Fase 2 --> Fase 3
+    S1 --> S2 --> S3
 ```
 
 ---
