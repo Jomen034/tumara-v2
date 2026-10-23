@@ -8,6 +8,7 @@ from routes_finance import router as finance_router
 from routes_ai import router as ai_router
 from routes_household import router as household_router
 from routes_bills import router as bills_router
+from routes_orders import router as orders_router
 
 app = FastAPI(title="Tumara — Personal AI Finance CFO")
 
@@ -80,6 +81,7 @@ api.include_router(finance_router)
 api.include_router(ai_router)
 api.include_router(household_router)
 api.include_router(bills_router)
+api.include_router(orders_router)
 app.include_router(api)
 
 

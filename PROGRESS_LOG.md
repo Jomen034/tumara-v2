@@ -2020,3 +2020,28 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 - **Notes & Important Context:**
   - The app connects to MongoDB via `MONGO_URL` in `backend/.env`.
   - Backend runs on port `8001` and frontend runs on port `3000`.
+### [2026-10-23 16:35:00 WIB] — Dual-Mode Checkout Funnel & Instant Simulation Mode
+- **Agent / Model:** Antigravity (Claude 3.7 Sonnet)
+- **Goal:** Implement an end-to-end checkout & payment funnel for Tumara v2 with a dual-mode engine (Midtrans Snap ready + Sandbox Simulation Mode for testing without active Midtrans credentials), complete with license code generation and seamless onboarding auto-login.
+- **Key Actions & Changes:**
+  - `backend/routes_orders.py`:
+    - Created order model and endpoints: `POST /api/orders/checkout`, `POST /api/orders/simulate-pay`, `GET /api/orders/{order_id}/status`, `POST /api/orders/webhook/midtrans`.
+    - Implemented unique license code generation (`TMR-STR-XXXXXX`, `TMR-PRO-XXXXXX`, `TMR-FAM-XXXXXX`) stored in `db.access_codes`.
+    - Auto-registers buyers upon payment completion (hashed with `bcrypt`), initializes quotas per tier (`ai_quota`), and returns an authenticated user session (`session_token`).
+    - Dual-mode architecture: if `MIDTRANS_SERVER_KEY` is set, calls Midtrans Snap API; if absent, automatically falls back to interactive Sandbox Simulation mode with mock QRIS and Virtual Account data.
+  - `backend/server.py`: Mounted `orders_router` on `/api`.
+  - `frontend/src/components/CheckoutModal.js`:
+    - Designed 3-step modern SaaS checkout drawer/modal inspired by Budggt & Fundy UX.
+    - Step 1: Tier picker (Starter Rp 49k / Pro Rp 99k / Family Rp 169k), Order summary, Name, Email, WhatsApp, Account Password, and Payment Method (QRIS / VA).
+    - Step 2: 24h countdown timer, QRIS simulation box, Virtual Account transfer details, and "⚡ Simulasikan Pembayaran Sukses (Mode Demo)" button.
+    - Step 3: Verified green checkmark, prominent generated license code with 1-click clipboard copy, and "Masuk ke Dashboard Tumara Sekarang ➔" button that transitions directly to `/onboarding` or `/dashboard`.
+  - `frontend/src/pages/Landing.js`:
+    - Connected all Pricing cards ("Pilih Starter", "Beli Pro AI", "Pilih Family Partner") to trigger `CheckoutModal` with preselected tier.
+    - Connected Hero CTA and Bottom CTA buttons to trigger checkout.
+    - Added "Belum punya kode akses? Beli paket lisensi sekarang ➔" link inside the manual registration tab.
+    - Embedded `<CheckoutModal>` seamlessly.
+  - `frontend/src/components/TransactionDetailModal.js`: Fixed Vercel build failure (`Line 113:63: 'walletTo' is not defined no-undef`).
+- **Notes & Verification:**
+  - Zero disruption to existing production users (`jomenpardede@gmail.com`).
+  - Brand compliance verified: 0 matches for legacy brand "Nusa".
+  - Syntax validated via `node -c` and `py_compile`.

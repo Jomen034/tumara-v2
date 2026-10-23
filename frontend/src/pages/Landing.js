@@ -11,6 +11,7 @@ import { useAuth } from "../context/AuthContext";
 import { Spinner, Modal, Input, Button } from "../components/ui";
 import api, { postWithColdStartRetry } from "../lib/api";
 import TumaraLogo from "../components/TumaraLogo";
+import CheckoutModal from "../components/CheckoutModal";
 import clsx from "clsx";
 
 const FEATURES = [
@@ -143,6 +144,15 @@ export default function Landing() {
   });
   const [forgotForm, setForgotForm] = useState({ email: "", token: "", newPassword: "" });
   const [forgotStep, setForgotStep] = useState(1); // 1 = request token, 2 = submit new pw
+
+  // Checkout modal states
+  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
+  const [checkoutTier, setCheckoutTier] = useState("pro");
+
+  const openCheckout = (tierId = "pro") => {
+    setCheckoutTier(tierId);
+    setCheckoutModalOpen(true);
+  };
 
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -378,12 +388,12 @@ export default function Landing() {
             dipandu asisten AI yang memberi arah jelas.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
-            <button data-testid="hero-register-button" onClick={() => { setAuthTab("register"); setAuthModalOpen(true); }}
-              className="inline-flex items-center justify-center gap-3 bg-brand text-black font-semibold px-7 py-3.5 rounded-full hover:brightness-110 transition shadow-lg shadow-[var(--glow)]">
-              Mulai Sekarang Gratis <ArrowRight size={18} />
+            <button data-testid="hero-register-button" onClick={() => openCheckout("pro")}
+              className="inline-flex items-center justify-center gap-3 bg-brand text-black font-semibold px-7 py-3.5 rounded-full hover:brightness-110 transition shadow-lg shadow-[var(--glow)] cursor-pointer">
+              Mulai Sekarang <ArrowRight size={18} />
             </button>
             <button data-testid="hero-login-button" onClick={() => { setAuthTab("login"); setAuthModalOpen(true); }}
-              className="inline-flex items-center justify-center gap-2 bg-elevated text-tprimary font-semibold px-6 py-3.5 rounded-full hover:bg-borderc transition">
+              className="inline-flex items-center justify-center gap-2 bg-elevated text-tprimary font-semibold px-6 py-3.5 rounded-full hover:bg-borderc transition cursor-pointer">
               Sudah punya akun? Masuk
             </button>
           </div>
@@ -549,14 +559,28 @@ export default function Landing() {
               </div>
 
               {registerType === "admin" ? (
-                <Input
-                  label="Kode Akses Pendaftaran (Default: TUMARA2026)"
-                  type="text"
-                  placeholder="TUMARA2026"
-                  value={registerForm.accessCode}
-                  onChange={(e) => setRegisterForm({ ...registerForm, accessCode: e.target.value.toUpperCase() })}
-                  required
-                />
+                <div>
+                  <Input
+                    label="Kode Akses Pendaftaran (Default: TUMARA2026)"
+                    type="text"
+                    placeholder="TUMARA2026"
+                    value={registerForm.accessCode}
+                    onChange={(e) => setRegisterForm({ ...registerForm, accessCode: e.target.value.toUpperCase() })}
+                    required
+                  />
+                  <div className="mt-1.5 text-right">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthModalOpen(false);
+                        openCheckout("pro");
+                      }}
+                      className="text-[11px] text-brand hover:underline font-medium cursor-pointer"
+                    >
+                      Belum punya kode akses? Beli paket lisensi sekarang ➔
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <Input
                   label="Kode Undangan Keluarga"
@@ -749,11 +773,7 @@ export default function Landing() {
 
               <button
                 type="button"
-                onClick={() => {
-                  setRegisterType("admin");
-                  setAuthTab("register");
-                  setAuthModalOpen(true);
-                }}
+                onClick={() => openCheckout(tier.id)}
                 className={clsx(
                   "w-full py-3.5 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer",
                   tier.highlight
@@ -987,7 +1007,7 @@ export default function Landing() {
             <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> Privasi Terenkripsi</span>
             <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> Lifetime License</span>
           </div>
-          <button onClick={() => { setAuthTab("register"); setAuthModalOpen(true); }} data-testid="cta-register-button"
+          <button onClick={() => openCheckout("pro")} data-testid="cta-register-button"
             className="mt-8 inline-flex items-center gap-2 bg-brand text-black font-semibold px-8 py-4 rounded-full hover:brightness-110 transition shadow-lg shadow-[var(--glow)] relative cursor-pointer">
             Mulai Sekarang <ArrowRight size={18} />
           </button>
@@ -1011,6 +1031,13 @@ export default function Landing() {
           </button>
         </div>
       </footer>
+
+      {/* Checkout & Payment Modal (Dual-Mode: Midtrans Snap / Sandbox Simulation) */}
+      <CheckoutModal
+        open={checkoutModalOpen}
+        onClose={() => setCheckoutModalOpen(false)}
+        initialTier={checkoutTier}
+      />
     </div>
   );
 }
