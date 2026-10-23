@@ -41,6 +41,7 @@ export default function TransactionDetailModal({
   const Ic = isTransfer ? Icons.ArrowLeftRight : (Icons[m.icon] || Icons.MoreHorizontal);
 
   const walletFrom = wallets.find((w) => w.id === t.wallet_id);
+  const walletTo = wallets.find((w) => w.id === t.to_wallet_id);
   const member = memberMap?.[t.member_id];
   const updatedMember = memberMap?.[t.updated_by];
 

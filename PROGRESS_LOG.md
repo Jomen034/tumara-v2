@@ -20,6 +20,21 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-23 10:07:00 WIB] — Fix Vercel Build (walletTo no-undef) & Full Landing Page Copywriting Audit
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Memperbaiki error kompilasi Vercel: `src/components/TransactionDetailModal.js: Line 113:63: 'walletTo' is not defined no-undef`.
+  2. Melakukan audit komprehensif terhadap seluruh copywriting di `Landing.js` (Fitur Utama, Alur 3 Langkah, Kuota Paket Harga, FAQ, CTA Banner) agar tidak ada ambiguitas, istilah rancu, atau kalimat kaku.
+- **Key Actions & Changes:**
+  - `frontend/src/components/TransactionDetailModal.js`:
+    - Menambahkan deklarasi `const walletTo = wallets.find((w) => w.id === t.to_wallet_id);` untuk alur transfer antar-dompet sehingga variabel terdefinisi dengan benar dan lulus linting build.
+  - `frontend/src/pages/Landing.js`:
+    - Mengaudit dan menyempurnakan array `FEATURES`: memperjelas Multi-Wallet, Personal AI Advisor, Smart OCR, Budgeting 50/30/20, Financial Goals, dan Health Score.
+    - Memperbarui label kuota teks AI di kartu harga menjadi `Smart Text AI` dan `Shared Pool` yang profesional dan konsisten.
+    - Mengganti teks kasual section 3 langkah (*"Cuma butuh 5 menit. Serius."*) menjadi *headline* bernilai tambah: *"Mulai Rapi dalam 3 Langkah Mudah"* dengan deskripsi langkah yang presisi.
+    - Menyempurnakan CTA Banner penutup menjadi *"Investasi Terbaik untuk Ketenangan Finansial Anda"* dengan badge kepercayaan *Lifetime License*.
+    - Memoles FAQ 1 mengenai perbandingan dengan spreadsheet/aplikasi gratisan.
+
 ### [2026-10-23 10:00:00 WIB] — Refinement Copywriting Landing Page: Cloud AI Framing & Smart Receipt Scan Repackaging
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**

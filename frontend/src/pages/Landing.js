@@ -14,12 +14,12 @@ import TumaraLogo from "../components/TumaraLogo";
 import clsx from "clsx";
 
 const FEATURES = [
-  { icon: Wallet, title: "Semua dompet, satu layar", desc: "Bank, e-wallet, kartu kredit & PayLater. Lihat net worth real-time." },
-  { icon: Sparkles, title: "Tumara AI — CFO pribadimu", desc: "Tanya apa saja. Jawaban personal berbasis kondisi keuanganmu, bukan generik." },
-  { icon: ScanLine, title: "Foto struk, langsung tercatat", desc: "AI baca struk, pisahkan item & kategori otomatis. Tanpa ketik manual." },
-  { icon: PieChart, title: "Budget yang bikin disiplin", desc: "Aturan 50/30/20 atau limit custom. Peringatan saat over-budget." },
-  { icon: Target, title: "Tujuan dengan deadline", desc: "Dana darurat, liburan, DP rumah. Pantau progres tiap setoran." },
-  { icon: TrendingUp, title: "Financial Health Score", desc: "Skor 0–100 + tren pengeluaran & perbandingan bulan ke bulan." },
+  { icon: Wallet, title: "Multi-Wallet & Real-Time Net Worth", desc: "Pantau rekening bank, e-wallet, kartu kredit, hingga PayLater dalam satu kendali portofolio terpadu." },
+  { icon: Sparkles, title: "Personal AI Financial Advisor", desc: "Konsultasi kondisi keuangan kapan saja. Rekomendasi tajam berbasis data riil dompet Anda, bukan saran generik." },
+  { icon: ScanLine, title: "Smart OCR Receipt Scanner", desc: "Cukup foto struk belanja fisik Anda. AI otomatis mengekstrak rincian item, kuantitas, harga, diskon, dan kategori." },
+  { icon: PieChart, title: "Smart Budgeting 50/30/20", desc: "Alokasikan kebutuhan, keinginan, dan tabungan dengan panduan disiplin dan peringatan saat mendekati batas." },
+  { icon: Target, title: "Target Finansial Terukur (Goals)", desc: "Siapkan pos dana darurat, liburan, hingga DP rumah dengan simulasi setoran dan deadline yang jelas." },
+  { icon: TrendingUp, title: "Financial Health Score (0–100)", desc: "Evaluasi kesehatan finansial objektif dari 4 pilar akuntansi pasti secara instan dan bebas halusinasi." },
 ];
 
 const PRICING_TIERS = [
@@ -36,7 +36,7 @@ const PRICING_TIERS = [
       "Budgeting 50/30/20 & Daily Spend Pulse",
       "Kalender Tagihan & Mini Habit Tracker Disiplin",
       "Financial Health Score (0–100)",
-      "3 Scan Struk AI & 5 Teks/Chat AI / bulan",
+      "3 Scan Struk AI & 5 Smart Text AI / bulan",
       "Reset Otomatis Kuota Tiap Tanggal 1",
       "Ekspor Data Lengkap (CSV)",
       "100% Bebas Iklan & Pelacak Komersial",
@@ -53,7 +53,7 @@ const PRICING_TIERS = [
     badge: "Paling Populer · Best Value",
     features: [
       "Semua fitur di Paket Starter",
-      "50 Scan Struk AI & 100 Teks/Chat AI / bulan",
+      "50 Scan Struk AI & 100 Smart Text AI / bulan",
       "Reset Otomatis Kuota Tiap Tanggal 1",
       "AI Financial Advisor Interaktif (Personal CFO)",
       "Weekly AI Financial Health Recap Otomatis",
@@ -77,7 +77,7 @@ const PRICING_TIERS = [
       "Shared Net Worth & Portofolio Bersama",
       "Split Member Spend Tracking per Anggota",
       "Kalender Tagihan Bersama Real-Time",
-      "120 Scan Struk AI & 250 Teks/Chat AI / bulan (Pool)",
+      "120 Scan Struk AI & 250 Smart Text AI / bulan (Shared Pool)",
       "Reset Otomatis Kuota Tiap Tanggal 1",
       "Kontrol Dompet Pribadi vs Dompet Bersama",
       "Dukungan WhatsApp Priority",
@@ -89,8 +89,8 @@ const PRICING_TIERS = [
 
 const FAQS = [
   {
-    q: "Kenapa harus pakai Tumara jika ada Excel gratis atau aplikasi gratisan di Play Store?",
-    a: "Excel dan template gratis sering berakhir terbengkalai karena melelahkan mengetik angka satu per satu. Aplikasi gratisan di Play Store sering kali memonetisasi data finansial pengguna ke broker iklan atau pinjaman online. Tumara menghadirkan AI Scan Struk otomatis (cukup foto bon), 100% Bebas Iklan & Tanpa Pelacak Pihak Ketiga, serta Sinkronisasi Pasangan Real-Time yang mustahil dilakukan di spreadsheet.",
+    q: "Kenapa memilih Tumara dibanding spreadsheet manual atau aplikasi gratisan?",
+    a: "Spreadsheet dan template gratis sering kali terbengkalai karena melelahkan mengetik angka manual satu per satu. Di sisi lain, aplikasi gratisan di toko aplikasi kerap memonetisasi data finansial pengguna ke broker iklan pihak ketiga. Tumara menghadirkan Smart OCR Scanner (cukup foto struk belanja), privasi 100% bebas pelacak komersial, serta sinkronisasi rumah tangga real-time yang aman dan teruji.",
     tag: "Privasi & Kemudahan",
   },
   {
@@ -663,17 +663,22 @@ export default function Landing() {
 
       {/* steps */}
       <section className="max-w-4xl mx-auto px-5 py-16">
-        <h2 className="text-2xl sm:text-4xl font-head font-bold text-center">Cuma butuh 5 menit. Serius.</h2>
+        <h2 className="text-2xl sm:text-4xl font-head font-bold text-center">
+          Mulai Rapi dalam <span className="brand-gradient-text">3 Langkah Mudah.</span>
+        </h2>
+        <p className="text-center text-sm text-tsecondary mt-2 max-w-md mx-auto">
+          Setup cepat dalam hitungan menit untuk kendali finansial jangka panjang.
+        </p>
         <div className="grid sm:grid-cols-3 gap-6 mt-12">
           {[
-            { n: "1", t: "Masukkan dompetmu", d: "Rekening, e-wallet, kartu kredit sampai PayLater." },
-            { n: "2", t: "Tentukan budget", d: "Bagi penghasilan pakai aturan yang cocok buatmu." },
-            { n: "3", t: "Catat & lihat polanya", d: "Foto struk atau input manual, AI bantu analisis." },
+            { n: "1", t: "Daftarkan Dompet", d: "Rekening bank, e-wallet, kartu kredit, hingga saldo PayLater." },
+            { n: "2", t: "Tentukan Alokasi", d: "Gunakan panduan 50/30/20 atau sesuaikan limit pos anggaranmu." },
+            { n: "3", t: "Catat & Evaluasi", d: "Foto struk belanja atau ketik santai, AI dan dashboard otomatis merapikannya." },
           ].map((s) => (
             <div key={s.n} className="text-center">
               <div className="w-12 h-12 rounded-2xl bg-brand text-black font-head font-extrabold text-xl flex items-center justify-center mx-auto mb-4">{s.n}</div>
-              <h3 className="font-semibold">{s.t}</h3>
-              <p className="text-sm text-tsecondary mt-1">{s.d}</p>
+              <h3 className="font-semibold text-tprimary">{s.t}</h3>
+              <p className="text-sm text-tsecondary mt-1 leading-relaxed">{s.d}</p>
             </div>
           ))}
         </div>
@@ -971,16 +976,20 @@ export default function Landing() {
       <section className="max-w-4xl mx-auto px-5 py-20 text-center">
         <div className="bg-surface border border-borderc rounded-3xl p-10 sm:p-14 relative overflow-hidden">
           <div className="absolute inset-0 opacity-10 blur-3xl" style={{ background: "radial-gradient(circle at 50% 0%, var(--brand), transparent 60%)" }} />
-          <h2 className="text-2xl sm:text-4xl font-head font-extrabold relative">Dirimu di masa depan akan berterima kasih.</h2>
-          <p className="text-tsecondary mt-3 relative">Pegang kendali finansialmu hari ini dengan arah yang jelas.</p>
-          <div className="flex flex-wrap justify-center gap-3 mt-6 relative text-sm text-tsecondary">
-            <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> Tanpa iklan</span>
-            <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> Data tidak dijual</span>
-            <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> Mode privasi</span>
+          <h2 className="text-2xl sm:text-4xl font-head font-extrabold relative">
+            Investasi Terbaik untuk <span className="brand-gradient-text">Ketenangan Finansial Anda.</span>
+          </h2>
+          <p className="text-tsecondary mt-3 relative max-w-lg mx-auto text-sm sm:text-base leading-relaxed">
+            Pegang kendali penuh atas uang, tabungan, dan masa depan finansial keluarga Anda hari ini. Sekali bayar, akses selamanya.
+          </p>
+          <div className="flex flex-wrap justify-center gap-4 mt-6 relative text-xs sm:text-sm text-tsecondary">
+            <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> 100% Bebas Iklan</span>
+            <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> Privasi Terenkripsi</span>
+            <span className="flex items-center gap-1.5"><Check size={16} className="text-brand" /> Lifetime License</span>
           </div>
           <button onClick={() => { setAuthTab("register"); setAuthModalOpen(true); }} data-testid="cta-register-button"
             className="mt-8 inline-flex items-center gap-2 bg-brand text-black font-semibold px-8 py-4 rounded-full hover:brightness-110 transition shadow-lg shadow-[var(--glow)] relative cursor-pointer">
-            Mulai atur keuangan <ArrowRight size={18} />
+            Mulai Sekarang <ArrowRight size={18} />
           </button>
         </div>
       </section>
