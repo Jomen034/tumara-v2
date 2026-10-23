@@ -82,8 +82,7 @@ async def _auto_register_buyer(name: str, email: str, password: str, tier: str, 
         return {"already_registered": True, "user": None, "session_token": None}
 
     user_tier = tier
-    from deps import new_household_id
-    household_id = new_household_id()
+    household_id = None
     
     limits = TIER_LIMITS.get(user_tier, TIER_LIMITS["pro"])
     ai_usage = {
