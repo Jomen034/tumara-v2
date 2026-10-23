@@ -2067,3 +2067,20 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 - **Notes & Verification:**
   - Codebase is 100% clean of all Emergent mentions (verified via global recursive grep).
   - Syntax validated cleanly with `py_compile` and `node -c`.
+
+### [2026-10-23 22:35:00 WIB] — Cleaned Default Access Code, Added Multi-Device Sync Copy & Expanded GTM Checklist
+- **Agent / Model:** Antigravity (Claude 3.7 Sonnet)
+- **Goal:** Remove all default access code references from landing page copy, add Multi-Device & Cloud Sync value propositions, and expand the master GTM checklist with transactional email funnel architecture, Midtrans vs Lynk.id fee economics, and GitHub private repository guidance.
+- **Key Actions & Changes:**
+  - `frontend/src/pages/Landing.js`:
+    - Cleaned default `TUMARA2026` from registration form state (`accessCode: ""`).
+    - Updated label to `"Kode Akses Lisensi"` and placeholder to `"Contoh: TMR-PRO-XXXXXX"`.
+    - Added Hero badge: `"Multi-Device & Auto Sync (HP & Laptop)"`.
+    - Added dedicated FAQ entry explaining real-time multi-device cloud synchronization between smartphone app (PWA) and office laptop/PC.
+  - `GO_TO_MARKET_CHECKLIST.md`:
+    - Detailed GitHub Private Repository cutover analysis verifying that `osxkeychain` GitHub PAT retains full access.
+    - Added Single Source of Truth recommendations for dedicated Google account (`tumara.finance@gmail.com`).
+    - Added Funnel UX Analysis contrasting instant web onboarding with automated Resend transactional email backup.
+    - Added in-depth Fee & Net Margin Comparison between Midtrans (QRIS 0,7% MDR) and Lynk.id (5% platform fee).
+- **Notes & Verification:**
+  - Validated JS syntax via `node -c`.

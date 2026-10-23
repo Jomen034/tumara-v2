@@ -124,6 +124,11 @@ const FAQS = [
     a: "Tidak perlu jika Anda memilih Paket Family Partner. 1 Lisensi Family langsung berlaku untuk 2–3 akun pengguna (suami & istri / partner) dengan kalender tagihan bersama, split tracking transaksi per anggota, dan gabungan net worth real-time.",
     tag: "Kolaborasi Keluarga",
   },
+  {
+    q: "Apakah Tumara bisa diakses di beberapa perangkat (HP dan Laptop) secara bersamaan?",
+    a: "Bisa dan otomatis tersinkronisasi! Tumara berbasis cloud database terenkripsi modern. Anda bisa menginstal Tumara sebagai aplikasi di smartphone (Android & iOS) untuk input transaksi cepat saat berbelanja, sekaligus membukanya di browser laptop atau PC kantor untuk evaluasi anggaran bulanan di layar besar. Semua data terupdate secara real-time antar perangkat.",
+    tag: "Multi-Device & Cloud Sync",
+  },
 ];
 
 export default function Landing() {
@@ -140,7 +145,7 @@ export default function Landing() {
   // Form states
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [registerForm, setRegisterForm] = useState({
-    name: "", email: "", password: "", accessCode: "TUMARA2026", inviteCode: ""
+    name: "", email: "", password: "", accessCode: "", inviteCode: ""
   });
   const [forgotForm, setForgotForm] = useState({ email: "", token: "", newPassword: "" });
   const [forgotStep, setForgotStep] = useState(1); // 1 = request token, 2 = submit new pw
@@ -397,10 +402,10 @@ export default function Landing() {
               Sudah punya akun? Masuk
             </button>
           </div>
-          <div className="flex items-center gap-5 mt-8 text-xs text-tmuted">
-            <span className="flex items-center gap-1.5"><ShieldCheck size={15} className="text-brand" /> Data terenkripsi</span>
-            <span className="flex items-center gap-1.5"><Smartphone size={15} className="text-brand" /> Install di HP</span>
-            <span className="flex items-center gap-1.5"><Moon size={15} className="text-brand" /> Mode gelap</span>
+          <div className="flex flex-wrap items-center gap-5 mt-8 text-xs text-tmuted">
+            <span className="flex items-center gap-1.5"><ShieldCheck size={15} className="text-brand" /> Cloud terenkripsi</span>
+            <span className="flex items-center gap-1.5"><Smartphone size={15} className="text-brand" /> Multi-Device & Auto Sync (HP & Laptop)</span>
+            <span className="flex items-center gap-1.5"><Moon size={15} className="text-brand" /> PWA & Mode Gelap</span>
           </div>
         </motion.div>
 
@@ -561,9 +566,9 @@ export default function Landing() {
               {registerType === "admin" ? (
                 <div>
                   <Input
-                    label="Kode Akses Pendaftaran (Default: TUMARA2026)"
+                    label="Kode Akses Lisensi"
                     type="text"
-                    placeholder="TUMARA2026"
+                    placeholder="Contoh: TMR-PRO-XXXXXX"
                     value={registerForm.accessCode}
                     onChange={(e) => setRegisterForm({ ...registerForm, accessCode: e.target.value.toUpperCase() })}
                     required
