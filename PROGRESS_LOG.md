@@ -20,6 +20,18 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-23 10:00:00 WIB] — Refinement Copywriting Landing Page: Cloud AI Framing & Smart Receipt Scan Repackaging
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Menghilangkan penyebutan eksplisit pihak ketiga (*"Google Gemini Vision & LLM"*) pada landing page, menggantikannya dengan terminologi netral dan modern: **"Didukung Cloud AI Modern"**.
+  2. Mengemas ulang poin fitur OCR struk belanja dari yang sebelumnya kaku (*"Deteksi Pajak Resto PB1 & Berat Desimal Toko"*) menjadi proposisi nilai yang lebih elegan, profesional, dan bernilai jual tinggi: **"Smart Itemized Receipt Scan (Ekstraksi Otomatis per Item Belanja & Diskon)"** dan **"Smart OCR Receipt Scanner"**.
+  3. Memoles narasi FAQ arsitektur teknis agar tidak ambigu, mengalir alami, dan memadukan istilah industri secara tepat.
+- **Key Actions & Changes:**
+  - `frontend/src/pages/Landing.js`:
+    - Mengganti teks fitur Paket Pro menjadi `"Smart Itemized Receipt Scan (Ekstraksi Otomatis per Item Belanja & Diskon)"` dan `"AI Financial Advisor Interaktif (Personal CFO)"`.
+    - Memperbarui header section transparansi menjadi `"Didukung Cloud AI Modern"` dan merapikan 4 pilar fitur Cloud AI (`Smart OCR Receipt Scanner`, `AI Financial Advisor`, `Natural Language Quick Input`, `Weekly AI Health Recap`).
+    - Menyempurnakan jawaban FAQ nomor 2 terkait arsitektur akuntansi ganda dan penanganan struk belanja yang kompleks.
+
 ### [2026-10-23 09:50:00 WIB] — Automated E2E Test Suite 100% PASS (Starter -> Pro -> Family Tier Lifecycle & Mathematical Invariants)
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**

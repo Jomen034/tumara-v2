@@ -55,9 +55,9 @@ const PRICING_TIERS = [
       "Semua fitur di Paket Starter",
       "50 Scan Struk AI & 100 Teks/Chat AI / bulan",
       "Reset Otomatis Kuota Tiap Tanggal 1",
-      "Konsultasi Finansial Aktif Tumara AI CFO",
+      "AI Financial Advisor Interaktif (Personal CFO)",
       "Weekly AI Financial Health Recap Otomatis",
-      "Deteksi Pajak Resto PB1 & Berat Desimal Toko",
+      "Smart Itemized Receipt Scan (Ekstraksi Otomatis per Item Belanja & Diskon)",
       "Cadangan Database JSON & Ekspor CSV",
       "Mode Privasi Blur Seketika",
       "Prioritas Akses Fitur Terbaru",
@@ -94,8 +94,8 @@ const FAQS = [
     tag: "Privasi & Kemudahan",
   },
   {
-    q: "Dengan AI siapa saja bisa bikin aplikasi keuangan (vibe coding). Apa bedanya Tumara?",
-    a: "Meminta AI membuat tampilan sederhana memang mudah, tetapi aplikasi finansial sungguhan menuntut akurasi akuntansi ganda dan edge-case yang kompleks. Tumara menangani receipt item berskala berat desimal (seperti buah/daging 0.918 kg), perhitungan pajak PB1 (inklusif vs eksklusif), isolasi data multi-tenant rumah tangga, guardrail budgeting 50/30/20, hingga rollback saldo otomatis saat transaksi dihapus. Aplikasi instan tanpa arsitektur teruji rentan salah hitung dan membocorkan data pribadi Anda.",
+    q: "Dengan maraknya tren membuat aplikasi dengan AI (vibe coding), apa pembeda arsitektur Tumara?",
+    a: "Membuat tampilan visual sederhana dengan bantuan AI memang cepat, tetapi aplikasi finansial sungguhan menuntut integritas data dan akurasi akuntansi ganda yang presisi. Tumara dibangun dengan engine akuntansi teruji: menangani receipt scanning kompleks (rincian item beruntun, potongan diskon promo, hingga subtotal toko), isolasi data multi-user rumah tangga yang aman, aturan pelunasan kartu kredit/PayLater, hingga automatic balance rollback saat transaksi diedit atau dihapus. Tanpa arsitektur akuntansi yang matang, aplikasi rentan salah hitung saldo dan membocorkan privasi finansial Anda.",
     tag: "Arsitektur & Akurasi",
   },
   {
@@ -821,39 +821,39 @@ export default function Landing() {
             <div className="flex items-center gap-2.5 mb-4 text-brand">
               <Sparkles size={20} />
               <h3 className="font-head font-bold text-base text-tprimary">
-                Didukung Cloud AI (Google Gemini Vision & LLM)
+                Didukung Cloud AI Modern
               </h3>
             </div>
             <p className="text-xs text-tsecondary mb-5 leading-relaxed">
-              Membutuhkan biaya komputasi server tinggi sehingga diatur dengan kuota bulanan Fair Usage Policy (FUP) yang adil:
+              Membutuhkan komputasi server tinggi sehingga diatur dengan kuota bulanan Fair Usage Policy (FUP) yang adil:
             </p>
             <ul className="space-y-3.5 text-xs text-tsecondary">
               <li className="flex items-start gap-2.5">
                 <CheckCircle2 size={16} className="text-brand shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-tprimary block">Scan Struk Belanja Otomatis (Vision OCR)</strong>
-                  Membaca foto struk toko fisik, merinci nama item belanjaan, pajak resto PB1, dan berat timbangan desimal (produce/buah/sayur).
+                  <strong className="text-tprimary block">Smart OCR Receipt Scanner</strong>
+                  Cukup foto struk belanja fisik Anda. Cloud AI secara otomatis membaca nama item, kuantitas, harga satuan, potongan diskon, hingga total akhir secara presisi.
                 </div>
               </li>
               <li className="flex items-start gap-2.5">
                 <CheckCircle2 size={16} className="text-brand shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-tprimary block">Konsultasi Finansial Interaktif (Tumara AI CFO)</strong>
-                  Tanya jawab strategi uang, evaluasi pos bocor halus, dan saran finansial personal berbasis data dompet nyata.
+                  <strong className="text-tprimary block">AI Financial Advisor (Personal CFO)</strong>
+                  Konsultasi interaktif untuk evaluasi cash flow bulanan, deteksi pos kebocoran anggaran (*bocor halus*), dan rekomendasi finansial berbasis data riil portofolio Anda.
                 </div>
               </li>
               <li className="flex items-start gap-2.5">
                 <CheckCircle2 size={16} className="text-brand shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-tprimary block">Catat Cepat Ketikan Bahasa Sehari-hari</strong>
-                  Cukup ketik santai seperti <em>&quot;ngopi di fore 38rb pake gopay&quot;</em> dan AI otomatis mengubahnya jadi transaksi rapi.
+                  <strong className="text-tprimary block">Natural Language Quick Input</strong>
+                  Cukup ketik santai seperti <em>&quot;makan siang soto 35rb pake gopay&quot;</em> atau <em>&quot;beli bensin 50rb bca&quot;</em>, AI langsung memetakan nominal, kategori, dan dompet yang tepat.
                 </div>
               </li>
               <li className="flex items-start gap-2.5">
                 <CheckCircle2 size={16} className="text-brand shrink-0 mt-0.5" />
                 <div>
                   <strong className="text-tprimary block">Weekly AI Health Recap (Pro & Family)</strong>
-                  Narasi evaluasi mingguan otomatis mengevaluasi kebiasaan belanja dan progres finansialmu.
+                  Rangkuman naratif mingguan otomatis yang mengevaluasi ritme belanja, tren tabungan, dan progres target finansial keluarga Anda.
                 </div>
               </li>
             </ul>
