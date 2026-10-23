@@ -175,6 +175,52 @@ Agar peluncuran aman dari risiko regulasi maupun kesalahpahaman pengguna:
   - **Komunitas Frugal Living & Melek Finansial (Instagram / TikTok)**: Tampilkan video demo 15 detik fitur Scan Struk OCR itemized dan Budgeting 50/30/20.
   - **Kupon Promo Early Bird**: Diskon khusus untuk 50 atau 100 pembeli pertama untuk memicu *social proof* dan testimoni awal.
 
+- [ ] **SOP Penanganan Transaksi Bermasalah & Refund Policy**:
+  - Apa yang terjadi jika pembeli sudah transfer via e-wallet tapi koneksi internet mereka terputus sebelum webhook terpanggil?
+  - Siapkan protokol CS: Admin memverifikasi order di dashboard Midtrans, lalu memberikan kode lisensi manual atau melakukan re-trigger via endpoint status.
+  - Garansi 7 hari uang kembali jika terjadi kendala teknis yang tidak dapat diselesaikan oleh sistem.
+
+---
+
+## 7. Kesiapan Operasional, Reliabilitas & Pencegahan Kendala Hari-H (Day-1 Resilience)
+
+Hal-hal teknis yang sering kali menjadi "batu sandungan tak terduga" bagi pembuat aplikasi di hari peluncuran:
+
+### A. Mengatasi Masalah "Cold Start" Backend di Render Free Tier
+- **Potensi Kendala:** Di paket gratis Render, server backend akan otomatis "tidur" (*spin down*) jika tidak ada request selama 15 menit. Saat calon pembeli membuka website dan klik checkout, mereka bisa mengalami loading 30–50 detik. Beberapa calon pembeli bisa mengira website rusak atau tidak terpercaya.
+- **Solusi Trik Cerdas (Tanpa Biaya):**
+  - [ ] Pasang layanan uptime monitor gratis seperti **UptimeRobot** (uptimerobot.com) atau **Cron-Job.org**.
+  - [ ] Atur HTTP GET ping ke `https://tumara-backend.onrender.com/api/health` setiap 10–12 menit khusus pada jam aktif belanja (pukul 07.00 – 23.00 WIB). Server akan selalu "hangat" (*warm*) dan instan merespons pembeli.
+  - [ ] *(Alternatif saat peluncuran besar)*: Upgrade Render ke paket **Starter (\$7/bulan $\approx$ Rp 110.000)** untuk mematikan mode tidur sepenuhnya.
+
+### B. Pratinjau Tautan Media Sosial (Social Share Card / Open Graph)
+- **Potensi Kendala:** Saat link `tumara.id` dibagikan di grup WhatsApp, Twitter/X, atau bio Instagram, link hanya muncul berupa teks polos tanpa gambar pratinjau yang memikat.
+- **Solusi (Sudah Diterapkan di `index.html`):**
+  - [x] Tag Open Graph (`og:title`, `og:description`, `og:image`, `og:url`) dan `twitter:card` sudah dipasang dengan gambar banner resolusi tinggi (`logo512.png`).
+  - [ ] Uji coba pratinjau link menggunakan **Facebook Sharing Debugger** atau kirim tes ke WhatsApp chat pribadi.
+
+### C. Monitoring Error & Notifikasi Crash Real-Time (Sentry)
+- **Potensi Kendala:** Jika ada calon pembeli menggunakan browser spesifik (misal browser bawaan Xiaomi atau Safari versi lama) dan mendapati tombol checkout tidak bisa diklik, Anda tidak akan pernah mengetahuinya tanpa komplain pengguna.
+- **Solusi:**
+  - [ ] Pasang **Sentry** (sentry.io - paket gratis mengizinkan 5.000 error/bulan).
+  - [ ] Begitu ada error JavaScript di sisi browser pengguna atau exception di backend, Sentry langsung mengirimkan notifikasi ke email Anda lengkap dengan nomor baris kode dan tipe perangkat pengguna.
+
+### D. Analitik Perilaku Pengguna & Corong Konversi (Funnel Analytics)
+- **Potensi Kendala:** Anda tidak tahu dari 100 pengunjung, berapa yang klik tombol "Beli", berapa yang membuka modal, dan di kolom isian mana mereka membatalkan pembelian (*drop-off*).
+- **Solusi:**
+  - [ ] Pasang **PostHog** (posthog.com - gratis 1 juta events/bulan) atau **Google Analytics 4**.
+  - [ ] PostHog memiliki fitur luar biasa: **Session Replay** (rekaman pergerakan mouse/taps pengguna secara anonim), sehingga Anda bisa melihat langsung di mana letak kebingungan calon pengguna baru.
+
+### E. Verifikasi Google OAuth untuk Produksi (Google Cloud Console)
+- **Potensi Kendala:** Jika login menggunakan Google OAuth diaktifkan untuk publik, aplikasi yang belum diverifikasi di Google Cloud Console akan menampilkan layar peringatan merah: *"Google hasn't verified this app"*.
+- **Solusi:**
+  - [ ] Tambahkan domain resmi (`tumara.id`) ke daftar *Authorized JavaScript Origins* dan *Authorized Redirect URIs* di Google Cloud Console.
+  - [ ] Pastikan link Privacy Policy dan Terms of Service terisi di konsol Google sebelum membuka login Google untuk publik.
+  - [ ] Atau posisikan Email & Password sebagai metode pendaftaran utama yang paling stabil dan bebas blokir.
+
+### F. Kepatuhan UU Perlindungan Data Pribadi (UU PDP No. 27/2022)
+- [ ] Pastikan hak pengguna untuk menghapus akun dan mengekspor data finansial tercantum jelas di halaman Privasi (Tumara sudah mendukung fitur ekspor CSV dan penghapusan data di menu Pengaturan Akun).
+
 ---
 
 _Dokumen ini adalah aset panduan resmi tim Tumara menuju peluncuran komersial yang sukses dan berkelanjutan._
