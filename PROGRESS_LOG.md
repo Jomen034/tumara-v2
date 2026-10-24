@@ -77,7 +77,7 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
       - Header dirampingkan dengan badge `[CFO Pribadi]` dan tombol FUP serta Sesi Baru yang minimalis.
       - Ruang baca chat di smartphone meningkat lebih dari 200%.
 - **Commit:**
-  - `29edceb`: `fix(advisor): session-scoped privacy banner lifecycle & add info toggle` (pushed to `origin main`).
+  - `31b7f23`: `fix(ai): ground-truth budget math & compact mobile UI revamp for Tumara AI` (pushed to `origin main`).
 
 ### [2026-10-24 23:28:00 WIB] — Unified Sisa Kuota (Remaining FUP) Standardization Across All Touchpoints
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
@@ -101,6 +101,8 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
     - Memperbarui widget sidebar kiri (desktop & mobile) menjadi: `Scan: Sisa [Remaining]/[Limit]` dan `Teks: Sisa [Remaining]/[Limit]`, dengan progress bar yang mencerminkan sisa kuota yang masih tersedia.
 - **Verification:**
   - Git diff terverifikasi bersih di seluruh 5 komponen frontend.
+- **Commit:**
+  - `266f928`: `feat(quota): unify all AI quota touchpoints to explicit Sisa Kuota convention` (pushed to `origin main`).
 
 ### [2026-10-24 23:20:00 WIB] — Privacy Banner Lifecycle & Session-Scoped Reappearance UX
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
@@ -115,6 +117,8 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
     - Menambahkan tombol interaktif `[🛡️ Info Privasi]` di header samping badge *CFO Pribadi* ketika banner sedang ditutup, memberi keleluasaan user untuk memunculkan kembali banner kapan pun tanpa harus me-refresh halaman.
 - **Verification:**
   - Git diff terverifikasi bersih.
+- **Commit:**
+  - `29edceb`: `fix(advisor): session-scoped privacy banner lifecycle & add info toggle` (pushed to `origin main`).
 
 ### [2026-10-24 23:15:00 WIB] — Tumara AI User Prompt Logging & Transparent Privacy Copywriting
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
@@ -133,6 +137,8 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 - **Verification:**
   - `python3 -m py_compile backend/routes_ai.py` lulus 100% (exit code 0).
   - Git diff terverifikasi bersih.
+- **Commit:**
+  - `f53a558`: `feat(ai): capture user prompt logs for audit & update privacy copywriting` (pushed to `origin main`).
 
 ### [2026-10-24 23:02:00 WIB] — Fix White-on-White Input Contrast & Global Form Control Dark Mode Normalization
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
@@ -152,6 +158,8 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
     - Menambahkan `pointer-events-none select-none z-10` pada label "Rp" agar klik input tidak terhalang.
 - **Verification:**
   - Git diff terverifikasi bersih.
+- **Commit:**
+  - `3fa8eec`: `fix(budget): resolve white-on-white input contrast & normalize dark mode form controls` (pushed to `origin main`).
 
 ### [2026-10-24 22:50:00 WIB] — 50/30/20 Smart Budgeting Hierarchy, Reflective Insights & Interactive Next-Month Budget Modal
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
@@ -182,6 +190,9 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 - **Verification:**
   - `python3 -m py_compile backend/routes_finance.py backend/models.py backend/categories.py` lulus 100% (exit code 0).
   - Git diff dan integrasi komponen terverifikasi bersih.
+- **Commit:**
+  - `9089b56`: `feat(budget): 50/30/20 reflective recommendations & interactive NextMonthBudgetModal` (pushed to `origin main`).
+  - `343cb04`: `feat(budget): add Budget vs Actual section, pacing speed barometer & next-month smart reallocation` (pushed to `origin main`).
 
 ### [2026-10-24 00:13:00 WIB] — Root Cause Elimination: Remove Obsolete Mandiri CC Startup Balance Reset & Negative Debt Clamp
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
