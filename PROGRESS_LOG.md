@@ -20,6 +20,44 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-24 21:55:00 WIB] — Smart Budgeting: Budget vs Actual Variance Section, Pacing Speed Barometer & Next-Month Reallocation Engine
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Mengeksekusi section baru di Halaman Budget: **Rangkuman Budget vs Aktual & Pacing Finansial**.
+  2. Memberikan evaluasi *data-driven* komparasi makro antara rencana awal bulan dengan realisasi pengeluaran berjalan (nominal rencana, realisasi, variance surplus/defisit, dan rasio penyerapan).
+  3. Membangun *Pacing Speed Barometer* untuk membandingkan laju pengeluaran uang terhadap perjalanan hari kalender (indikator: Sangat Hemat, Pacing Ideal, Pacing Cepat, atau Defisit Over Budget).
+  4. Menyediakan *Actionable Insights per Pos* (Top Surplus & Top Deficit) untuk mendeteksi pos paling longgar vs pos paling membengkak secara real-time.
+  5. Menghadirkan **Smart Reallocation Engine**: rekomendasi cerdas penyesuaian anggaran bulan depan (misal: menggeser surplus dari pos Belanja untuk menutup defisit di pos Makanan & Minuman) dengan tombol aksi 1-klik `[Terapkan Saran ke Bulan Depan]`.
+  6. Menyediakan pintasan konsultasi langsung ke Tumara AI (`[Tanya Tumara AI: Evaluasi Anggaran]`) yang secara otomatis menyuntikkan prompt analisis anggaran ke halaman chat.
+- **Key Actions & Changes:**
+  - `backend/models.py`:
+    - Memperbarui model `BudgetCreate`: menambahkan field opsional `month: Optional[str] = None` agar penyimpanan alokasi anggaran dapat ditargetkan ke bulan depan (`YYYY-MM`).
+  - `backend/categories.py`:
+    - Menambahkan helper fungsi format Rupiah baku `_rp(n)`.
+  - `backend/routes_finance.py`:
+    - Mengintegrasikan analitik pada endpoint `GET /budget`:
+      - Menghitung `total_budget`, `variance`, dan `realization_pct`.
+      - Menghitung komparasi hari kalender `elapsed_day_pct` vs penyerapan belanja.
+      - Menentukan klasifikasi `pacing_status` (`frugal`, `balanced`, `fast`, `over`, `idle`).
+      - Menyaring `top_surplus` dan `top_deficit` pos anggaran.
+      - Menghitung rekomendasi alokasi cerdas (`smart_recommendations`) antar-pos surplus dan defisit.
+    - Memperbarui `POST /budget` untuk mendukung penyimpanan anggaran dengan target bulan spesifik (`month`).
+  - `frontend/src/components/BudgetVsActualSection.js`:
+    - Membuat komponen baru yang elegan dan responsif:
+      - 3 kartu ringkasan makro (Rencana Anggaran, Realisasi Pengeluaran, Variance Selisih).
+      - Visual *Double Progress Bar* (Kalender Waktu vs Uang Terserap).
+      - Rincian komparasi 2-kolom: Pos Paling Longgar (Surplus) vs Pos Paling Tertekan (Defisit).
+      - Banner Rekomendasi Cerdas AI Bulan Depan dengan tombol aksi langsung `[⚡ Terapkan ke Bulan Depan]` dan tombol `[Tanya Tumara AI]`.
+  - `frontend/src/pages/Budget.js`:
+    - Mengimpor dan merender `BudgetVsActualSection` tepat di bawah kartu Hero Summary.
+    - Menambahkan fungsi `handleApplyRecommendation` yang otomatis menghitung nama bulan depan, menerapkan pergeseran limit pos secara presisi, menyimpan ke backend, dan menampilkan toast interaktif dengan tombol buka bulan depan.
+    - Menambahkan fungsi `handleConsultAdvisor` yang mengarahkan user ke `/advisor` dengan prompt evaluasi budget siap pakai.
+  - `frontend/src/pages/Advisor.js`:
+    - Menambahkan penanganan `location.state?.initialPrompt` agar saat diarahkan dari halaman Budget, pesan evaluasi otomatis terkirim tanpa user perlu mengetik ulang.
+- **Verification:**
+  - Kompilasi Python syntax backend lulus 100% tanpa error.
+  - Komponen frontend responsif di mobile & desktop.
+
 ### [2026-10-24 21:30:00 WIB] — Ground-Truth Budget Math Integration for Tumara AI & Mobile Space Optimization Revamp
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Sparkles,
@@ -28,6 +29,7 @@ const SUGGESTIONS = [
 const SESSION_STORAGE_KEY = "tumara_advisor_session";
 
 export default function Advisor() {
+  const location = useLocation();
   const { user, aiUsage, refreshAiUsage } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -44,6 +46,7 @@ export default function Advisor() {
   });
   const scrollRef = useRef();
   const accRef = useRef("");
+  const initialPromptHandled = useRef(false);
 
   // Load ephemeral session from sessionStorage on mount
   useEffect(() => {
@@ -58,6 +61,15 @@ export default function Advisor() {
     } catch {}
     setLoading(false);
   }, []);
+
+  // Auto-send initial prompt if routed from Budget or other pages
+  useEffect(() => {
+    if (!loading && location.state?.initialPrompt && !initialPromptHandled.current) {
+      initialPromptHandled.current = true;
+      send(location.state.initialPrompt);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, location.state]);
 
   const fetchQuota = async () => {
     try {

@@ -23,7 +23,7 @@ def _month():
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
-from categories import _canonical_category, _distribute_txn_categories
+from categories import _canonical_category, _distribute_txn_categories, _rp
 
 
 
@@ -519,29 +519,127 @@ async def get_budget(month: Optional[str] = None, ctx: Ctx = Depends(get_ctx)):
         budget_status.append({
             "category": c.get("category"),
             "group": c.get("group", "needs"),
-            "limit": c.get("limit", 0),
+            "limit": float(c.get("limit", 0)),
             "spent": spent,
-            "over": spent > c.get("limit", 0) and c.get("limit", 0) > 0,
+            "over": spent > float(c.get("limit", 0)) and float(c.get("limit", 0)) > 0,
         })
 
     cat_breakdown = [{"category": k, "amount": v} for k, v in cat.items() if v > 0]
     cat_breakdown.sort(key=lambda x: x["amount"], reverse=True)
 
+    # Variance and Pacing Analytics
+    total_budget = sum(float(c.get("limit", 0)) for c in b.get("categories", []))
+    variance = total_budget - total_spent
+    realization_pct = round((total_spent / total_budget * 100), 1) if total_budget > 0 else 0.0
+
+    today = datetime.now(timezone.utc).date()
+    is_current_month = target_month == today.strftime("%Y-%m")
+
+    try:
+        y, m = [int(x) for x in target_month.split("-")]
+        _, total_days_in_month = calendar.monthrange(y, m)
+    except Exception:
+        y, m, total_days_in_month = today.year, today.month, 30
+
+    current_day = today.day if is_current_month else total_days_in_month
+    elapsed_day_pct = round((current_day / total_days_in_month) * 100, 1)
+
+    # Determine pacing health status
+    if total_spent == 0:
+        pacing_status = "idle"
+        pacing_label = "Belum Ada Pengeluaran"
+        pacing_desc = "Belum ada transaksi pengeluaran tercatat di bulan ini."
+    elif realization_pct > 100:
+        pacing_status = "over"
+        pacing_label = "Defisit (Over Budget)"
+        pacing_desc = f"Total belanja telah melewati batas anggaran keseluruhan sebesar {_rp(total_spent - total_budget)}."
+    elif realization_pct > elapsed_day_pct + 12:
+        pacing_status = "fast"
+        pacing_label = "Pacing Cepat (Waspada)"
+        pacing_desc = f"Penyerapan anggaran ({realization_pct}%) bergerak lebih cepat daripada kalender ({elapsed_day_pct}%)."
+    elif realization_pct < elapsed_day_pct - 12:
+        pacing_status = "frugal"
+        pacing_label = "Sangat Hemat & Terkendali"
+        pacing_desc = f"Realisasi belanja ({realization_pct}%) jauh lebih rendah dari porsi kalender ({elapsed_day_pct}%)."
+    else:
+        pacing_status = "balanced"
+        pacing_label = "Pacing Ideal & Seimbang"
+        pacing_desc = f"Laju penyerapan anggaran ({realization_pct}%) selaras dan proporsional dengan hari kalender ({elapsed_day_pct}%)."
+
+    # Top surplus & top deficit categories
+    surplus_cats = []
+    deficit_cats = []
+    for s in budget_status:
+        lim = float(s.get("limit", 0))
+        sp = float(s.get("spent", 0))
+        diff = lim - sp
+        pct = round(sp / lim * 100, 1) if lim > 0 else (100.0 if sp > 0 else 0.0)
+        item = {
+            "category": s["category"],
+            "group": s.get("group", "needs"),
+            "limit": lim,
+            "spent": sp,
+            "pct": pct,
+        }
+        if diff > 0:
+            item["surplus"] = diff
+            surplus_cats.append(item)
+        elif diff < 0:
+            item["deficit"] = abs(diff)
+            deficit_cats.append(item)
+
+    surplus_cats.sort(key=lambda x: x["surplus"], reverse=True)
+    deficit_cats.sort(key=lambda x: x["deficit"], reverse=True)
+
+    # Next-month smart reallocation recommendations
+    smart_recommendations = []
+    if deficit_cats and surplus_cats:
+        top_def = deficit_cats[0]
+        top_sur = surplus_cats[0]
+        shift_amount = min(top_def["deficit"], top_sur["surplus"] * 0.6)
+        shift_amount = max(50000.0, round(shift_amount / 50000) * 50000)
+        if shift_amount > 0 and top_sur["surplus"] >= shift_amount:
+            smart_recommendations.append({
+                "type": "reallocate",
+                "title": f"Geser Alokasi: {top_sur['category']} ➔ {top_def['category']}",
+                "description": f"Pos {top_def['category']} tertekan/over budget (+{_rp(top_def['deficit'])}), sedangkan pos {top_sur['category']} masih bersisa longgar {_rp(top_sur['surplus'])}. Disarankan menggeser {_rp(shift_amount)} ke {top_def['category']} untuk bulan depan.",
+                "from_category": top_sur["category"],
+                "to_category": top_def["category"],
+                "amount": shift_amount,
+            })
+
     result = dict(b)
     result["month"] = target_month
     result["budget_status"] = budget_status
     result["total_spent"] = total_spent
+    result["total_budget"] = total_budget
+    result["variance"] = variance
     result["category_breakdown"] = cat_breakdown
+    result["analytics"] = {
+        "pacing_status": pacing_status,
+        "pacing_label": pacing_label,
+        "pacing_desc": pacing_desc,
+        "realization_pct": realization_pct,
+        "elapsed_day_pct": elapsed_day_pct,
+        "current_day": current_day,
+        "total_days": total_days_in_month,
+        "is_current_month": is_current_month,
+        "top_surplus": surplus_cats[:3],
+        "top_deficit": deficit_cats[:3],
+        "smart_recommendations": smart_recommendations,
+    }
     return result
 
 
 @router.post("/budget")
 async def set_budget(body: BudgetCreate, ctx: Ctx = Depends(get_ctx)):
-    b = Budget(user_id=ctx.user.user_id, month=_month(), **body.model_dump())
+    target_month = body.month or _month()
+    data = body.model_dump(exclude={"month"})
+    b = Budget(user_id=ctx.user.user_id, month=target_month, **data)
     doc = b.model_dump()
     doc["household_id"] = ctx.hid
     await db.budgets.update_one(
-        {"household_id": ctx.hid, "month": _month()}, {"$set": doc}, upsert=True,
+        {"household_id": ctx.hid, "month": target_month}, {"$set": doc}, upsert=True,
     )
     await db.users.update_one({"user_id": ctx.user.user_id}, {"$set": {"onboarded": True}})
     return doc

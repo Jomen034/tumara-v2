@@ -347,6 +347,7 @@ class BudgetCreate(BaseModel):
     monthly_income: float
     mode: Literal["percentage", "fixed"] = "percentage"
     categories: List[BudgetCategory] = []
+    month: Optional[str] = None
 
 
 class Budget(BudgetCreate):

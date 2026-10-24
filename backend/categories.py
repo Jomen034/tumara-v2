@@ -61,3 +61,10 @@ def _distribute_txn_categories(t: dict) -> dict:
         if dist:
             return dict(dist)
     return {parent_cat: total_amount}
+
+
+def _rp(n):
+    try:
+        return "Rp " + f"{int(round(n)):,}".replace(",", ".")
+    except Exception:
+        return f"Rp {n}"

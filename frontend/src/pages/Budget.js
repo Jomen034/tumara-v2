@@ -38,6 +38,7 @@ import { Card, Button, Input, Progress, Badge, Spinner, Modal } from "../compone
 import BudgetDetailModal from "../components/BudgetDetailModal";
 import AddTransactionModal from "../components/AddTransactionModal";
 import AddBudgetCategoryModal from "../components/AddBudgetCategoryModal";
+import BudgetVsActualSection from "../components/BudgetVsActualSection";
 
 const DEFAULT_CATS = [
   { category: "Groceries & Kebutuhan Rumah", group: "needs", pct: 0.2 },
@@ -93,6 +94,7 @@ export default function Budget() {
   const [incomeInput, setIncomeInput] = useState("");
   const [savingIncome, setSavingIncome] = useState(false);
   const [autoBalancing, setAutoBalancing] = useState(false);
+  const [applyingRec, setApplyingRec] = useState(false);
   const now = new Date();
   const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const [selectedMonth, setSelectedMonth] = useState(currentMonthStr);
@@ -596,6 +598,56 @@ export default function Budget() {
     setSelectedMonth(currentMonthStr);
   };
 
+  const handleApplyRecommendation = async (rec) => {
+    if (!budget || !rec) return;
+    setApplyingRec(true);
+    try {
+      const nextDate = new Date(selectedYear, selectedMonthNum, 1);
+      const nextMonthStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
+      const nextMonthName = monthNames[nextDate.getMonth()];
+
+      const updatedCats = (budget.categories || []).map((c) => {
+        if (c.category === rec.from_category) {
+          return { ...c, limit: Math.max(0, (parseFloat(c.limit) || 0) - rec.amount) };
+        }
+        if (c.category === rec.to_category) {
+          return { ...c, limit: (parseFloat(c.limit) || 0) + rec.amount };
+        }
+        return { ...c };
+      });
+
+      await api.post("/budget", {
+        monthly_income: budget.monthly_income,
+        mode: budget.mode || "percentage",
+        month: nextMonthStr,
+        categories: updatedCats,
+      });
+
+      toast.success(
+        `Rekomendasi alokasi berhasil diterapkan untuk budget ${nextMonthName} ${nextDate.getFullYear()}! 🎯`,
+        {
+          action: {
+            label: `Buka ${nextMonthName}`,
+            onClick: () => setSelectedMonth(nextMonthStr),
+          },
+        }
+      );
+      bump();
+    } catch {
+      toast.error("Gagal menerapkan rekomendasi anggaran");
+    } finally {
+      setApplyingRec(false);
+    }
+  };
+
+  const handleConsultAdvisor = () => {
+    navigate("/advisor", {
+      state: {
+        initialPrompt: "Apakah alokasi budget bulanku masih aman dan bagaimana evaluasi rencana vs aktualnya?",
+      },
+    });
+  };
+
   // 50/30/20 Group Aggregates
   const groupStats = {
     needs: { label: "Kebutuhan", targetPct: "50%", color: "var(--brand)", spent: 0, limit: 0, icon: ShieldCheck },
@@ -798,6 +850,18 @@ export default function Budget() {
               </div>
             </div>
           </Card>
+
+          {/* Rangkuman Budget vs Aktual & Pacing Analysis */}
+          <BudgetVsActualSection
+            budget={budget}
+            analytics={budget?.analytics}
+            privacy={privacy}
+            selectedMonth={selectedMonth}
+            monthNames={monthNames}
+            onApplyRecommendation={handleApplyRecommendation}
+            onConsultAdvisor={handleConsultAdvisor}
+            applying={applyingRec}
+          />
 
           {/* Smart Financial Health Guardrails & Advisor */}
           <div className="p-4 sm:p-5 rounded-2xl bg-surface border border-borderc space-y-3.5 shadow-sm">
