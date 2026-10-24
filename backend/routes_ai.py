@@ -44,6 +44,22 @@ async def chat(body: ChatRequest, ctx: Ctx = Depends(get_ctx)):
     # Enforce AI chat quota (FUP)
     await enforce_and_increment_ai_quota(user.user_id, "chat")
 
+    # Capture user prompt for product analytics & security audit (response is NOT stored)
+    prompt_text = (body.message or "").strip()
+    if prompt_text:
+        try:
+            await db.ai_prompt_logs.insert_one({
+                "prompt_id": new_id("prm"),
+                "user_id": user.user_id,
+                "household_id": ctx.hid,
+                "prompt": prompt_text,
+                "char_count": len(prompt_text),
+                "source": "advisor_chat",
+                "created_at": now_utc(),
+            })
+        except Exception as log_err:
+            print(f"[AI Prompt Log] Non-critical error recording prompt: {log_err}")
+
     session_id = f"advisor_{user.user_id}"
 
     async def gen():

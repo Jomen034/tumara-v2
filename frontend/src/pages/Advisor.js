@@ -246,16 +246,16 @@ export default function Advisor() {
 
       {/* Dismissible & Compact Ephemeral Privacy Banner */}
       {!privacyDismissed && (
-        <div className="rounded-xl px-3 py-1.5 sm:py-2 bg-elevated/60 border border-borderc flex items-center justify-between gap-2 text-xs mb-2 text-tsecondary shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <ShieldCheck size={14} className="text-brand shrink-0" />
-            <span className="text-[11px] sm:text-xs truncate">
-              <strong className="text-tprimary">Sesi Privat:</strong> Obrolan tidak disimpan di server demi privasi penuh & hemat kuota.
+        <div className="rounded-xl px-3 py-2 bg-elevated border border-borderc flex items-center justify-between gap-2.5 text-xs mb-2 text-tsecondary shrink-0 shadow-sm">
+          <div className="flex items-start sm:items-center gap-2 min-w-0">
+            <ShieldCheck size={15} className="text-brand shrink-0 mt-0.5 sm:mt-0" />
+            <span className="text-[11px] sm:text-xs leading-tight sm:leading-normal">
+              <strong className="text-tprimary">Sesi Privat & Sementara:</strong> Riwayat percakapan tidak disimpan di akunmu. Pertanyaan dievaluasi secara anonim untuk peningkatan kualitas AI & keamanan.
             </span>
           </div>
           <button
             onClick={dismissPrivacy}
-            className="p-1 hover:bg-elevated rounded text-tmuted hover:text-tprimary transition-colors shrink-0"
+            className="p-1 hover:bg-surface rounded text-tmuted hover:text-tprimary transition-colors shrink-0"
             title="Tutup pemberitahuan"
           >
             <X size={14} />
