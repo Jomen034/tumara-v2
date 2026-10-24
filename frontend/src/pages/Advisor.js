@@ -39,7 +39,9 @@ export default function Advisor() {
   const [quotaOpen, setQuotaOpen] = useState(false);
   const [privacyDismissed, setPrivacyDismissed] = useState(() => {
     try {
-      return localStorage.getItem("tumara_advisor_privacy_dismissed") === "1";
+      // Clean up legacy permanent key from localStorage so it won't be suppressed forever
+      localStorage.removeItem("tumara_advisor_privacy_dismissed");
+      return sessionStorage.getItem("tumara_advisor_privacy_dismissed") === "1";
     } catch {
       return false;
     }
@@ -184,6 +186,10 @@ export default function Advisor() {
       }
     }
     sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    try {
+      sessionStorage.removeItem("tumara_advisor_privacy_dismissed");
+    } catch {}
+    setPrivacyDismissed(false);
     setMessages([]);
     api.delete("/ai/chat/history").catch(() => {});
     toast.success("Sesi obrolan baru dimulai ✨");
@@ -192,7 +198,7 @@ export default function Advisor() {
   const dismissPrivacy = () => {
     setPrivacyDismissed(true);
     try {
-      localStorage.setItem("tumara_advisor_privacy_dismissed", "1");
+      sessionStorage.setItem("tumara_advisor_privacy_dismissed", "1");
     } catch {}
   };
 
@@ -212,6 +218,22 @@ export default function Advisor() {
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-brand/15 text-brand border border-brand/30 shrink-0">
                 CFO Pribadi
               </span>
+              {privacyDismissed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrivacyDismissed(false);
+                    try {
+                      sessionStorage.removeItem("tumara_advisor_privacy_dismissed");
+                    } catch {}
+                  }}
+                  className="flex items-center gap-1 text-[10px] font-medium text-tmuted hover:text-brand transition-colors px-1.5 py-0.5 rounded-md hover:bg-elevated border border-transparent hover:border-borderc shrink-0"
+                  title="Tampilkan kembali info privasi sesi"
+                >
+                  <ShieldCheck size={12} className="text-brand shrink-0" />
+                  <span className="hidden xs:inline sm:inline">Info Privasi</span>
+                </button>
+              )}
             </div>
             <p className="hidden sm:block text-[11px] text-tsecondary truncate">
               Khusus analisis pengeluaran & perencanaan finansial

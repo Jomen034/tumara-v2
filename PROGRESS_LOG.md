@@ -77,7 +77,21 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
       - Header dirampingkan dengan badge `[CFO Pribadi]` dan tombol FUP serta Sesi Baru yang minimalis.
       - Ruang baca chat di smartphone meningkat lebih dari 200%.
 - **Commit:**
-  - `3fa8eec`: `fix(budget): resolve white-on-white input contrast & normalize dark mode form controls` (pushed to `origin main`).
+  - `f53a558`: `feat(ai): capture user prompt logs for audit & update privacy copywriting` (pushed to `origin main`).
+
+### [2026-10-24 23:20:00 WIB] — Privacy Banner Lifecycle & Session-Scoped Reappearance UX
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  - Menyempurnakan siklus hidup (*lifecycle*) banner privasi di `/advisor` agar tidak hilang selamanya ketika user menekan tombol silang `✕`.
+  - Memungkinkan banner privasi muncul kembali secara cerdas dan memberikan tombol akses cepat jika user ingin meninjaunya kembali.
+- **Key Actions & Changes:**
+  - `frontend/src/pages/Advisor.js`:
+    - Mengubah penyimpanan status `dismissPrivacy` dari `localStorage` (yang bersifat permanen selamanya) ke `sessionStorage` (berbasis sesi tab aktif).
+    - Menghapus otomatis key legacy `localStorage.removeItem("tumara_advisor_privacy_dismissed")` saat inisialisasi agar user yang sudah terlanjur menekan `✕` bisa langsung melihat banner privasi kembali setelah me-refresh halaman.
+    - Pada fungsi `clearSession()` (tombol *Sesi Baru*), me-reset status `privacyDismissed` menjadi `false`, sehingga setiap kali user memulai sesi baru, banner privasi otomatis muncul kembali.
+    - Menambahkan tombol interaktif `[🛡️ Info Privasi]` di header samping badge *CFO Pribadi* ketika banner sedang ditutup, memberi keleluasaan user untuk memunculkan kembali banner kapan pun tanpa harus me-refresh halaman.
+- **Verification:**
+  - Git diff terverifikasi bersih.
 
 ### [2026-10-24 23:15:00 WIB] — Tumara AI User Prompt Logging & Transparent Privacy Copywriting
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
