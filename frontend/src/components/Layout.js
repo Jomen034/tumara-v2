@@ -355,7 +355,14 @@ export default function Layout({ children, onAdd, onScan }) {
           </div>
         </header>
 
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 pb-28 lg:pb-10 max-w-6xl w-full mx-auto">
+        <main
+          className={clsx(
+            "flex-1 max-w-6xl w-full mx-auto flex flex-col min-h-0",
+            location.pathname === "/advisor"
+              ? "px-2.5 sm:px-6 lg:px-8 pt-2 sm:pt-3 pb-20 lg:pb-5"
+              : "px-4 sm:px-6 lg:px-8 py-6 pb-28 lg:pb-10"
+          )}
+        >
           {children}
         </main>
       </div>

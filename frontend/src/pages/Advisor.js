@@ -7,6 +7,8 @@ import {
   RotateCcw,
   ShieldCheck,
   Lock,
+  X,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import api, { API } from "../lib/api";
@@ -33,6 +35,13 @@ export default function Advisor() {
   const [loading, setLoading] = useState(true);
   const [quotaData, setQuotaData] = useState(null);
   const [quotaOpen, setQuotaOpen] = useState(false);
+  const [privacyDismissed, setPrivacyDismissed] = useState(() => {
+    try {
+      return localStorage.getItem("tumara_advisor_privacy_dismissed") === "1";
+    } catch {
+      return false;
+    }
+  });
   const scrollRef = useRef();
   const accRef = useRef("");
 
@@ -168,64 +177,84 @@ export default function Advisor() {
     toast.success("Sesi obrolan baru dimulai ✨");
   };
 
+  const dismissPrivacy = () => {
+    setPrivacyDismissed(true);
+    try {
+      localStorage.setItem("tumara_advisor_privacy_dismissed", "1");
+    } catch {}
+  };
+
   const activeQuota = aiUsage || quotaData;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-9rem)] lg:h-[calc(100vh-7rem)]">
-      {/* Header bar */}
-      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center shadow-lg shadow-[var(--glow)]">
-            <Sparkles size={20} className="text-black" />
+    <div className="flex flex-col flex-1 min-h-0 h-[calc(100dvh-7.5rem)] lg:h-[calc(100dvh-5.5rem)]">
+      {/* Sleek Compact Header */}
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2 shrink-0">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-brand flex items-center justify-center shadow-md shadow-[var(--glow)] shrink-0">
+            <Sparkles size={18} className="text-black" />
           </div>
-          <div>
-            <h1 className="font-head font-extrabold text-xl leading-tight">Tumara AI</h1>
-            <p className="text-xs text-tsecondary">
-              CFO pribadimu · Khusus analisis & perencanaan finansial
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="font-head font-extrabold text-base sm:text-lg leading-tight truncate">Tumara AI</h1>
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-brand/15 text-brand border border-brand/30 shrink-0">
+                CFO Pribadi
+              </span>
+            </div>
+            <p className="hidden sm:block text-[11px] text-tsecondary truncate">
+              Khusus analisis pengeluaran & perencanaan finansial
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           {activeQuota && (
             <button
               onClick={() => setQuotaOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand/10 hover:bg-brand/20 text-brand text-xs font-semibold border border-brand/30 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand/10 hover:bg-brand/20 text-brand text-[11px] font-semibold border border-brand/25 transition-colors"
               title="Cek Kuota & Fair Usage Policy"
             >
-              <Sparkles size={13} />
+              <Sparkles size={12} />
               <span>
-                FUP: {activeQuota.chats_used || 0}/{activeQuota.chats_limit || 100} Teks
+                FUP: {activeQuota.chats_used || 0}/{activeQuota.chats_limit || 100}
               </span>
             </button>
           )}
           <button
             onClick={clearSession}
             data-testid="clear-chat-button"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-elevated hover:bg-elevated/80 text-tsecondary hover:text-tprimary text-xs font-semibold transition-colors border border-borderc"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-elevated hover:bg-elevated/80 text-tsecondary hover:text-tprimary text-[11px] font-medium transition-colors border border-borderc"
             title="Bersihkan obrolan dan mulai sesi baru"
           >
-            <RotateCcw size={13} />
-            <span>Sesi Baru</span>
+            <RotateCcw size={12} />
+            <span className="hidden xs:inline sm:inline">Sesi Baru</span>
           </button>
         </div>
       </div>
 
-      {/* Ephemeral Session & Privacy Banner */}
-      <div className="rounded-xl p-2.5 sm:p-3 bg-elevated/60 border border-borderc flex items-start gap-2.5 text-xs mb-3 text-tsecondary">
-        <ShieldCheck size={16} className="text-brand shrink-0 mt-0.5" />
-        <div className="flex-1 leading-relaxed text-[11px] sm:text-xs">
-          <span className="font-semibold text-tprimary">Sesi Privat & Sementara:</span> Obrolan
-          ini tidak disimpan di database server demi menjaga privasi & efisiensi kuota. Percakapan
-          hanya tersimpan di sesi browser aktif ini dan akan otomatis bersih saat tab ditutup atau
-          sesi baru dimulai.
+      {/* Dismissible & Compact Ephemeral Privacy Banner */}
+      {!privacyDismissed && (
+        <div className="rounded-xl px-3 py-1.5 sm:py-2 bg-elevated/60 border border-borderc flex items-center justify-between gap-2 text-xs mb-2 text-tsecondary shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <ShieldCheck size={14} className="text-brand shrink-0" />
+            <span className="text-[11px] sm:text-xs truncate">
+              <strong className="text-tprimary">Sesi Privat:</strong> Obrolan tidak disimpan di server demi privasi penuh & hemat kuota.
+            </span>
+          </div>
+          <button
+            onClick={dismissPrivacy}
+            className="p-1 hover:bg-elevated rounded text-tmuted hover:text-tprimary transition-colors shrink-0"
+            title="Tutup pemberitahuan"
+          >
+            <X size={14} />
+          </button>
         </div>
-      </div>
+      )}
 
       {/* Messages Scroll Area */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto space-y-4 pr-1"
+        className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1 py-1"
         data-testid="chat-messages"
       >
         {loading ? (
@@ -233,25 +262,25 @@ export default function Advisor() {
             <Spinner className="text-brand" />
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
-            <div className="w-16 h-16 rounded-2xl bg-elevated flex items-center justify-center mb-4 pulse-ring">
-              <Sparkles size={30} className="text-brand" />
+          <div className="flex flex-col items-center justify-center h-full text-center px-4 py-6">
+            <div className="w-14 h-14 rounded-2xl bg-elevated flex items-center justify-center mb-3 pulse-ring">
+              <Sparkles size={26} className="text-brand" />
             </div>
-            <h2 className="font-head font-bold text-lg text-tprimary">
+            <h2 className="font-head font-bold text-base sm:text-lg text-tprimary">
               Halo! Aku Tumara AI 👋
             </h2>
-            <p className="text-sm text-tsecondary mt-1.5 max-w-sm leading-relaxed">
+            <p className="text-xs sm:text-sm text-tsecondary mt-1 max-w-sm leading-relaxed">
               Aku siap membantumu menganalisa pengeluaran, mengecek anggaran, dan merencanakan
               tujuan tabungan berdasarkan data keuanganmu.
             </p>
 
-            <div className="grid sm:grid-cols-2 gap-2 mt-6 w-full max-w-md">
+            <div className="grid sm:grid-cols-2 gap-2 mt-5 w-full max-w-md">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
                   onClick={() => send(s)}
                   data-testid="chat-suggestion"
-                  className="text-left text-xs bg-surface border border-borderc rounded-xl px-3.5 py-3 hover:border-brand/60 text-tprimary hover:bg-elevated/40 transition-colors shadow-sm"
+                  className="text-left text-xs bg-surface border border-borderc rounded-xl px-3 py-2.5 hover:border-brand/60 text-tprimary hover:bg-elevated/40 transition-colors shadow-sm"
                 >
                   {s}
                 </button>
@@ -264,7 +293,7 @@ export default function Advisor() {
       </div>
 
       {/* Input box */}
-      <div className="mt-3 flex items-end gap-2 bg-surface border border-borderc rounded-2xl p-2 focus-within:border-brand transition-colors shadow-sm">
+      <div className="mt-2 flex items-end gap-2 bg-surface border border-borderc rounded-2xl p-1.5 sm:p-2 focus-within:border-brand transition-colors shadow-sm shrink-0">
         <textarea
           data-testid="ai-advisor-chat-input"
           value={input}
@@ -277,15 +306,15 @@ export default function Advisor() {
           }}
           rows={1}
           placeholder="Tanya seputar pengeluaran, anggaran, atau dompetmu..."
-          className="flex-1 bg-transparent resize-none px-3 py-2.5 text-sm focus:outline-none max-h-32 text-tprimary placeholder:text-tmuted"
+          className="flex-1 bg-transparent resize-none px-3 py-2 text-xs sm:text-sm focus:outline-none max-h-28 text-tprimary placeholder:text-tmuted leading-relaxed"
         />
         <button
           data-testid="ai-advisor-send-button"
           onClick={() => send()}
           disabled={streaming || !input.trim()}
-          className="w-10 h-10 rounded-xl bg-brand text-black flex items-center justify-center disabled:opacity-40 hover:brightness-110 transition shrink-0"
+          className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand text-black flex items-center justify-center disabled:opacity-40 hover:brightness-110 transition shrink-0"
         >
-          {streaming ? <Spinner size={18} /> : <Send size={18} />}
+          {streaming ? <Spinner size={16} /> : <Send size={16} />}
         </button>
       </div>
 
@@ -303,12 +332,12 @@ function Bubble({ m, user }) {
   const isUser = m.role === "user";
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}
+      className={`flex gap-2.5 sm:gap-3 ${isUser ? "flex-row-reverse" : ""}`}
     >
       <div
-        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 overflow-hidden shadow-sm ${
+        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden shadow-sm ${
           isUser ? "bg-elevated" : "bg-brand shadow-emerald-500/20"
         }`}
       >
@@ -319,11 +348,11 @@ function Bubble({ m, user }) {
             className="w-full h-full object-cover"
           />
         ) : (
-          <Sparkles size={16} className="text-black" />
+          <Sparkles size={14} className="text-black" />
         )}
       </div>
       <div
-        className={`max-w-[88%] sm:max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+        className={`max-w-[90%] sm:max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed ${
           isUser
             ? "bg-brand text-black rounded-tr-sm font-medium whitespace-pre-wrap shadow-sm"
             : "bg-surface border border-borderc rounded-tl-sm text-tprimary shadow-sm"
