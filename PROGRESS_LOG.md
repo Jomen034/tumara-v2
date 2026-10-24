@@ -20,6 +20,27 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 
 ## Progress Entries
 
+### [2026-10-24 21:30:00 WIB] — Ground-Truth Budget Math Integration for Tumara AI & Mobile Space Optimization Revamp
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Mengatasi anomali ketidakakuratan data finansial pada Tumara AI (Google Doc temuan user: evaluasi alokasi budget salah menghitung pengeluaran kategori Makanan & Minuman sebesar Rp 1.225.372 vs limit Rp 1.109.000).
+  2. Melakukan revamp tampilan antarmuka `Advisor.js` agar jauh lebih kompak, tidak sumpek, dan memberikan ruang baca obrolan yang lapang (>25 baris teks) di layar ponsel (*mobile*).
+  3. Memperketat *Domain Guardrails* (filter pra-rekursif regex untuk memblokir prompt coding, politik, jailbreak, resep masakan, dan pertanyaan non-finansial dengan biaya token Rp 0).
+- **Root Cause & Technical Fix:**
+  - `backend/ai_service.py` & `backend/categories.py`:
+    - **Akar masalah:** Fungsi `build_financial_context` sebelumnya mengambil 40 transaksi terakhir secara acak (`to_list(40)`) tanpa memfilter bulan kalender berjalan (`date: {"$regex": f"^{month}"}`). Akibatnya, transaksi bulan lalu ikut terjumlah jika transaksi bulan ini sedikit, dan transaksi awal bulan terpotong jika total transaksi >40. Selain itu, transaksi hasil scan struk belanja tidak dipecah sub-itemnya (`_distribute_txn_categories`).
+    - **Solusi:** Mengekstrak modul terpusat [backend/categories.py](file:///Users/stms/.gemini/antigravity/scratch/tumara-v2/backend/categories.py) untuk normalisasi kategori dan pemecahan sub-item struk. Memperbarui `build_financial_context` di [backend/ai_service.py](file:///Users/stms/.gemini/antigravity/scratch/tumara-v2/backend/ai_service.py) agar menyuntikkan data resmi **`STATUS ANGGARAN RESMI BULAN INI`** yang dihitung secara matematis identik 100% dengan kartu di halaman `/budget`.
+    - Memperkuat filter regex `OFFTOPIC_PATTERNS` dan prompt sistem anti-jailbreak agar aman dari penyalahgunaan dan kebocoran sistem.
+  - `frontend/src/pages/Advisor.js` & `frontend/src/components/Layout.js`:
+    - **Akar masalah:** Padding bawah `main` (`pb-28`) ditambah tinggi header dan banner paragraf "Sesi Privat & Sementara" (4 baris ~80px) menghabiskan >60% layar ponsel, menyisakan hanya ~200px (8-10 baris) untuk pesan chat.
+    - **Solusi:**
+      - Di `Layout.js`, padding bawah khusus rute `/advisor` diringkas menjadi `pb-20 lg:pb-5` tepat di atas bottom-nav mobile dengan dynamic viewport height `100dvh`.
+      - Di `Advisor.js`, banner privasi diubah menjadi 1 baris ramping yang **dismissible** (bisa ditutup dengan tombol `✕` dan tersimpan di `localStorage`).
+      - Header dirampingkan dengan badge `[CFO Pribadi]` dan tombol FUP serta Sesi Baru yang minimalis.
+      - Ruang baca chat di smartphone meningkat lebih dari 200%.
+- **Commit:**
+  - `31b7f23`: `fix(ai): ground-truth budget math & compact mobile UI revamp for Tumara AI` (pushed to `origin main`).
+
 ### [2026-10-24 00:13:00 WIB] — Root Cause Elimination: Remove Obsolete Mandiri CC Startup Balance Reset & Negative Debt Clamp
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**
