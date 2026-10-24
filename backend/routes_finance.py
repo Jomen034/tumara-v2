@@ -591,21 +591,90 @@ async def get_budget(month: Optional[str] = None, ctx: Ctx = Depends(get_ctx)):
     surplus_cats.sort(key=lambda x: x["surplus"], reverse=True)
     deficit_cats.sort(key=lambda x: x["deficit"], reverse=True)
 
-    # Next-month smart reallocation recommendations
+    # Next-month smart reallocation recommendations adhering strictly to 50/30/20 hierarchy
     smart_recommendations = []
-    if deficit_cats and surplus_cats:
+    if deficit_cats:
         top_def = deficit_cats[0]
-        top_sur = surplus_cats[0]
-        shift_amount = min(top_def["deficit"], top_sur["surplus"] * 0.6)
-        shift_amount = max(50000.0, round(shift_amount / 50000) * 50000)
-        if shift_amount > 0 and top_sur["surplus"] >= shift_amount:
+        def_amt = top_def["deficit"]
+        def_cat = top_def["category"]
+        def_grp = top_def["group"]
+
+        # Filter surplus categories by 50/30/20 priority:
+        # Priority 1: "wants" (Lifestyle/Discretionary - Belanja, Hiburan) -> Cut lifestyle first!
+        # Priority 2: "needs" (Other essential categories with surplus) -> Rebalance within essentials!
+        # Priority 3 (Protected): "savings" (Investasi, Tabungan) -> Must NEVER be cut lightly!
+        wants_surplus = [s for s in surplus_cats if s.get("group") == "wants"]
+        needs_surplus = [s for s in surplus_cats if s.get("group") == "needs" and s["category"] != def_cat]
+        savings_surplus = [s for s in surplus_cats if s.get("group") == "savings"]
+
+        if wants_surplus:
+            # Cut from lifestyle (wants) first to protect savings & investment!
+            top_sur = wants_surplus[0]
+            shift_amount = min(def_amt, top_sur["surplus"] * 0.7)
+            shift_amount = max(50000.0, round(shift_amount / 50000) * 50000)
+            if shift_amount > 0 and top_sur["surplus"] >= shift_amount:
+                smart_recommendations.append({
+                    "type": "reallocate_wants",
+                    "priority_level": "healthy",
+                    "title": f"Geser dari Pos Keinginan ({top_sur['category']}) ➔ {def_cat}",
+                    "source_group": "wants",
+                    "from_category": top_sur["category"],
+                    "to_category": def_cat,
+                    "amount": shift_amount,
+                    "description": (
+                        f"Pos {def_cat} membengkak sebesar {_rp(def_amt)} bulan ini (terpakai {_rp(top_def['spent'])} dari limit {_rp(top_def['limit'])}). "
+                        f"Sesuai kaidah 50/30/20, disarankan memotong alokasi dari pos Keinginan ({top_sur['category']} sisa {_rp(top_sur['surplus'])}) sebesar {_rp(shift_amount)} untuk bulan depan. "
+                        f"Dengan cara ini, pos Tabungan & Investasi tetap 100% aman terlindungi."
+                    ),
+                    "reflection_question": (
+                        f"Refleksi: Apakah pengeluaran {def_cat} ini belanja dapur pokok yang memang naik permanen, atau ada frekuensi jajan / makan di luar yang bisa direm kembali bulan depan?"
+                    ),
+                    "tradeoff_note": "Tabungan & Investasi tetap utuh 20% terlindungi.",
+                })
+        elif needs_surplus:
+            # Shift within essential needs
+            top_sur = needs_surplus[0]
+            shift_amount = min(def_amt, top_sur["surplus"] * 0.6)
+            shift_amount = max(50000.0, round(shift_amount / 50000) * 50000)
+            if shift_amount > 0 and top_sur["surplus"] >= shift_amount:
+                smart_recommendations.append({
+                    "type": "reallocate_needs",
+                    "priority_level": "balanced",
+                    "title": f"Penyesuaian Antar-Kebutuhan: {top_sur['category']} ➔ {def_cat}",
+                    "source_group": "needs",
+                    "from_category": top_sur["category"],
+                    "to_category": def_cat,
+                    "amount": shift_amount,
+                    "description": (
+                        f"Pos {def_cat} over budget (+{_rp(def_amt)}), sementara pos kebutuhan lain ({top_sur['category']}) hemat bersisa {_rp(top_sur['surplus'])}. "
+                        f"Kamu bisa menggeser {_rp(shift_amount)} antar-kebutuhan pokok agar total pagu primer tetap berimbang."
+                    ),
+                    "reflection_question": (
+                        f"Refleksi: Pastikan pengalihan dari {top_sur['category']} tidak membuat pos tersebut ganti kekurangan di bulan berikutnya."
+                    ),
+                    "tradeoff_note": "Alokasi kebutuhan primer tetap terjaga.",
+                })
+        elif savings_surplus:
+            # Only savings surplus exists! DO NOT casually recommend cutting savings! Give a strong reflective trade-off warning!
+            top_sur = savings_surplus[0]
             smart_recommendations.append({
-                "type": "reallocate",
-                "title": f"Geser Alokasi: {top_sur['category']} ➔ {top_def['category']}",
-                "description": f"Pos {top_def['category']} tertekan/over budget (+{_rp(top_def['deficit'])}), sedangkan pos {top_sur['category']} masih bersisa longgar {_rp(top_sur['surplus'])}. Disarankan menggeser {_rp(shift_amount)} ke {top_def['category']} untuk bulan depan.",
+                "type": "tradeoff_warning",
+                "priority_level": "warning",
+                "title": f"⚠️ Peringatan Refleksi: Rem Pengeluaran {def_cat}",
+                "source_group": "savings",
                 "from_category": top_sur["category"],
-                "to_category": top_def["category"],
-                "amount": shift_amount,
+                "to_category": def_cat,
+                "amount": 0.0,
+                "description": (
+                    f"Pos {def_cat} membengkak (+{_rp(def_amt)}), sedangkan pos Keinginan sudah ketat. "
+                    f"Satu-satunya pos yang masih bersisa saat ini adalah pos Tabungan/Investasi ({top_sur['category']} sisa {_rp(top_sur['surplus'])}). "
+                    f"Peringatan Kaidah Finansial: Memotong pos Tabungan demi belanja konsumtif akan melemahkan jaring pengaman masa depanmu. "
+                    f"Tumara menyarankan untuk MENGEVALUASI dan MENGETATKAN kembali pengeluaran {def_cat} bulan depan agar kembali ke limit awal, daripada memangkas porsi investasi."
+                ),
+                "reflection_question": (
+                    f"Refleksi: Apakah pengeluaran {def_cat} bulan ini merupakan anomali sekali lewat yang bisa ditekan kembali bulan depan, ataukah memang kebutuhan keluarga yang naik dan kamu sadar mengambil trade-off mengurangi tabungan?"
+                ),
+                "tradeoff_note": "Memotong Tabungan akan memperlambat pencapaian tujuan finansial masa depan.",
             })
 
     result = dict(b)

@@ -39,6 +39,7 @@ import BudgetDetailModal from "../components/BudgetDetailModal";
 import AddTransactionModal from "../components/AddTransactionModal";
 import AddBudgetCategoryModal from "../components/AddBudgetCategoryModal";
 import BudgetVsActualSection from "../components/BudgetVsActualSection";
+import NextMonthBudgetModal from "../components/NextMonthBudgetModal";
 
 const DEFAULT_CATS = [
   { category: "Groceries & Kebutuhan Rumah", group: "needs", pct: 0.2 },
@@ -94,7 +95,8 @@ export default function Budget() {
   const [incomeInput, setIncomeInput] = useState("");
   const [savingIncome, setSavingIncome] = useState(false);
   const [autoBalancing, setAutoBalancing] = useState(false);
-  const [applyingRec, setApplyingRec] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [selectedRec, setSelectedRec] = useState(null);
   const now = new Date();
   const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const [selectedMonth, setSelectedMonth] = useState(currentMonthStr);
@@ -598,46 +600,9 @@ export default function Budget() {
     setSelectedMonth(currentMonthStr);
   };
 
-  const handleApplyRecommendation = async (rec) => {
-    if (!budget || !rec) return;
-    setApplyingRec(true);
-    try {
-      const nextDate = new Date(selectedYear, selectedMonthNum, 1);
-      const nextMonthStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
-      const nextMonthName = monthNames[nextDate.getMonth()];
-
-      const updatedCats = (budget.categories || []).map((c) => {
-        if (c.category === rec.from_category) {
-          return { ...c, limit: Math.max(0, (parseFloat(c.limit) || 0) - rec.amount) };
-        }
-        if (c.category === rec.to_category) {
-          return { ...c, limit: (parseFloat(c.limit) || 0) + rec.amount };
-        }
-        return { ...c };
-      });
-
-      await api.post("/budget", {
-        monthly_income: budget.monthly_income,
-        mode: budget.mode || "percentage",
-        month: nextMonthStr,
-        categories: updatedCats,
-      });
-
-      toast.success(
-        `Rekomendasi alokasi berhasil diterapkan untuk budget ${nextMonthName} ${nextDate.getFullYear()}! 🎯`,
-        {
-          action: {
-            label: `Buka ${nextMonthName}`,
-            onClick: () => setSelectedMonth(nextMonthStr),
-          },
-        }
-      );
-      bump();
-    } catch {
-      toast.error("Gagal menerapkan rekomendasi anggaran");
-    } finally {
-      setApplyingRec(false);
-    }
+  const handleOpenReviewModal = (rec) => {
+    setSelectedRec(rec);
+    setReviewModalOpen(true);
   };
 
   const handleConsultAdvisor = () => {
@@ -858,9 +823,8 @@ export default function Budget() {
             privacy={privacy}
             selectedMonth={selectedMonth}
             monthNames={monthNames}
-            onApplyRecommendation={handleApplyRecommendation}
+            onOpenReviewModal={handleOpenReviewModal}
             onConsultAdvisor={handleConsultAdvisor}
-            applying={applyingRec}
           />
 
           {/* Smart Financial Health Guardrails & Advisor */}
@@ -1253,6 +1217,21 @@ export default function Budget() {
         }}
         initialCategory={addExpenseCat}
         initialMode="manual"
+      />
+
+      {/* Review & Adjust Next Month Budget Modal */}
+      <NextMonthBudgetModal
+        open={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        budget={budget}
+        recommendation={selectedRec}
+        selectedMonth={selectedMonth}
+        monthNames={monthNames}
+        onSaved={(nextMonth) => {
+          setSelectedMonth(nextMonth);
+          load();
+          bump();
+        }}
       />
     </div>
   );

@@ -15,6 +15,7 @@ import {
   ArrowDownRight,
   ChevronDown,
   ChevronUp,
+  SlidersHorizontal,
 } from "lucide-react";
 import clsx from "clsx";
 import { formatRp, formatShort } from "../lib/format";
@@ -35,9 +36,8 @@ export default function BudgetVsActualSection({
   privacy,
   selectedMonth,
   monthNames,
-  onApplyRecommendation,
+  onOpenReviewModal,
   onConsultAdvisor,
-  applying,
 }) {
   const [expandedInsights, setExpandedInsights] = useState(true);
 
@@ -314,9 +314,9 @@ export default function BudgetVsActualSection({
               </div>
             </div>
 
-            {/* Smart Next-Month Reallocation Banner */}
+            {/* Smart Next-Month Reallocation Banner (Compact AI Insight Bar) */}
             {recommendations.length > 0 ? (
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-brand/10 via-surface to-brand/5 border border-brand/30 space-y-3 shadow-sm">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-brand/10 via-surface to-brand/5 border border-brand/30 space-y-3 shadow-sm">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg bg-brand text-black flex items-center justify-center shrink-0">
@@ -327,41 +327,67 @@ export default function BudgetVsActualSection({
                         Rekomendasi Penyesuaian Anggaran Bulan Depan (AI Smart Budgeting)
                       </h4>
                       <p className="text-[11px] text-tsecondary">
-                        Berdasarkan data riil pengeluaran bulan ini agar alokasi budgetmu semakin presisi dan realistis.
+                        Berdasarkan kaidah 50/30/20 dan realisasi riil pengeluaran bulan berjalan.
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {recommendations.map((rec, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 rounded-xl bg-surface/90 border border-borderc flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                  >
-                    <div className="space-y-1 flex-1">
-                      <span className="font-bold text-tprimary flex items-center gap-1.5">
-                        <Zap size={14} className="text-amber shrink-0" />
-                        {rec.title}
-                      </span>
-                      <p className="text-tsecondary text-[11px] leading-relaxed">
-                        {rec.description}
-                      </p>
-                    </div>
+                {recommendations.map((rec, idx) => {
+                  const isWarning = rec.priority_level === "warning";
+                  return (
+                    <div
+                      key={idx}
+                      className={clsx(
+                        "p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition-colors",
+                        isWarning
+                          ? "bg-amber/5 border-amber/30 hover:border-amber/50"
+                          : "bg-surface/90 border-borderc hover:border-brand/40"
+                      )}
+                    >
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-tprimary flex items-center gap-1.5">
+                            {isWarning ? (
+                              <AlertTriangle size={14} className="text-amber shrink-0" />
+                            ) : (
+                              <Zap size={14} className="text-brand shrink-0" />
+                            )}
+                            {rec.title}
+                          </span>
+                          <span
+                            className={clsx(
+                              "text-[10px] font-semibold px-2 py-0.5 rounded-full",
+                              isWarning ? "bg-amber/15 text-amber" : "bg-brand/15 text-brand"
+                            )}
+                          >
+                            {rec.tradeoff_note || "Kaidah 50/30/20"}
+                          </span>
+                        </div>
+                        <p className="text-tsecondary text-[11px] leading-relaxed line-clamp-2 sm:line-clamp-none">
+                          {rec.description}
+                        </p>
+                      </div>
 
-                    <div className="shrink-0 flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        disabled={applying}
-                        onClick={() => onApplyRecommendation?.(rec)}
-                        className="text-xs bg-brand text-black font-semibold hover:brightness-110 shadow-sm"
-                        title="Terapkan pergeseran limit ini ke budget bulan depan"
-                      >
-                        {applying ? <Spinner size={13} /> : <Zap size={13} />}
-                        <span>Terapkan ke Bulan Depan</span>
-                      </Button>
+                      <div className="shrink-0 flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => onOpenReviewModal?.(rec)}
+                          className={clsx(
+                            "text-xs font-semibold shadow-sm",
+                            isWarning
+                              ? "bg-amber text-black hover:brightness-110"
+                              : "bg-brand text-black hover:brightness-110"
+                          )}
+                          title="Buka modal untuk meninjau refleksi dan menyesuaikan limit sebelum disimpan"
+                        >
+                          <SlidersHorizontal size={13} />
+                          <span>Tinjau & Sesuaikan Alokasi ➔</span>
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="p-3 rounded-xl bg-elevated/40 border border-borderc flex items-center justify-between gap-3 text-xs text-tsecondary">

@@ -79,6 +79,36 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
 - **Commit:**
   - `31b7f23`: `fix(ai): ground-truth budget math & compact mobile UI revamp for Tumara AI` (pushed to `origin main`).
 
+### [2026-10-24 22:50:00 WIB] — 50/30/20 Smart Budgeting Hierarchy, Reflective Insights & Interactive Next-Month Budget Modal
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  1. Menyelaraskan algoritma smart recommendation budgeting agar mematuhi kaidah finansial sehat 50/30/20: pos Tabungan/Investasi (20%) dilindungi secara ketat dan tidak boleh dipangkas demi pos konsumtif (makanan/belanja).
+  2. Memberikan pesan insight yang mengajak user berefleksi (apakah pengeluaran pokok memang naik permanen atau ada pengeluaran konsumtif yang bisa direm), serta menyajikan peringatan konsekuensi finansial (*trade-off warning*) yang transparan.
+  3. Menyelesaikan dilemma UX *"Kartu vs Modal"*: Rekomendasi di halaman utama dikemas sebagai Smart Insight Teaser Bar yang ramping dan kompak (tidak memenuhi layar mobile), yang ketika diklik membuka satu modal interaktif (`NextMonthBudgetModal.js`) tanpa modal bertumpuk (*nested modal anti-pattern*).
+  4. Memberikan user kontrol penuh (*user ownership*): user dapat meninjau refleksi AI, mengedit langsung limit seluruh kategori di dalam modal, memantau barometer 50/30/20 secara real-time, lalu mengonfirmasi dan menyimpan anggaran bulan depan.
+- **Key Actions & Changes:**
+  - `backend/routes_finance.py`:
+    - Mengintegrasikan hirarki 50/30/20 pada `smart_recommendations`:
+      - **Prioritas 1 (Wants / Keinginan):** Menggeser surplus dari pos gaya hidup/hiburan terlebih dahulu untuk menutupi defisit pos kebutuhan pokok agar tabungan tetap utuh.
+      - **Prioritas 2 (Needs / Kebutuhan Pokok):** Menggeser alokasi antar-kebutuhan pokok jika pos keinginan tidak memiliki surplus.
+      - **Prioritas 3 (Savings / Investasi - Protected):** Jika hanya pos Tabungan/Investasi yang memiliki surplus, sistem **TIDAK** otomatis memangkas tabungan. Sebaliknya, sistem memunculkan `type: "tradeoff_warning"` dengan pesan reflektif agar user mengevaluasi & mengetatkan belanja pokok bulan depan daripada mengorbankan masa depan finansial.
+    - Menambahkan field `reflection_question` dan `tradeoff_note` ke payload rekomendasi.
+  - `frontend/src/components/NextMonthBudgetModal.js` (NEW):
+    - Komponen modal baru untuk meninjau dan merencanakan anggaran bulan depan:
+      - Banner refleksi & trade-off dengan visualisasi warning/healthy.
+      - Quick preset buttons: `[⚡ Saran AI]` dan `[🔄 Samakan Bulan Ini]`.
+      - Tabel interaktif daftar seluruh pos dengan input angka limit yang dapat diedit langsung secara real-time.
+      - Barometer proporsional 3-warna kaidah 50/30/20 (Kebutuhan % / Keinginan % / Tabungan %) yang bergerak dinamis.
+      - Indikator integritas Zero-Based Budgeting (deteksi over-allocated vs sisa unallocated terhadap penghasilan bulanan).
+      - Tombol konfirmasi final: `[Simpan & Aktifkan Anggaran Bulan Depan]` dengan target `month`.
+  - `frontend/src/components/BudgetVsActualSection.js`:
+    - Merapikan kartu rekomendasi menjadi Smart Insight Teaser Bar yang kompak dengan badge kaidah 50/30/20 dan tombol `[🔍 Tinjau & Sesuaikan Alokasi ➔]`.
+  - `frontend/src/pages/Budget.js`:
+    - Mengintegrasikan `NextMonthBudgetModal`, mengelola state modal, dan menghapus eksekusi *direct-apply* otomatis tanpa konfirmasi.
+- **Verification:**
+  - `python3 -m py_compile backend/routes_finance.py backend/models.py backend/categories.py` lulus 100% (exit code 0).
+  - Git diff dan integrasi komponen terverifikasi bersih.
+
 ### [2026-10-24 00:13:00 WIB] — Root Cause Elimination: Remove Obsolete Mandiri CC Startup Balance Reset & Negative Debt Clamp
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
 - **Goal:**
