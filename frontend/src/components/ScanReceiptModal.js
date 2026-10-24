@@ -252,8 +252,8 @@ export default function ScanReceiptModal({ open, onClose, onSaved }) {
             <span className="flex items-center gap-1.5 text-tsecondary">
               <ScanLine size={13} className="text-brand" /> Sisa Kuota Scan AI (FUP):
             </span>
-            <span className="font-semibold text-tprimary bg-surface px-2 py-0.5 rounded-lg border border-borderc">
-              {Math.max(0, (aiUsage.scans_limit || 0) - (aiUsage.scans_used || 0))} / {aiUsage.scans_limit || 0}
+            <span className="font-semibold text-tprimary bg-surface px-2.5 py-0.5 rounded-lg border border-borderc font-mono text-[11px]">
+              Sisa {Math.max(0, (aiUsage.scans_limit || 0) - (aiUsage.scans_used || 0))} dari {aiUsage.scans_limit || 0} scan
             </span>
           </div>
         )}

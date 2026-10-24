@@ -77,7 +77,30 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
       - Header dirampingkan dengan badge `[CFO Pribadi]` dan tombol FUP serta Sesi Baru yang minimalis.
       - Ruang baca chat di smartphone meningkat lebih dari 200%.
 - **Commit:**
-  - `f53a558`: `feat(ai): capture user prompt logs for audit & update privacy copywriting` (pushed to `origin main`).
+  - `29edceb`: `fix(advisor): session-scoped privacy banner lifecycle & add info toggle` (pushed to `origin main`).
+
+### [2026-10-24 23:28:00 WIB] — Unified Sisa Kuota (Remaining FUP) Standardization Across All Touchpoints
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  - Menghilangkan inkonsistensi representasi kuota AI/FUP antara modal status kuota (terpakai/total: 5/150, 12/300) versus modal transaksi (sisa/total: 145/150, 288/300) dan halaman Tumara AI (FUP: 12/300).
+  - Menstandarkan seluruh indikator kuota di seluruh aplikasi agar berbasis **Sisa Kuota yang eksplisit**: `Sisa [X] dari [Total]` (atau `Sisa: [X]/[Total]` untuk badge kompak).
+- **Key Actions & Changes:**
+  - `frontend/src/components/AiQuotaModal.js`:
+    - Mengubah tampilan Scan Struk AI menjadi: `Sisa [scansRemaining] dari [scansLimit] scan (Terpakai [scansUsed])`.
+    - Mengubah tampilan Tanya CFO & Teks Cerdas AI menjadi: `Sisa [chatsRemaining] dari [chatsLimit] pesan (Terpakai [chatsUsed])`.
+    - Menambahkan progress bar proporsional untuk sisa kuota teks agar seimbang dengan scan struk.
+  - `frontend/src/components/AddTransactionModal.js`:
+    - Memperbarui format kuota teks AI menjadi: `Sisa [Remaining] dari [Limit] pesan`.
+    - Memperbarui format kuota scan AI menjadi: `Sisa [Remaining] dari [Limit] scan`.
+  - `frontend/src/components/ScanReceiptModal.js`:
+    - Memperbarui format kuota scan AI menjadi: `Sisa [Remaining] dari [Limit] scan`.
+  - `frontend/src/pages/Advisor.js`:
+    - Memperbarui pill button FUP di header atas menjadi: `Sisa: [Remaining]/[Limit] Teks`.
+  - `frontend/src/components/Layout.js`:
+    - Memperbarui top navbar pill menjadi: `Sisa: [Remaining] Scan · [Remaining] Teks`.
+    - Memperbarui widget sidebar kiri (desktop & mobile) menjadi: `Scan: Sisa [Remaining]/[Limit]` dan `Teks: Sisa [Remaining]/[Limit]`, dengan progress bar yang mencerminkan sisa kuota yang masih tersedia.
+- **Verification:**
+  - Git diff terverifikasi bersih di seluruh 5 komponen frontend.
 
 ### [2026-10-24 23:20:00 WIB] — Privacy Banner Lifecycle & Session-Scoped Reappearance UX
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)

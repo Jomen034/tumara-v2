@@ -66,7 +66,10 @@ export default function AiQuotaModal({ open, onClose, quotaData, onRedeemed }) {
   const extraChats = quotaData?.extra_chats || 0;
   const resetDate = quotaData?.reset_date || "1 bulan depan";
 
-  const scanPct = Math.min(100, Math.round((scansUsed / Math.max(1, scansLimit)) * 100));
+  const scansRemaining = Math.max(0, scansLimit - scansUsed);
+  const chatsRemaining = Math.max(0, chatsLimit - chatsUsed);
+  const scanRemainingPct = Math.min(100, Math.round((scansRemaining / Math.max(1, scansLimit)) * 100));
+  const chatsRemainingPct = Math.min(100, Math.round((chatsRemaining / Math.max(1, chatsLimit)) * 100));
 
   const handleBuyBooster = (pack) => {
     const email = user?.email || "";
@@ -136,17 +139,26 @@ export default function AiQuotaModal({ open, onClose, quotaData, onRedeemed }) {
             <span className="font-semibold text-tprimary flex items-center gap-1.5">
               <Sparkles size={14} className="text-brand" /> Scan Struk AI
             </span>
-            <span className="font-mono font-bold text-tsecondary">
-              {scansUsed} / {scansLimit} scan ({scanPct}%)
+            <span className="font-mono text-xs">
+              <strong className="text-brand font-bold">Sisa {scansRemaining}</strong>
+              <span className="text-tsecondary"> dari {scansLimit} scan</span>
+              <span className="text-[11px] text-tmuted ml-1.5">(Terpakai {scansUsed})</span>
             </span>
           </div>
-          <Progress value={scanPct} color={scanPct >= 90 ? "var(--rose)" : "var(--brand)"} />
+          <Progress value={scanRemainingPct} color={scanRemainingPct <= 10 ? "var(--rose)" : scanRemainingPct <= 25 ? "var(--amber)" : "var(--brand)"} />
 
-          <div className="flex items-center justify-between text-xs pt-1 border-t border-borderc/40 text-tsecondary">
-            <span>Tanya CFO & Teks Cerdas AI:</span>
-            <span className="font-mono font-medium">
-              {chatsUsed} / {chatsLimit} pesan
-            </span>
+          <div className="space-y-2 pt-2 border-t border-borderc/40">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-tprimary flex items-center gap-1.5">
+                <Sparkles size={14} className="text-cyan" /> Tanya CFO & Teks Cerdas AI
+              </span>
+              <span className="font-mono text-xs">
+                <strong className="text-cyan font-bold">Sisa {chatsRemaining}</strong>
+                <span className="text-tsecondary"> dari {chatsLimit} pesan</span>
+                <span className="text-[11px] text-tmuted ml-1.5">(Terpakai {chatsUsed})</span>
+              </span>
+            </div>
+            <Progress value={chatsRemainingPct} color={chatsRemainingPct <= 10 ? "var(--rose)" : chatsRemainingPct <= 25 ? "var(--amber)" : "var(--cyan)"} />
           </div>
 
           {/* Extra Booster Balance if any */}

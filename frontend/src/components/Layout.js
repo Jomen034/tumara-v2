@@ -155,14 +155,14 @@ export default function Layout({ children, onAdd, onScan }) {
               </div>
               <div className="space-y-1 text-[11px] text-tmuted">
                 <div className="flex justify-between">
-                  <span>Scan: <strong className="text-tprimary font-medium">{aiUsage.scans_used || 0}/{aiUsage.scans_limit || 0}</strong></span>
-                  <span>Teks: <strong className="text-tprimary font-medium">{aiUsage.chats_used || 0}/{aiUsage.chats_limit || 0}</strong></span>
+                  <span>Scan: <strong className="text-tprimary font-medium">Sisa {Math.max(0, (aiUsage.scans_limit || 0) - (aiUsage.scans_used || 0))}/{aiUsage.scans_limit || 0}</strong></span>
+                  <span>Teks: <strong className="text-tprimary font-medium">Sisa {Math.max(0, (aiUsage.chats_limit || 0) - (aiUsage.chats_used || 0))}/{aiUsage.chats_limit || 0}</strong></span>
                 </div>
                 <div className="w-full bg-borderc/60 h-1.5 rounded-full overflow-hidden mt-1">
                   <div
                     className="bg-brand h-full rounded-full transition-all"
                     style={{
-                      width: `${Math.min(100, Math.round(((aiUsage.scans_used || 0) / Math.max(1, aiUsage.scans_limit || 1)) * 100))}%`,
+                      width: `${Math.min(100, Math.round((Math.max(0, (aiUsage.scans_limit || 0) - (aiUsage.scans_used || 0)) / Math.max(1, aiUsage.scans_limit || 1)) * 100))}%`,
                     }}
                   />
                 </div>
@@ -264,8 +264,8 @@ export default function Layout({ children, onAdd, onScan }) {
                       </span>
                     </div>
                     <div className="text-[11px] text-tmuted flex justify-between">
-                      <span>Scan: <strong className="text-tprimary font-medium">{aiUsage.scans_used || 0}/{aiUsage.scans_limit || 0}</strong></span>
-                      <span>Teks: <strong className="text-tprimary font-medium">{aiUsage.chats_used || 0}/{aiUsage.chats_limit || 0}</strong></span>
+                      <span>Scan: <strong className="text-tprimary font-medium">Sisa {Math.max(0, (aiUsage.scans_limit || 0) - (aiUsage.scans_used || 0))}/{aiUsage.scans_limit || 0}</strong></span>
+                      <span>Teks: <strong className="text-tprimary font-medium">Sisa {Math.max(0, (aiUsage.chats_limit || 0) - (aiUsage.chats_used || 0))}/{aiUsage.chats_limit || 0}</strong></span>
                     </div>
                   </div>
                 )}
@@ -330,6 +330,7 @@ export default function Layout({ children, onAdd, onScan }) {
                 title="Status Kuota AI Tumara (FUP). Klik untuk rincian / booster."
               >
                 <Sparkles size={14} className="text-brand shrink-0" />
+                <span className="text-[11px] font-medium text-brand/80">Sisa:</span>
                 <span className="font-semibold">
                   {Math.max(0, (aiUsage.scans_limit || 0) - (aiUsage.scans_used || 0))} Scan
                 </span>

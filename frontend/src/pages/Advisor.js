@@ -246,11 +246,11 @@ export default function Advisor() {
             <button
               onClick={() => setQuotaOpen(true)}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand/10 hover:bg-brand/20 text-brand text-[11px] font-semibold border border-brand/25 transition-colors"
-              title="Cek Kuota & Fair Usage Policy"
+              title="Status Sisa Kuota & Fair Usage Policy (FUP). Klik untuk rincian."
             >
               <Sparkles size={12} />
               <span>
-                FUP: {activeQuota.chats_used || 0}/{activeQuota.chats_limit || 100}
+                Sisa: {Math.max(0, (activeQuota.chats_limit || 100) - (activeQuota.chats_used || 0))}/{activeQuota.chats_limit || 100} Teks
               </span>
             </button>
           )}
