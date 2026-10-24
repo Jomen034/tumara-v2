@@ -77,7 +77,26 @@ This file tracks all engineering actions, architectural decisions, refactoring, 
       - Header dirampingkan dengan badge `[CFO Pribadi]` dan tombol FUP serta Sesi Baru yang minimalis.
       - Ruang baca chat di smartphone meningkat lebih dari 200%.
 - **Commit:**
-  - `31b7f23`: `fix(ai): ground-truth budget math & compact mobile UI revamp for Tumara AI` (pushed to `origin main`).
+  - `9089b56`: `feat(budget): 50/30/20 reflective recommendations & interactive NextMonthBudgetModal` (pushed to `origin main`).
+
+### [2026-10-24 23:02:00 WIB] — Fix White-on-White Input Contrast & Global Form Control Dark Mode Normalization
+- **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)
+- **Goal:**
+  - Memperbaiki bug tampilan pada `NextMonthBudgetModal`: input box angka limit memiliki background putih dengan warna font putih (*white-on-white text*), sehingga angka nominal tidak terbaca oleh user.
+- **Root Cause Analysis:**
+  - `NextMonthBudgetModal.js` menggunakan Tailwind class `bg-elevated/70`. Karena variabel `--elevated` didefinisikan sebagai string hex (`#1A263D`), Tailwind menghasilkan CSS `background-color: rgb(var(--elevated) / 0.7)` yang tidak valid dalam parser CSS Chromium.
+  - Akibatnya, browser mengabaikan properti background tersebut dan jatuh kembali (*fallback*) ke User Agent Stylesheet bawaan `<input>` yaitu `background-color: white`.
+  - Sementara itu, class `text-tprimary` menghasilkan `color: #F9FAFB` (putih) yang valid di mode gelap. Kombinasi background putih bawaan browser dan teks putih menyebabkan angka tak terlihat sama sekali kecuali saat di-highlight.
+- **Key Actions & Changes:**
+  - `frontend/src/index.css`:
+    - Menambahkan normalisasi default pada `input, select, textarea`: `background-color: var(--elevated); color: var(--text-primary);` sehingga browser tidak akan pernah jatuh ke warna putih bawaan browser di mode gelap.
+    - Menghilangkan spin buttons up/down default browser pada `input[type="number"]` untuk estetika finansial modern yang bersih.
+  - `frontend/src/components/NextMonthBudgetModal.js`:
+    - Mengganti `bg-elevated/70` menjadi `bg-elevated` yang solid, valid, dan berlatar gelap kontras tinggi terhadap angka teks putih.
+    - Membersihkan modifier opacity pada variabel CSS hex (`bg-surface/70`, `bg-elevated/80`, `border-borderc/50`) agar rendering konsisten di semua browser.
+    - Menambahkan `pointer-events-none select-none z-10` pada label "Rp" agar klik input tidak terhalang.
+- **Verification:**
+  - Git diff terverifikasi bersih.
 
 ### [2026-10-24 22:50:00 WIB] — 50/30/20 Smart Budgeting Hierarchy, Reflective Insights & Interactive Next-Month Budget Modal
 - **Agent / Model:** Antigravity / Gemini 3.8 Flash (High)

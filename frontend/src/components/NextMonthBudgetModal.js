@@ -184,12 +184,12 @@ export default function NextMonthBudgetModal({
               </div>
             </div>
 
-            <p className="text-xs text-tsecondary leading-relaxed bg-surface/70 p-2.5 rounded-xl border border-borderc/40">
+            <p className="text-xs text-tsecondary leading-relaxed bg-surface p-2.5 rounded-xl border border-borderc">
               {recommendation.description}
             </p>
 
             {recommendation.reflection_question && (
-              <div className="p-2.5 rounded-xl bg-elevated/80 border border-borderc/60 flex items-start gap-2 text-[11px] text-tprimary">
+              <div className="p-2.5 rounded-xl bg-elevated border border-borderc flex items-start gap-2 text-[11px] text-tprimary">
                 <HelpCircle size={15} className="text-brand shrink-0 mt-0.5" />
                 <span className="italic leading-relaxed">{recommendation.reflection_question}</span>
               </div>
@@ -232,7 +232,7 @@ export default function NextMonthBudgetModal({
         </div>
 
         {/* Interactive Category Limit Table / List */}
-        <div className="max-h-[38vh] overflow-y-auto space-y-2 pr-1 border border-borderc/50 rounded-2xl p-2 bg-surface/40">
+        <div className="max-h-[38vh] overflow-y-auto space-y-2 pr-1 border border-borderc rounded-2xl p-2 bg-bg">
           {categories.map((c, idx) => {
             const meta = catMeta(c.category);
             const originalCat = budget?.categories?.find((b) => b.category === c.category);
@@ -242,7 +242,7 @@ export default function NextMonthBudgetModal({
             return (
               <div
                 key={c.category}
-                className="flex items-center justify-between gap-2.5 p-2 sm:p-2.5 rounded-xl bg-surface border border-borderc hover:border-brand/30 transition-all text-xs"
+                className="flex items-center justify-between gap-2.5 p-2 sm:p-2.5 rounded-xl bg-surface border border-borderc hover:border-brand transition-all text-xs"
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <span className="text-base shrink-0">{meta?.emoji || "📦"}</span>
@@ -271,7 +271,7 @@ export default function NextMonthBudgetModal({
                     </span>
                   )}
                   <div className="relative w-32 sm:w-36">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-tmuted text-xs font-mono">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-tmuted text-xs font-mono pointer-events-none select-none z-10">
                       Rp
                     </span>
                     <input
@@ -280,7 +280,7 @@ export default function NextMonthBudgetModal({
                       min={0}
                       value={c.limit}
                       onChange={(e) => handleLimitChange(idx, e.target.value)}
-                      className="w-full bg-elevated/70 border border-borderc focus:border-brand rounded-xl pl-8 pr-2.5 py-1.5 text-xs font-mono font-bold text-tprimary focus:outline-none transition-colors"
+                      className="w-full bg-elevated border border-borderc focus:border-brand rounded-xl pl-8 pr-2.5 py-1.5 text-xs font-mono font-bold text-tprimary placeholder:text-tmuted focus:outline-none transition-colors"
                       placeholder="0"
                     />
                   </div>
@@ -291,7 +291,7 @@ export default function NextMonthBudgetModal({
         </div>
 
         {/* Live 50/30/20 & Total Realtime Barometer */}
-        <div className="p-3.5 rounded-2xl bg-elevated/60 border border-borderc space-y-2.5 text-xs">
+        <div className="p-3.5 rounded-2xl bg-surface border border-borderc space-y-2.5 text-xs">
           <div className="flex items-center justify-between">
             <span className="font-semibold text-tprimary flex items-center gap-1.5">
               <Percent size={14} className="text-brand" />

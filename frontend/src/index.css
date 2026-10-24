@@ -122,12 +122,24 @@ h1, h2, h3, h4, .font-head {
    Form Controls & Date Input Normalization (Mobile Safari & iOS WebKit Fix)
    ========================================================================== */
 
-/* Ensure all form controls strictly respect container boundaries */
+/* Ensure all form controls strictly respect container boundaries and theme colors */
 input,
 select,
 textarea {
   min-width: 0;
   max-width: 100%;
+  color: var(--text-primary);
+  background-color: var(--elevated);
+}
+
+/* Remove default number spin buttons for clean modern appearance */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
 }
 
 /* Force date, time, and datetime inputs on iOS WebKit to obey container width */
